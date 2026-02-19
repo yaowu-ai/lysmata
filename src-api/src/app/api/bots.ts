@@ -12,8 +12,9 @@ const createSchema = z.object({
   description: z.string().optional(),
   skills_config: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
   mcp_config: z.unknown().optional(),
-  openclaw_ws_url: z.string().url(),
+  openclaw_ws_url: z.string().min(1),
   openclaw_ws_token: z.string().optional(),
+  openclaw_agent_id: z.string().optional(),
   is_active: z.boolean().optional(),
 });
 

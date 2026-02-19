@@ -10,6 +10,8 @@ export interface Bot {
   mcp_config: string; // raw JSON string
   openclaw_ws_url: string;
   openclaw_ws_token?: string;
+  /** Target OpenClaw Agent ID (default: "main"). Supports agent alias names. */
+  openclaw_agent_id: string;
   connection_status: ConnectionStatus;
   is_active: boolean;
   created_at: string;
@@ -21,7 +23,9 @@ export interface SkillConfig {
   description: string;
 }
 
-export type CreateBotInput = Omit<Bot, 'id' | 'connection_status' | 'created_at' | 'updated_at'>;
+export type CreateBotInput = Omit<Bot, 'id' | 'connection_status' | 'created_at' | 'updated_at'> & {
+  openclaw_agent_id?: string;
+};
 export type UpdateBotInput = Partial<CreateBotInput>;
 
 // ── Conversation ────────────────────────────────────────────────

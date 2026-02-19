@@ -10,6 +10,7 @@ export interface Bot {
   mcp_config: string;    // JSON string
   openclaw_ws_url: string;
   openclaw_ws_token: string | null;
+  openclaw_agent_id: string; // which OpenClaw Agent to target (default: "main")
   connection_status: 'connected' | 'disconnected' | 'error' | 'connecting';
   is_active: number;
   created_at: string;
@@ -24,6 +25,7 @@ export interface CreateBotInput {
   mcp_config?: unknown;
   openclaw_ws_url: string;
   openclaw_ws_token?: string;
+  openclaw_agent_id?: string;
   is_active?: boolean;
 }
 
@@ -42,8 +44,9 @@ export const BotService = {
     const db = getDb();
     db.run(
       `INSERT INTO bots (id, name, avatar_emoji, description, skills_config, mcp_config,
-        openclaw_ws_url, openclaw_ws_token, connection_status, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'disconnected', ?, ?, ?)`,
+        openclaw_ws_url, openclaw_ws_token, openclaw_agent_id,
+        connection_status, is_active, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'disconnected', ?, ?, ?)`,
       [
         id,
         input.name,
@@ -53,6 +56,7 @@ export const BotService = {
         JSON.stringify(input.mcp_config ?? {}),
         input.openclaw_ws_url,
         input.openclaw_ws_token ?? null,
+        input.openclaw_agent_id ?? 'main',
         input.is_active !== false ? 1 : 0,
         now,
         now,
@@ -68,14 +72,15 @@ export const BotService = {
     const fields: string[] = [];
     const values: unknown[] = [];
 
-    if (input.name !== undefined)            { fields.push('name = ?');            values.push(input.name); }
-    if (input.avatar_emoji !== undefined)    { fields.push('avatar_emoji = ?');    values.push(input.avatar_emoji); }
-    if (input.description !== undefined)     { fields.push('description = ?');     values.push(input.description); }
-    if (input.skills_config !== undefined)   { fields.push('skills_config = ?');   values.push(JSON.stringify(input.skills_config)); }
-    if (input.mcp_config !== undefined)      { fields.push('mcp_config = ?');      values.push(JSON.stringify(input.mcp_config)); }
-    if (input.openclaw_ws_url !== undefined) { fields.push('openclaw_ws_url = ?'); values.push(input.openclaw_ws_url); }
+    if (input.name !== undefined)             { fields.push('name = ?');              values.push(input.name); }
+    if (input.avatar_emoji !== undefined)     { fields.push('avatar_emoji = ?');      values.push(input.avatar_emoji); }
+    if (input.description !== undefined)      { fields.push('description = ?');       values.push(input.description); }
+    if (input.skills_config !== undefined)    { fields.push('skills_config = ?');     values.push(JSON.stringify(input.skills_config)); }
+    if (input.mcp_config !== undefined)       { fields.push('mcp_config = ?');        values.push(JSON.stringify(input.mcp_config)); }
+    if (input.openclaw_ws_url !== undefined)  { fields.push('openclaw_ws_url = ?');   values.push(input.openclaw_ws_url); }
     if (input.openclaw_ws_token !== undefined){ fields.push('openclaw_ws_token = ?'); values.push(input.openclaw_ws_token); }
-    if (input.is_active !== undefined)       { fields.push('is_active = ?');       values.push(input.is_active ? 1 : 0); }
+    if (input.openclaw_agent_id !== undefined){ fields.push('openclaw_agent_id = ?'); values.push(input.openclaw_agent_id); }
+    if (input.is_active !== undefined)        { fields.push('is_active = ?');         values.push(input.is_active ? 1 : 0); }
 
     if (fields.length === 0) return existing;
     fields.push('updated_at = ?');

@@ -88,6 +88,7 @@ export const MessageRouter = {
     await OpenClawProxy.sendMessage(
       targetBot.openclaw_ws_url,
       targetBot.openclaw_ws_token ?? undefined,
+      targetBot.openclaw_agent_id ?? 'main',
       enrichedContent,
       (chunk) => {
         replyContent += chunk;

@@ -68,4 +68,13 @@ function ensureSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_conv_bots_conversation ON conversation_bots(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_bots_active ON bots(is_active);
   `);
+
+  // Migration 2: add openclaw_agent_id column (idempotent via PRAGMA table_info)
+  const cols = db
+    .query<{ name: string }, []>('PRAGMA table_info(bots)')
+    .all()
+    .map((r) => r.name);
+  if (!cols.includes('openclaw_agent_id')) {
+    db.exec(`ALTER TABLE bots ADD COLUMN openclaw_agent_id TEXT NOT NULL DEFAULT 'main';`);
+  }
 }
