@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>私聊 — OpenClaw</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --bg: #F7F7F8; --surface: #FFFFFF; --border: #E5E7EB;
+      --text: #0F172A; --text-muted: #64748B;
+      --primary: #2563EB; --primary-hover: #1D4ED8;
+      --success: #16A34A; --warning: #D97706; --error: #DC2626;
+    }
+    * { font-family:'Inter',system-ui,-apple-system,sans-serif; box-sizing:border-box; }
+    body { background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; margin:0; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width:5px; height:5px; }
+    ::-webkit-scrollbar-track { background:transparent; }
+    ::-webkit-scrollbar-thumb { background:#D1D5DB; border-radius:3px; }
+
+    /* ─── Expandable nav ─── */
+    #left-nav { width:64px; transition:width 0.26s cubic-bezier(0.4,0,0.2,1); overflow:hidden; }
+    #left-nav.expanded { width:220px; }
+    .nav-btn { display:flex;align-items:center;width:100%;border:none;background:transparent;cursor:pointer;border-radius:9px;padding:4px;transition:background 0.14s;text-align:left; }
+    .nav-btn:hover { background:#F1F5F9; }
+    .nav-btn.active { background:#EFF6FF; }
+    .nav-btn.active .nav-icon-wrap { color:#2563EB; }
+    .nav-btn.active .nav-label { color:#2563EB; }
+    .nav-icon-wrap { width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#94A3B8;border-radius:8px;transition:color 0.14s; }
+    .nav-btn:hover .nav-icon-wrap { color:#475569; }
+    .nav-label { opacity:0;max-width:0;overflow:hidden;white-space:nowrap;font-size:14px;font-weight:500;color:var(--text-muted);transition:opacity 0.18s ease,max-width 0.22s ease; }
+    #left-nav.expanded .nav-label { opacity:1;max-width:180px; }
+
+    /* ─── Status dot ─── */
+    .dot { width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0; }
+    .dot-connected    { background:#10B981;box-shadow:0 0 0 2px rgba(16,185,129,0.2); }
+    .dot-disconnected { background:#94A3B8; }
+    .dot-error        { background:#EF4444;box-shadow:0 0 0 2px rgba(239,68,68,0.2); }
+
+    /* ─── Conv item ─── */
+    .conv-item { padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.12s;display:flex;align-items:center;gap:10px; }
+    .conv-item:hover  { background:#F1F5F9; }
+    .conv-item.active { background:#EFF6FF; }
+
+    /* ─── Bubbles ─── */
+    .bubble-bot     { background:#F1F5F9;color:var(--text);border-radius:0 12px 12px 12px;padding:12px 14px;font-size:14px;line-height:1.65;word-break:break-word; }
+    .bubble-user    { background:#2563EB;color:#fff;border-radius:12px 0 12px 12px;padding:12px 14px;font-size:14px;line-height:1.65;word-break:break-word; }
+    .bubble-error   { background:#FEF2F2;color:#B91C1C;border-radius:0 12px 12px 12px;padding:12px 14px;font-size:14px;line-height:1.65;border:1px solid #FECACA;word-break:break-word; }
+    .msg-code { background:#1E293B;color:#E2E8F0;font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:12px 14px;border-radius:8px;overflow-x:auto;line-height:1.6;margin-top:8px;white-space:pre; }
+
+    /* ─── Artifact open button ─── */
+    .artifact-open-btn { display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:12px;font-weight:500;color:#2563EB;background:#EFF6FF;border:1px solid #BFDBFE;padding:5px 11px;border-radius:7px;cursor:pointer;transition:all 0.14s; }
+    .artifact-open-btn:hover { background:#DBEAFE;border-color:#93C5FD; }
+
+    /* ─── Artifact panel ─── */
+    #artifact-panel { width:0;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;transition:width 0.27s cubic-bezier(0.4,0,0.2,1); }
+    .artifact-inner { width:440px;height:100%;display:flex;flex-direction:column;min-width:440px; }
+    .artifact-tab { padding:9px 14px;font-size:13px;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s;white-space:nowrap; }
+    .artifact-tab:hover { color:var(--text); }
+    .artifact-tab.active { color:#2563EB;border-bottom-color:#2563EB; }
+    .artifact-code-pre { font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.7;padding:20px;color:#E2E8F0;background:#1E293B;height:100%;overflow:auto;margin:0;white-space:pre; }
+
+    /* ─── Buttons ─── */
+    .btn-primary { background:#2563EB;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s;display:inline-flex;align-items:center;gap:6px; }
+    .btn-primary:hover { background:#1D4ED8; }
+    .btn-ghost { background:transparent;color:var(--text-muted);border:1px solid var(--border);padding:9px 18px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s; }
+    .btn-ghost:hover { background:#F8FAFC;color:var(--text); }
+    .btn-icon { width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94A3B8;transition:background 0.12s,color 0.12s; }
+    .btn-icon:hover { background:#F1F5F9;color:#475569; }
+    .send-btn { width:34px;height:34px;border-radius:8px;background:#2563EB;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.15s,transform 0.1s;flex-shrink:0; }
+    .send-btn:hover { background:#1D4ED8; }
+    .send-btn:active { transform:scale(0.94); }
+
+    /* ─── Toast ─── */
+    .toast { position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:999;transform:translateY(16px);opacity:0;transition:all 0.22s ease;pointer-events:none; }
+    .toast.show { transform:translateY(0);opacity:1; }
+    .toast-success { background:#fff;color:#15803D;border-left:4px solid #16A34A; }
+    .toast-error   { background:#fff;color:#B91C1C;border-left:4px solid #DC2626; }
+
+    /* ─── New conv dialog ─── */
+    .dialog-overlay { position:fixed;inset:0;background:rgba(15,23,42,0.25);z-index:40;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s; }
+    .dialog-overlay.open { opacity:1;pointer-events:all; }
+    .dialog-box { background:#fff;border-radius:14px;width:440px;box-shadow:0 20px 60px rgba(0,0,0,0.15);transform:translateY(8px) scale(0.98);transition:transform 0.22s cubic-bezier(0.4,0,0.2,1);padding:24px; }
+    .dialog-overlay.open .dialog-box { transform:translateY(0) scale(1); }
+    .bot-chip { display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;transition:all 0.14s;font-size:13px;font-weight:500; }
+    .bot-chip:hover { border-color:#93C5FD; }
+    .bot-chip.selected { border-color:#2563EB;background:#EFF6FF;color:#2563EB; }
+
+    /* ─── Avatar gradients ─── */
+    .av-blue   { background:linear-gradient(135deg,#DBEAFE,#BFDBFE); }
+    .av-green  { background:linear-gradient(135deg,#DCFCE7,#BBF7D0); }
+    .av-purple { background:linear-gradient(135deg,#EDE9FE,#DDD6FE); }
+    .av-amber  { background:linear-gradient(135deg,#FEF3C7,#FDE68A); }
+    .av-rose   { background:linear-gradient(135deg,#FFE4E6,#FECDD3); }
+
+    /* ─── Typing indicator ─── */
+    .typing-dot { width:7px;height:7px;border-radius:50%;background:#94A3B8;animation:typing 1.4s ease-in-out infinite; }
+    .typing-dot:nth-child(1){animation-delay:0s} .typing-dot:nth-child(2){animation-delay:0.2s} .typing-dot:nth-child(3){animation-delay:0.4s}
+    @keyframes typing { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    /* ─── Stream cursor ─── */
+    .cursor-blink { display:inline-block;width:2px;height:14px;background:var(--text);border-radius:1px;animation:blink 1.1s step-end infinite;vertical-align:text-bottom;margin-left:2px; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ─── History version item ─── */
+    .history-item { padding:12px 16px;border-bottom:1px solid #F1F5F9;cursor:pointer;transition:background 0.12s; }
+    .history-item:hover { background:#F8FAFC; }
+    .history-item.current { border-left:3px solid #2563EB;background:#F8FBFF; }
+
+    /* ─── Message fade-in ─── */
+    @keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+    .msg-row { animation:fadeIn 0.2s ease; }
+
+    /* ─── Bot profile panel ─── */
+    #bot-info-panel { width:260px;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden; }
+    #bot-info-header { padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0; }
+    #bot-info-content { flex:1;overflow-y:auto; }
+    .info-section-label { font-size:11px;font-weight:600;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding:12px 16px 6px; }
+    .info-skill-tag { display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:500;background:#EFF6FF;color:#1E40AF;border:1px solid #BFDBFE; }
+    .bot-profile-card { text-align:center;padding:24px 16px 16px;border-bottom:1px solid var(--border); }
+    .stat-mini { background:#F8FAFC;border-radius:8px;padding:10px;text-align:center;border:1px solid var(--border); }
+
+    /* ─── at-mention in message ─── */
+    .at-mention { color:#2563EB;font-weight:500;background:#EFF6FF;padding:1px 4px;border-radius:4px; }
+
+    /* ─── Empty state ─── */
+    .empty-state { display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text-muted); }
+  </style>
+</head>
+<body style="display:flex;height:100vh;overflow:hidden;">
+
+<!-- ═══════════════════════════════════════════
+     LEFT NAVIGATION
+══════════════════════════════════════════════ -->
+<nav id="left-nav" style="background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px 0;flex-shrink:0;z-index:10;">
+  <div style="display:flex;align-items:center;padding:0 14px;margin-bottom:14px;height:36px;min-width:220px;">
+    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,0.32);">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2L4 7l8 5 8-5-8-5z"/><path d="M4 12l8 5 8-5"/><path d="M4 17l8 5 8-5"/>
+      </svg>
+    </div>
+    <span class="nav-label" style="font-size:15px;font-weight:700;color:#0F172A;margin-left:10px;letter-spacing:-0.3px;">OpenClaw</span>
+  </div>
+
+  <div style="padding:0 10px;display:flex;flex-direction:column;gap:2px;flex:1;min-width:220px;">
+    <button class="nav-btn" onclick="window.open('ui-bot-management.html','_blank')">
+      <div class="nav-icon-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/>
+          <path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
+      </div>
+      <span class="nav-label">Bot 管理</span>
+    </button>
+
+    <button class="nav-btn active">
+      <div class="nav-icon-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <span class="nav-label">私聊</span>
+    </button>
+
+    <button class="nav-btn" onclick="window.open('ui-group-chat.html','_blank')">
+      <div class="nav-icon-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      </div>
+      <span class="nav-label">群聊</span>
+    </button>
+
+    <button class="nav-btn" onclick="window.open('ui-artifact-demo.html','_blank')">
+      <div class="nav-icon-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/>
+          <path d="M14 8h3"/><path d="M14 12h3"/><path d="M14 16h3"/>
+        </svg>
+      </div>
+      <span class="nav-label">Artifact 演示</span>
+    </button>
+  </div>
+
+  <div style="padding:0 10px;display:flex;flex-direction:column;gap:2px;border-top:1px solid #F1F5F9;padding-top:8px;margin-top:4px;min-width:220px;">
+    <button class="nav-btn">
+      <div class="nav-icon-wrap">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+      <span class="nav-label">设置</span>
+    </button>
+
+    <button class="nav-btn" onclick="toggleNav()" id="nav-toggle-btn">
+      <div class="nav-icon-wrap" id="nav-toggle-icon">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+      </div>
+      <span class="nav-label" id="nav-toggle-label">收起</span>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     CONVERSATION SIDEBAR
+══════════════════════════════════════════════ -->
+<aside style="width:256px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;">
+  <div style="padding:16px 16px 12px;border-bottom:1px solid #F1F5F9;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div>
+        <div style="font-size:15px;font-weight:600;">私聊</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">与单个 Bot 1 对 1 对话</div>
+      </div>
+      <button class="btn-icon" onclick="openNewConvDialog()" title="新建私聊" style="width:32px;height:32px;background:#EFF6FF;border-radius:8px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+    <div style="position:relative;">
+      <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#CBD5E1;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" placeholder="搜索对话..." style="width:100%;padding:7px 10px 7px 28px;font-size:13px;border:1px solid var(--border);border-radius:7px;background:#FAFAFA;outline:none;color:var(--text);" oninput="filterConvs(this.value)" />
+    </div>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:8px;" id="conv-list"></div>
+</aside>
+
+<!-- ═══════════════════════════════════════════
+     CHAT MAIN
+══════════════════════════════════════════════ -->
+<main style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--bg);">
+
+  <!-- Chat Header -->
+  <div id="chat-header" style="background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:14px;flex-shrink:0;min-height:60px;"></div>
+
+  <!-- Message List -->
+  <div id="msg-list" style="flex:1;overflow-y:auto;padding:24px 20px;display:flex;flex-direction:column;gap:20px;"></div>
+
+  <!-- Input Bar -->
+  <div style="padding:12px 20px;background:#fff;border-top:1px solid var(--border);flex-shrink:0;">
+    <div id="input-wrapper" style="background:#F8FAFC;border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;transition:border-color 0.15s,box-shadow 0.15s;">
+      <textarea id="chat-input" rows="1" placeholder="发送消息…" style="width:100%;border:none;outline:none;background:transparent;font-size:14px;line-height:1.6;resize:none;color:var(--text);font-family:'Inter',sans-serif;max-height:120px;overflow-y:auto;" oninput="handleInput(event)" onkeydown="handleKeydown(event)"></textarea>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button class="btn-icon" title="附件">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+          </button>
+          <button class="btn-icon" id="artifact-toggle-btn" onclick="toggleArtifact()" title="Artifact 面板">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 8h3"/><path d="M14 12h3"/><path d="M14 16h3"/>
+            </svg>
+          </button>
+        </div>
+        <button id="send-btn" class="send-btn" onclick="sendMessage()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+    <p style="font-size:11px;color:#CBD5E1;text-align:center;margin:8px 0 0;">Enter 发送 · Shift+Enter 换行 · 点击消息中的 Artifact 按钮预览</p>
+  </div>
+</main>
+
+<!-- ═══════════════════════════════════════════
+     BOT PROFILE PANEL (right)
+══════════════════════════════════════════════ -->
+<aside id="bot-info-panel">
+  <div id="bot-info-header" style="padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;">
+      <span style="font-size:13px;font-weight:600;color:var(--text);">Bot 信息</span>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+    </div>
+  </div>
+  <div id="bot-info-content" style="flex:1;overflow-y:auto;"></div>
+</aside>
+
+<!-- ═══════════════════════════════════════════
+     ARTIFACT PANEL
+══════════════════════════════════════════════ -->
+<div id="artifact-panel">
+  <div class="artifact-inner">
+    <div style="padding:14px 16px 0;border-bottom:1px solid var(--border);flex-shrink:0;background:#fff;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 8h3"/><path d="M14 12h3"/><path d="M14 16h3"/>
+          </svg>
+          <span style="font-size:14px;font-weight:600;">Artifact</span>
+          <span id="artifact-version-badge" style="font-size:11px;padding:1px 7px;border-radius:20px;background:#DBEAFE;color:#1D4ED8;font-weight:600;">v3</span>
+          <span id="artifact-name" style="font-size:13px;color:var(--text-muted);">文献分析报告</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:3px;">
+          <button class="btn-icon" onclick="copyArtifact()" title="复制代码">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button class="btn-icon" onclick="openArtifactFullscreen()" title="新窗口预览">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+          </button>
+          <button class="btn-icon" onclick="closeArtifact()" title="关闭">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+      <div style="display:flex;gap:0;">
+        <div class="artifact-tab active" id="atab-preview" onclick="switchArtifactTab('preview')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;margin-right:4px;vertical-align:text-bottom;"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>预览
+        </div>
+        <div class="artifact-tab" id="atab-code" onclick="switchArtifactTab('code')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;margin-right:4px;vertical-align:text-bottom;"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>代码
+        </div>
+        <div class="artifact-tab" id="atab-history" onclick="switchArtifactTab('history')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:inline;margin-right:4px;vertical-align:text-bottom;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>历史
+        </div>
+      </div>
+    </div>
+    <div style="flex:1;overflow:hidden;position:relative;">
+      <div id="apanel-preview" style="width:100%;height:100%;position:absolute;inset:0;">
+        <iframe id="artifact-iframe" style="width:100%;height:100%;border:none;display:block;" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+      <div id="apanel-code" style="display:none;width:100%;height:100%;position:absolute;inset:0;overflow:auto;">
+        <pre id="artifact-code-content" class="artifact-code-pre"></pre>
+      </div>
+      <div id="apanel-history" style="display:none;width:100%;height:100%;position:absolute;inset:0;overflow-y:auto;background:#fff;">
+        <div style="padding:16px;">
+          <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">点击版本可在预览中对比查看</p>
+          <div id="artifact-history-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     NEW CONVERSATION DIALOG
+══════════════════════════════════════════════ -->
+<div id="new-conv-dialog" class="dialog-overlay" onclick="closeNewConvDialog(event)">
+  <div class="dialog-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div>
+        <h2 style="font-size:17px;font-weight:600;margin:0;">新建私聊</h2>
+        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">选择一个 Bot 开始 1 对 1 对话</p>
+      </div>
+      <button class="btn-icon" onclick="closeNewConvDialog()" style="width:30px;height:30px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:10px;">选择 Bot</label>
+    <div id="bot-chips" style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;"></div>
+    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">对话名称</label>
+    <input id="conv-name-input" type="text" style="width:100%;padding:9px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:#fff;outline:none;margin-bottom:20px;" placeholder="留空自动使用 Bot 名称" />
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button class="btn-ghost" onclick="closeNewConvDialog()">取消</button>
+      <button class="btn-primary" onclick="createConversation()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        开始私聊
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════
+const BOTS = [
+  { id:'b1', name:'CodeMaster', emoji:'🤖', avClass:'av-blue',   status:'connected',    skills:['代码审查','TypeScript','Python','ESLint'] },
+  { id:'b2', name:'Researcher', emoji:'🔬', avClass:'av-green',  status:'disconnected', skills:['文献检索','多语言摘要','Semantic Scholar'] },
+  { id:'b3', name:'DataViz',    emoji:'📊', avClass:'av-purple', status:'connected',    skills:['数据分析','Python','SQL','ECharts'] },
+  { id:'b4', name:'UIDesign',   emoji:'🎨', avClass:'av-amber',  status:'error',        skills:['UI设计','React 组件','Figma'] }
+];
+
+const ARTIFACTS = {
+  'code-review': {
+    name: 'TypeScript 代码审查',
+    version: 'v1',
+    versions: [
+      { v:'v1', desc:'CodeMaster 代码审查报告', time:'5 分钟前', current:true }
+    ],
+    html: `<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,sans-serif;background:#F8FAFC;padding:20px;font-size:13px;color:#0F172A}
+.header{margin-bottom:18px}.title{font-size:16px;font-weight:700;margin-bottom:4px}.subtitle{font-size:12px;color:#64748B}
+.score-card{background:#fff;border-radius:12px;padding:20px;border:1px solid #E5E7EB;margin-bottom:14px;display:flex;align-items:center;gap:20px}
+.score-circle{width:64px;height:64px;border-radius:50%;background:conic-gradient(#10B981 0% 78%, #F1F5F9 78% 100%);display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+.score-inner{position:absolute;width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700}
+.issue{background:#fff;border-radius:10px;padding:14px;border:1px solid #E5E7EB;margin-bottom:8px}
+.issue-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.badge-err{background:#FEF2F2;color:#B91C1C;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.badge-warn{background:#FFFBEB;color:#B45309;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.issue-title{font-size:13px;font-weight:600}
+.code-block{background:#1E293B;color:#E2E8F0;font-family:"JetBrains Mono",monospace;font-size:12px;padding:10px 12px;border-radius:7px;margin-top:8px;line-height:1.6;white-space:pre}
+</style></head><body>
+<div class="header"><div class="title">🔍 TypeScript 代码审查报告</div><div class="subtitle">由 CodeMaster 分析 · fetchData 函数</div></div>
+<div class="score-card">
+  <div class="score-circle"><div class="score-inner">78</div></div>
+  <div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px;">代码质量评分：<span style="color:#10B981;">良好</span></div>
+    <div style="font-size:12px;color:#64748B;">发现 2 个错误、1 个警告</div>
+    <div style="display:flex;gap:6px;margin-top:8px;">
+      <span style="background:#FEF2F2;color:#B91C1C;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">2 错误</span>
+      <span style="background:#FFFBEB;color:#B45309;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">1 警告</span>
+    </div>
+  </div>
+</div>
+<div class="issue"><div class="issue-head"><span class="badge-err">错误</span><span class="issue-title">参数缺少类型注解</span></div>
+<div style="font-size:12px;color:#64748B;margin-bottom:6px;">id 参数未标注类型，导致 any 推断</div>
+<div class="code-block">// ❌ 修复前\nconst fetchData = async (id) => { ... }\n\n// ✅ 修复后\nasync function fetchData&lt;T&gt;(id: string | number): Promise&lt;T&gt; { ... }</div></div>
+<div class="issue"><div class="issue-head"><span class="badge-err">错误</span><span class="issue-title">缺少 HTTP 错误处理</span></div>
+<div style="font-size:12px;color:#64748B;margin-bottom:6px;">res.ok 未检查，4xx/5xx 响应会被静默处理</div>
+<div class="code-block">if (!res.ok) {\n  throw new Error(\`HTTP error! status: \${res.status}\`);\n}</div></div>
+<div class="issue"><div class="issue-head"><span class="badge-warn">警告</span><span class="issue-title">res.json() 返回 any</span></div>
+<div style="font-size:12px;color:#64748B;margin-bottom:6px;">应添加泛型约束保证类型安全</div>
+<div class="code-block">return res.json() as Promise&lt;T&gt;;</div></div>
+</body></html>`,
+    code: `// 代码审查报告 — CodeMaster 生成\n// 目标文件: src/utils/api.ts\n\n// ❌ 原始代码 (有问题)\nconst fetchData = async (id) => {\n  const res = await fetch(\`/api/\${id}\`);\n  return res.json();\n};\n\n// ✅ 修复后版本\nasync function fetchData<T>(id: string | number): Promise<T> {\n  const res = await fetch(\`/api/\${id}\`);\n  if (!res.ok) {\n    throw new Error(\`HTTP error! status: \${res.status}\`);\n  }\n  return res.json() as Promise<T>;\n}`
+  }
+};
+
+const CONVS = [
+  {
+    id:'c1', title:'CodeMaster', botId:'b1',
+    messages:[
+      { id:'m1', sender:'user', content:'帮我 review 这段 TypeScript 代码，看看有没有类型安全问题' },
+      { id:'m2', sender:'bot', content:'好的！请把代码粘贴过来，我会重点检查：\n\n1. **类型推断**是否准确\n2. **null/undefined** 边界处理\n3. **接口定义**完整性\n\n另外需要同时检查 ESLint 规范一致性吗？' },
+      { id:'m3', sender:'user', content:'好，代码如下：\n```typescript\nconst fetchData = async (id) => {\n  const res = await fetch(`/api/${id}`);\n  return res.json();\n}```' },
+      { id:'m4', sender:'bot', content:'发现了 **2 个类型安全问题** 和 **1 个警告**：\n\n**错误 1**：`id` 未标注类型，建议 `id: string | number`\n\n**错误 2**：缺少 HTTP 错误处理（`res.ok` 未检查）\n\n**警告**：`res.json()` 返回 `any`，建议添加泛型：\n\n```typescript\nasync function fetchData<T>(id: string | number): Promise<T> {\n  const res = await fetch(`/api/${id}`);\n  if (!res.ok) throw new Error(`HTTP ${res.status}`);\n  return res.json() as Promise<T>;\n}```\n\n已生成完整审查报告 →', artifact:'code-review' }
+    ]
+  },
+  {
+    id:'c2', title:'DataViz', botId:'b3',
+    messages:[
+      { id:'m5', sender:'user', content:'帮我分析一下销售数据集，找出季度趋势' },
+      { id:'m6', sender:'bot', content:'请上传数据文件（CSV/Excel），或粘贴数据预览，我来生成 ECharts 可视化图表并分析趋势。' }
+    ]
+  },
+  {
+    id:'c3', title:'Researcher', botId:'b2',
+    messages:[
+      { id:'m7', sender:'user', content:'帮我检索关于 RAG 的最新论文' },
+      { id:'m8', sender:'bot', content:'⚠️ 连接失败：Researcher Bot 当前离线，请在 Bot 管理中检查 WebSocket 连接状态。', isError:true }
+    ]
+  },
+  {
+    id:'c4', title:'UIDesign', botId:'b4',
+    messages:[
+      { id:'m9', sender:'user', content:'帮我优化这个按钮组件的设计' },
+      { id:'m10', sender:'bot', content:'⚠️ 连接失败：UIDesign Bot 当前离线，请在 Bot 管理中检查 OpenClaw WS 连接状态。', isError:true }
+    ]
+  }
+];
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let activeConvId    = 'c1';
+let isStreaming     = false;
+let navExpanded     = false;
+let artifactOpen    = false;
+let currentArtifactTab = 'preview';
+let newConvSelectedBot = null;
+
+// ══════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════
+function toggleNav() {
+  navExpanded = !navExpanded;
+  document.getElementById('left-nav').classList.toggle('expanded', navExpanded);
+  const icon  = document.getElementById('nav-toggle-icon');
+  const label = document.getElementById('nav-toggle-label');
+  icon.innerHTML  = navExpanded
+    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>'
+    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
+  label.textContent = navExpanded ? '收起' : '展开';
+}
+
+// ══════════════════════════════════════════
+// ARTIFACT PANEL
+// ══════════════════════════════════════════
+function openArtifact(id) {
+  const art = ARTIFACTS[id];
+  if (!art) return;
+  artifactOpen = true;
+  document.getElementById('artifact-panel').style.width = '440px';
+  document.getElementById('artifact-name').textContent = art.name;
+  document.getElementById('artifact-version-badge').textContent = art.version;
+  document.getElementById('artifact-iframe').srcdoc = art.html;
+  document.getElementById('artifact-code-content').textContent = art.code;
+  renderArtifactHistory(art.versions);
+  switchArtifactTab('preview');
+  const btn = document.getElementById('artifact-toggle-btn');
+  btn.style.background = '#EFF6FF';
+  btn.style.color = '#2563EB';
+}
+
+function closeArtifact() {
+  artifactOpen = false;
+  document.getElementById('artifact-panel').style.width = '0';
+  const btn = document.getElementById('artifact-toggle-btn');
+  btn.style.background = 'transparent';
+  btn.style.color = '#94A3B8';
+}
+
+function toggleArtifact() {
+  if (artifactOpen) { closeArtifact(); return; }
+  const conv = CONVS.find(c => c.id === activeConvId);
+  const msgWithArt = conv?.messages.find(m => m.artifact);
+  if (msgWithArt) openArtifact(msgWithArt.artifact);
+  else showToast('当前对话无 Artifact 内容', 'error');
+}
+
+function switchArtifactTab(tab) {
+  currentArtifactTab = tab;
+  ['preview','code','history'].forEach(t => {
+    document.getElementById(`atab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`apanel-${t}`).style.display = t === tab ? 'block' : 'none';
+  });
+  if (tab === 'preview') document.getElementById('apanel-preview').style.display = 'block';
+}
+
+function renderArtifactHistory(versions) {
+  document.getElementById('artifact-history-list').innerHTML = versions.map(v => `
+    <div class="history-item${v.current?' current':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="font-size:13px;font-weight:600;">${v.v}</span>
+        <span style="font-size:11px;color:#94A3B8;">${v.time}</span>
+      </div>
+      <div style="font-size:12px;color:#64748B;">${v.desc}</div>
+      ${v.current ? '<span style="font-size:11px;background:#EFF6FF;color:#2563EB;padding:1px 7px;border-radius:20px;font-weight:500;margin-top:6px;display:inline-block;">当前版本</span>' : ''}
+    </div>`).join('');
+}
+
+function copyArtifact() {
+  const id = Object.keys(ARTIFACTS).find(k => ARTIFACTS[k].name === document.getElementById('artifact-name').textContent);
+  if (id) {
+    navigator.clipboard?.writeText(ARTIFACTS[id].code).catch(()=>{});
+    showToast('代码已复制到剪贴板', 'success');
+  }
+}
+
+function openArtifactFullscreen() {
+  const id = Object.keys(ARTIFACTS).find(k => ARTIFACTS[k].name === document.getElementById('artifact-name').textContent);
+  if (id) { const w = window.open('','_blank'); w.document.write(ARTIFACTS[id].html); w.document.close(); }
+}
+
+// ══════════════════════════════════════════
+// CONVERSATION LIST
+// ══════════════════════════════════════════
+function renderConvList(filter='') {
+  const q = filter.toLowerCase();
+  const list = CONVS.filter(c => !q || c.title.toLowerCase().includes(q));
+  document.getElementById('conv-list').innerHTML = list.map(c => {
+    const bot = BOTS.find(b => b.id === c.botId);
+    const isActive = c.id === activeConvId;
+    const lastMsg = c.messages[c.messages.length - 1];
+    const preview = lastMsg
+      ? lastMsg.content.replace(/```[\s\S]*?```/g,'[代码]').replace(/\*\*/g,'').slice(0,36) + '…'
+      : '';
+    const sc = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
+    return `<div class="conv-item${isActive?' active':''}" onclick="selectConv('${c.id}')">
+      <div style="position:relative;flex-shrink:0;">
+        <div style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;" class="${bot?.avClass||''}">${bot?.emoji||'🤖'}</div>
+        <span class="dot ${sc[bot?.status||'disconnected']}" style="position:absolute;bottom:0;right:0;width:9px;height:9px;border:2px solid ${isActive?'#EFF6FF':'#fff'};border-radius:50%;"></span>
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+          <span style="font-size:13px;font-weight:${isActive?'600':'500'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.title}</span>
+          <span style="font-size:10px;color:#CBD5E1;flex-shrink:0;margin-left:4px;">今天</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function filterConvs(q) { renderConvList(q); }
+
+// ══════════════════════════════════════════
+// CHAT HEADER
+// ══════════════════════════════════════════
+function renderHeader(conv) {
+  const bot = BOTS.find(b => b.id === conv.botId);
+  if (!bot) return;
+  const sc = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
+  const sl = { connected:'已连接', disconnected:'未连接', error:'连接错误' };
+  const scColor = { connected:'#15803D', disconnected:'#64748B', error:'#B91C1C' };
+  const scBg    = { connected:'#DCFCE7', disconnected:'#F1F5F9', error:'#FEF2F2' };
+  document.getElementById('chat-header').innerHTML = `
+    <div style="position:relative;flex-shrink:0;">
+      <div style="width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;" class="${bot.avClass}">${bot.emoji}</div>
+      <span class="dot ${sc[bot.status]}" style="position:absolute;bottom:0;right:0;width:11px;height:11px;border:2px solid #fff;border-radius:50%;display:inline-block;"></span>
+    </div>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:3px;">${bot.name}</div>
+      <div style="display:flex;align-items:center;gap:5px;">
+        <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;background:${scBg[bot.status]};color:${scColor[bot.status]};">
+          <span class="dot ${sc[bot.status]}" style="width:5px;height:5px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>
+          ${sl[bot.status]}
+        </span>
+        <span style="font-size:12px;color:#CBD5E1;">·</span>
+        <span style="font-size:12px;color:var(--text-muted);">${bot.skills.slice(0,2).join(' · ')}</span>
+      </div>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;flex-shrink:0;">
+      ${bot.status !== 'connected' ? `
+      <button onclick="showToast('正在尝试重新连接 ${bot.name}...', 'success')" style="padding:6px 12px;font-size:12px;font-weight:500;border-radius:7px;border:1px solid #FECACA;background:#FEF2F2;color:#B91C1C;cursor:pointer;display:flex;align-items:center;gap:5px;" onmouseover="this.style.background='#FEE2E2'" onmouseout="this.style.background='#FEF2F2'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        重连
+      </button>` : ''}
+      <button class="btn-icon" onclick="window.open('ui-bot-management.html','_blank')" title="Bot 设置">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+// BOT PROFILE PANEL
+// ══════════════════════════════════════════
+function renderBotPanel(conv) {
+  const bot = BOTS.find(b => b.id === conv.botId);
+  if (!bot) return;
+  const el = document.getElementById('bot-info-content');
+  const sc = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
+  const sl = { connected:'已连接', disconnected:'未连接', error:'连接错误' };
+  const scBg    = { connected:'#DCFCE7', disconnected:'#F1F5F9', error:'#FEF2F2' };
+  const scColor = { connected:'#15803D', disconnected:'#64748B', error:'#B91C1C' };
+  const isOffline = bot.status !== 'connected';
+
+  el.innerHTML = `
+    <div class="bot-profile-card">
+      <div style="position:relative;display:inline-block;margin-bottom:12px;">
+        <div style="width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto;" class="${bot.avClass}">${bot.emoji}</div>
+        <span class="dot ${sc[bot.status]}" style="position:absolute;bottom:3px;right:3px;width:13px;height:13px;border:2.5px solid #fff;border-radius:50%;display:inline-block;"></span>
+      </div>
+      <div style="font-size:17px;font-weight:700;margin-bottom:8px;">${bot.name}</div>
+      <div style="display:inline-flex;align-items:center;gap:5px;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:500;background:${scBg[bot.status]};color:${scColor[bot.status]};">
+        <span class="dot ${sc[bot.status]}" style="width:6px;height:6px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>
+        ${sl[bot.status]}
+      </div>
+      ${isOffline ? `
+      <div style="margin-top:14px;">
+        <button onclick="showToast('正在重新连接 ${bot.name}...', 'success')" style="padding:7px 20px;font-size:12px;font-weight:500;border-radius:7px;border:1px solid ${bot.status==='error'?'#FECACA':'#E2E8F0'};background:${bot.status==='error'?'#FEF2F2':'#F8FAFC'};color:${bot.status==='error'?'#B91C1C':'#475569'};cursor:pointer;display:inline-flex;align-items:center;gap:6px;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          重新连接
+        </button>
+      </div>` : ''}
+    </div>
+
+    <div class="info-section-label">技能标签</div>
+    <div style="padding:0 16px 14px;display:flex;flex-wrap:wrap;gap:6px;">
+      ${bot.skills.map(s => `<span class="info-skill-tag">${s}</span>`).join('')}
+    </div>
+
+    <div class="info-section-label">连接信息</div>
+    <div style="padding:0 16px 12px;">
+      <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;">
+        <div style="font-size:10px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;">WebSocket 地址</div>
+        <div style="font-size:11.5px;color:var(--text);font-family:'JetBrains Mono',monospace;word-break:break-all;line-height:1.5;">ws://localhost:18789/ws</div>
+      </div>
+      <button onclick="window.open('ui-bot-management.html','_blank')" style="width:100%;padding:7px 12px;font-size:12px;font-weight:500;border-radius:7px;border:1px solid var(--border);background:transparent;cursor:pointer;color:var(--text-muted);display:flex;align-items:center;justify-content:center;gap:5px;" onmouseover="this.style.background='#F1F5F9';this.style.color='var(--text)'" onmouseout="this.style.background='transparent';this.style.color='var(--text-muted)'">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        编辑 Bot 配置
+      </button>
+    </div>
+
+    <div class="info-section-label">会话统计</div>
+    <div style="padding:0 16px 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div class="stat-mini">
+        <div style="font-size:20px;font-weight:700;color:var(--text);">${conv.messages.length}</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-weight:500;">消息总数</div>
+      </div>
+      <div class="stat-mini">
+        <div style="font-size:14px;font-weight:700;color:var(--text);">今天</div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:2px;font-weight:500;">最后活跃</div>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+// MESSAGES
+// ══════════════════════════════════════════
+function renderMessages(conv) {
+  const list = document.getElementById('msg-list');
+  list.innerHTML = '';
+  if (!conv.messages.length) {
+    const bot = BOTS.find(b => b.id === conv.botId);
+    list.innerHTML = `<div class="empty-state">
+      <div style="font-size:36px;">${bot?.emoji||'🤖'}</div>
+      <div style="font-size:14px;font-weight:500;color:var(--text);">和 ${bot?.name||'Bot'} 开始对话</div>
+      <div style="font-size:12px;">发送消息开始 1 对 1 私聊</div>
+    </div>`;
+    return;
+  }
+  conv.messages.forEach(m => list.appendChild(createMsgRow(m, conv)));
+  list.scrollTop = list.scrollHeight;
+}
+
+function createMsgRow(msg, conv) {
+  const row = document.createElement('div');
+  row.id = 'msg-' + msg.id;
+  row.className = 'msg-row';
+
+  if (msg.sender === 'user') {
+    row.style.cssText = 'display:flex;justify-content:flex-end;';
+    row.innerHTML = `<div>
+      <div class="bubble-user">${renderContent(msg.content)}</div>
+      <div style="font-size:11px;color:#CBD5E1;text-align:right;margin-top:5px;">刚刚</div>
+    </div>`;
+  } else {
+    const bot = BOTS.find(b => b.id === conv.botId);
+    if (!bot) return row;
+    const artifactBtn = msg.artifact
+      ? `<button class="artifact-open-btn" onclick="openArtifact('${msg.artifact}')">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 8h3"/><path d="M14 12h3"/></svg>
+          查看 Artifact · ${ARTIFACTS[msg.artifact]?.name||'报告'}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>` : '';
+    row.style.cssText = 'display:flex;align-items:flex-start;gap:10px;';
+    row.innerHTML = `
+      <div style="flex-shrink:0;">
+        <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;margin-top:2px;" class="${bot.avClass}">${bot.emoji}</div>
+      </div>
+      <div style="max-width:75%;">
+        <div style="font-size:13px;font-weight:600;margin-bottom:5px;">${bot.name}</div>
+        <div class="${msg.isError?'bubble-error':'bubble-bot'}">${renderContent(msg.content)}${msg.streaming?'<span class="cursor-blink"></span>':''}</div>
+        ${artifactBtn}
+        <div style="font-size:11px;color:#CBD5E1;margin-top:5px;">刚刚</div>
+      </div>`;
+  }
+  return row;
+}
+
+function renderContent(c) {
+  return c
+    .replace(/```(\w*)\n?([\s\S]*?)```/g,'<pre class="msg-code">$2</pre>')
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/`([^`]+)`/g,'<code style="background:#F1F5F9;padding:1px 5px;border-radius:4px;font-family:\'JetBrains Mono\',monospace;font-size:12.5px;">$1</code>')
+    .replace(/\n/g,'<br>');
+}
+
+// ══════════════════════════════════════════
+// SELECT CONV
+// ══════════════════════════════════════════
+function selectConv(id) {
+  activeConvId = id;
+  closeArtifact();
+  renderConvList();
+  const conv = CONVS.find(c => c.id === id);
+  renderHeader(conv);
+  renderMessages(conv);
+  renderBotPanel(conv);
+  document.getElementById('chat-input').focus();
+}
+
+// ══════════════════════════════════════════
+// SEND MESSAGE
+// ══════════════════════════════════════════
+function sendMessage() {
+  if (isStreaming) return;
+  const inp = document.getElementById('chat-input');
+  const text = inp.value.trim();
+  if (!text) return;
+  const conv = CONVS.find(c => c.id === activeConvId);
+  const bot  = BOTS.find(b => b.id === conv.botId);
+  conv.messages.push({ id:'u-'+Date.now(), sender:'user', content:text });
+  renderMessages(conv);
+  inp.value = '';
+  inp.style.height = 'auto';
+
+  if (bot.status === 'error') {
+    setTimeout(() => {
+      conv.messages.push({ id:'e-'+Date.now(), sender:'bot', content:`⚠️ 连接失败：${bot.name} 当前离线，请重新连接后再试。`, isError:true });
+      renderMessages(conv); renderConvList();
+    }, 500);
+    return;
+  }
+
+  isStreaming = true;
+  setTimeout(() => {
+    const tRow = document.createElement('div');
+    tRow.id = 'typing-indicator'; tRow.className = 'msg-row';
+    tRow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;';
+    tRow.innerHTML = `<div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;" class="${bot.avClass}">${bot.emoji}</div>
+      <div><div style="font-size:13px;font-weight:600;margin-bottom:5px;">${bot.name}</div>
+      <div class="bubble-bot" style="display:flex;align-items:center;gap:5px;padding:12px 16px;"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div>`;
+    document.getElementById('msg-list').appendChild(tRow);
+    document.getElementById('msg-list').scrollTop = 9999;
+  }, 300);
+
+  const responses = [
+    '好的，我来分析一下。\n\n根据你的需求，这里有几个关键点需要考虑：\n\n1. **数据结构**的选择很重要，直接影响后续性能\n2. **边界处理**要充分考虑 null 和 undefined\n3. **类型安全**要从设计阶段就介入\n\n需要我展开哪个方向？',
+    '收到！这里有一个简洁的实现思路：\n\n```typescript\nconst processData = <T>(input: T[]): T[] => {\n  return input.filter(Boolean);\n};\n```\n\n这个方案的优势在于类型推断完全自动化，无需额外注解。',
+    '很好的问题！从工程实践角度来看：\n\n- **可维护性**：选择语义清晰的命名\n- **可测试性**：纯函数优于副作用\n- **可扩展性**：接口优于具体类型\n\n需要我生成完整的代码示例吗？'
+  ];
+
+  setTimeout(() => {
+    document.getElementById('typing-indicator')?.remove();
+    const resp = responses[Math.floor(Math.random() * responses.length)];
+    const botMsg = { id:'r-'+Date.now(), sender:'bot', content:'', streaming:true };
+    conv.messages.push(botMsg);
+    renderMessages(conv);
+    let i = 0;
+    const timer = setInterval(() => {
+      botMsg.content = resp.slice(0, i += Math.floor(Math.random()*6)+3);
+      const el = document.getElementById('msg-'+botMsg.id);
+      if (el) {
+        const b = el.querySelector('.bubble-bot');
+        if (b) b.innerHTML = renderContent(botMsg.content) + '<span class="cursor-blink"></span>';
+        el.parentElement.scrollTop = 9999;
+      }
+      if (i >= resp.length) {
+        clearInterval(timer);
+        botMsg.content = resp; botMsg.streaming = false;
+        const el2 = document.getElementById('msg-'+botMsg.id);
+        if (el2) { const b = el2.querySelector('.bubble-bot'); if(b) b.innerHTML = renderContent(resp); }
+        isStreaming = false;
+        renderConvList();
+        renderBotPanel(conv);
+      }
+    }, 38);
+  }, 1400);
+}
+
+function handleInput(e) {
+  const inp = e.target;
+  inp.style.height = 'auto';
+  inp.style.height = Math.min(inp.scrollHeight, 120) + 'px';
+}
+
+function handleKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+// ══════════════════════════════════════════
+// NEW CONV DIALOG
+// ══════════════════════════════════════════
+function openNewConvDialog() {
+  newConvSelectedBot = null;
+  document.getElementById('new-conv-dialog').classList.add('open');
+  document.getElementById('conv-name-input').value = '';
+  renderBotChips();
+}
+
+function closeNewConvDialog(e) {
+  if (e && e.target !== document.getElementById('new-conv-dialog')) return;
+  document.getElementById('new-conv-dialog').classList.remove('open');
+}
+
+function renderBotChips() {
+  document.getElementById('bot-chips').innerHTML = BOTS.map(b => {
+    const sc = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
+    const sl = { connected:'已连接', disconnected:'未连接', error:'连接错误' };
+    const selected = newConvSelectedBot === b.id;
+    return `<div class="bot-chip${selected?' selected':''}" onclick="selectBotChip('${b.id}')">
+      <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;" class="${b.avClass}">${b.emoji}</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;">${b.name}</div>
+        <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;margin-top:1px;">
+          <span class="dot ${sc[b.status]}" style="width:5px;height:5px;display:inline-block;border-radius:50%;flex-shrink:0;"></span>
+          <span>${sl[b.status]}</span>
+          <span style="color:#E2E8F0;">·</span>
+          <span>${b.skills[0]}</span>
+        </div>
+      </div>
+      ${selected ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+    </div>`;
+  }).join('');
+}
+
+function selectBotChip(id) {
+  newConvSelectedBot = id;
+  renderBotChips();
+}
+
+function createConversation() {
+  if (!newConvSelectedBot) { showToast('请先选择一个 Bot', 'error'); return; }
+  const bot = BOTS.find(b => b.id === newConvSelectedBot);
+  const name = document.getElementById('conv-name-input').value.trim() || bot.name;
+  const c = {
+    id: 'c-'+Date.now(), title: name, botId: newConvSelectedBot,
+    messages: [{ id:'w-'+Date.now(), sender:'bot', content:`你好！我是 ${bot.name}，有什么可以帮你？` }]
+  };
+  CONVS.unshift(c);
+  document.getElementById('new-conv-dialog').classList.remove('open');
+  activeConvId = c.id;
+  renderConvList();
+  selectConv(c.id);
+}
+
+// ══════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════
+let toastTimer;
+function showToast(msg, type='success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast toast-${type} show`;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+// ══════════════════════════════════════════
+// INPUT FOCUS STYLES
+// ══════════════════════════════════════════
+document.getElementById('chat-input').addEventListener('focus', () => {
+  document.getElementById('input-wrapper').style.borderColor = '#93C5FD';
+  document.getElementById('input-wrapper').style.boxShadow = '0 0 0 3px rgba(147,197,253,0.2)';
+});
+document.getElementById('chat-input').addEventListener('blur', () => {
+  document.getElementById('input-wrapper').style.borderColor = 'var(--border)';
+  document.getElementById('input-wrapper').style.boxShadow = 'none';
+});
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+renderConvList();
+selectConv('c1');
+</script>
+</body>
+</html>
