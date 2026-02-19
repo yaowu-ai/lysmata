@@ -7,6 +7,10 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:sidecar": "bun run compile-sidecar.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier . --write",
+    "format:check": "prettier . --check",
     "preview": "vite preview",
     "tauri": "tauri",
     "build:dmg": "CI=true tauri build --bundles dmg"
@@ -19,12 +23,20 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
     "bun-types": "^1.3.9",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.0",
+    "globals": "^17.3.0",
+    "prettier": "^3.8.1",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.55.0",
     "vite": "^7.0.4"
   }
 }
