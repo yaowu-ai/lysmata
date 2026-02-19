@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+app.db
+app.db-shm
+.gitignore
+app.db-wal

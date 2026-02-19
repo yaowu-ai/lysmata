@@ -1,10 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "lysmata",
+  "productName": "OpenClaw",
   "version": "0.1.0",
   "identifier": "com.fxai.lysmata",
   "build": {
-    "beforeDevCommand": "bun run build:sidecar && bun run dev",
+    "beforeDevCommand": "bun run dev:all",
     "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "bun run build:sidecar && bun run build",
     "frontendDist": "../dist"
@@ -12,9 +12,11 @@
   "app": {
     "windows": [
       {
-        "title": "lysmata",
-        "width": 800,
-        "height": 600
+        "title": "OpenClaw",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 960,
+        "minHeight": 600
       }
     ],
     "security": {
