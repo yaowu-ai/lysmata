@@ -97,6 +97,7 @@ export const MessageRouter = {
         replyContent = chunk;
         onChunk(chunk, targetBot!.id);
       },
+      conversationId,  // isolate each conversation's memory in the Gateway
     );
 
     // Persist bot reply

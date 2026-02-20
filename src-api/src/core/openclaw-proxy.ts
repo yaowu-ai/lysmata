@@ -99,9 +99,13 @@ interface PoolEntry {
   deviceId: string;
   pendingRequests: Map<string, (res: GatewayResponse) => void>;
   activeRuns: Map<string, PendingRun>;
+  /** Accumulates text for bot-initiated (push) runs not in activeRuns */
+  pushRuns: Map<string, string>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   ready: boolean;
   readyWaiters: Array<{ resolve: () => void; reject: (e: Error) => void }>;
+  /** Called when a bot-initiated push message has fully arrived */
+  onPushMessage?: (sessionId: string, agentId: string, content: string) => void;
 }
 
 interface GatewayFrame {
@@ -180,7 +184,7 @@ function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
 
   // Gateway broadcasts all agent streaming events under the single event name "agent".
   // The `stream` field inside the payload indicates the stream type:
-  //   "assistant"  — text delta in payload.data.text
+  //   "assistant"  — accumulated text in payload.data.text
   //   "lifecycle"  — run state change in payload.data.phase ("end" | "error")
   // Source: src/infra/agent-events.ts + src/gateway/server-chat.ts
   if (ev.event !== 'agent') return;
@@ -189,27 +193,51 @@ function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   const runId = payload.runId as string | undefined;
   if (!runId) return;
 
-  const run = entry.activeRuns.get(runId);
-  if (!run) return;
-
   const stream = payload.stream as string | undefined;
   const data = payload.data as Record<string, unknown> | undefined;
 
+  const run = entry.activeRuns.get(runId);
+
+  if (run) {
+    // ── Request-response run (initiated by this client) ──
+    if (stream === 'assistant') {
+      const text = typeof data?.text === 'string' ? data.text : '';
+      if (text) run.onChunk(text);
+      return;
+    }
+    if (stream === 'lifecycle') {
+      const phase = typeof data?.phase === 'string' ? data.phase : null;
+      if (phase === 'end') {
+        entry.activeRuns.delete(runId);
+        run.onDone();
+      } else if (phase === 'error') {
+        entry.activeRuns.delete(runId);
+        run.onError(new Error((data?.error as string | undefined) ?? 'Agent error'));
+      }
+    }
+    return;
+  }
+
+  // ── Bot-initiated push run (runId unknown to this client) ──
+  // Buffer the accumulated text; on lifecycle.end deliver via onPushMessage.
   if (stream === 'assistant') {
-    // Text content is in data.text (from agent-event-assistant-text.ts)
     const text = typeof data?.text === 'string' ? data.text : '';
-    if (text) run.onChunk(text);
+    if (text) entry.pushRuns.set(runId, text);
     return;
   }
 
   if (stream === 'lifecycle') {
     const phase = typeof data?.phase === 'string' ? data.phase : null;
-    if (phase === 'end') {
-      entry.activeRuns.delete(runId);
-      run.onDone();
-    } else if (phase === 'error') {
-      entry.activeRuns.delete(runId);
-      run.onError(new Error((data?.error as string | undefined) ?? 'Agent error'));
+    if (phase === 'end' && entry.onPushMessage) {
+      const content = entry.pushRuns.get(runId) ?? '';
+      entry.pushRuns.delete(runId);
+      if (content) {
+        const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : '';
+        const agentId   = typeof payload.agentId   === 'string' ? payload.agentId   : '';
+        entry.onPushMessage(sessionId, agentId, content);
+      }
+    } else if (phase === 'error' || phase === 'end') {
+      entry.pushRuns.delete(runId);
     }
   }
 }
@@ -323,6 +351,7 @@ async function connectWS(url: string, token?: string): Promise<PoolEntry> {
     deviceId,
     pendingRequests: new Map(),
     activeRuns: new Map(),
+    pushRuns: new Map(),
     heartbeatTimer: null,
     ready: false,
     readyWaiters: [],
@@ -505,12 +534,14 @@ const GatewayWSAdapter = {
     agentId: string,
     content: string,
     onChunk: (text: string) => void,
+    sessionId?: string,
   ): Promise<void> {
     const entry = await getOrCreateWSConnection(url, token);
 
     const res = await rpc(entry, 'agent', {
       message: content,
       agentId,
+      ...(sessionId ? { sessionId } : {}),
       deliver: false,
       // idempotencyKey is required by AgentParamsSchema (NonEmptyString)
       idempotencyKey: randomUUID(),
@@ -534,6 +565,14 @@ const GatewayWSAdapter = {
         onError: (e) => { clearTimeout(t); reject(e); },
       });
     });
+  },
+
+  setPushHandler(
+    url: string,
+    handler: (sessionId: string, agentId: string, content: string) => void,
+  ): void {
+    const entry = pool.get(url);
+    if (entry) entry.onPushMessage = handler;
   },
 
   async testConnection(
@@ -572,6 +611,7 @@ const OpenAIHttpAdapter = {
     agentId: string,
     content: string,
     onChunk: (text: string) => void,
+    _sessionId?: string,
   ): Promise<void> {
     const endpoint = `${toHttpBase(baseUrl)}/v1/chat/completions`;
     const headers: Record<string, string> = {
@@ -651,11 +691,13 @@ export const OpenClawProxy = {
   /**
    * Send a message to an OpenClaw Agent and stream back text chunks.
    *
-   * @param url      Bot's gateway URL — `ws://` → Gateway WS protocol, `http://` → OpenAI HTTP
-   * @param token    Gateway token (`OPENCLAW_GATEWAY_TOKEN`)
-   * @param agentId  Target agent ID (default: "main")
-   * @param content  User message (may include context prefix injected by MessageRouter)
-   * @param onChunk  Called with each streamed text delta
+   * @param url        Bot's gateway URL — `ws://` → Gateway WS protocol, `http://` → OpenAI HTTP
+   * @param token      Gateway token (`OPENCLAW_GATEWAY_TOKEN`)
+   * @param agentId    Target agent ID (default: "main")
+   * @param content    User message (may include context prefix injected by MessageRouter)
+   * @param onChunk    Called with each streamed text chunk (accumulated text, not delta)
+   * @param sessionId  Conversation session ID — keeps each conversation's context isolated
+   *                   in the Gateway (defaults to "main" if omitted, sharing context globally)
    */
   async sendMessage(
     url: string,
@@ -663,11 +705,23 @@ export const OpenClawProxy = {
     agentId: string,
     content: string,
     onChunk: (text: string) => void,
+    sessionId?: string,
   ): Promise<void> {
     if (isWsUrl(url)) {
-      return GatewayWSAdapter.sendMessage(url, token, agentId, content, onChunk);
+      return GatewayWSAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId);
     }
-    return OpenAIHttpAdapter.sendMessage(url, token, agentId, content, onChunk);
+    return OpenAIHttpAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId);
+  },
+
+  /**
+   * Register a handler for bot-initiated (push) messages on a WS connection.
+   * The handler is called once per complete push message when the run lifecycle ends.
+   */
+  setPushHandler(
+    url: string,
+    handler: (sessionId: string, agentId: string, content: string) => void,
+  ): void {
+    GatewayWSAdapter.setPushHandler(url, handler);
   },
 
   async testConnection(

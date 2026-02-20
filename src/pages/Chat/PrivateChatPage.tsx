@@ -3,6 +3,7 @@ import { useConversations } from '../../shared/hooks/useConversations';
 import { useMessages, useSendMessage } from '../../shared/hooks/useMessages';
 import { useBots } from '../../shared/hooks/useBots';
 import { useChatStore } from '../../shared/store/chat-store';
+import { usePushStream } from '../../shared/hooks/usePushStream';
 import { ConversationSidebar } from './ConversationSidebar';
 import { BotMessage } from './BotMessage';
 import { MessageInput } from './MessageInput';
@@ -20,6 +21,7 @@ export function PrivateChatPage() {
 
   const { data: messages = [] } = useMessages(activeId ?? '');
   const sendMut = useSendMessage(activeId ?? '');
+  usePushStream(activeId);
 
   useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 

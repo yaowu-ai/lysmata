@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { MessageRouter } from '../../core/message-router';
+import { PushRelay } from '../../core/push-relay';
 
 const messages = new Hono();
 
@@ -55,6 +56,40 @@ messages.get('/stream', async (c) => {
       },
     },
   );
+});
+
+// Push-stream SSE endpoint — long-lived connection for bot-initiated messages
+messages.get('/push-stream', (c) => {
+  const convId = c.req.param('conversationId');
+
+  let cleanup: (() => void) | undefined;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(ctrl) {
+      // Send a heartbeat comment every 25s to keep the connection alive
+      const enc = new TextEncoder();
+      const heartbeat = setInterval(() => {
+        try { ctrl.enqueue(enc.encode(': heartbeat\n\n')); } catch { /* closed */ }
+      }, 25_000);
+
+      cleanup = PushRelay.registerClient(convId, ctrl);
+
+      // Override cleanup to also clear the heartbeat timer
+      const originalCleanup = cleanup;
+      cleanup = () => { clearInterval(heartbeat); originalCleanup(); };
+    },
+    cancel() {
+      cleanup?.();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
 });
 
 export default messages;
