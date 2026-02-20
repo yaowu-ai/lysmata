@@ -26,8 +26,8 @@ app.route('/conversations/:conversationId/messages', messages);
 function wirePushHandlers() {
   const bots = BotService.findAll().filter((b) => b.openclaw_ws_url?.startsWith('ws'));
   for (const bot of bots) {
-    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (sessionId, _agentId, content) => {
-      PushRelay.handlePush(sessionId, bot.id, content);
+    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
+      PushRelay.handlePush(event, bot.id);
     });
   }
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OpenClaw",
+  "productName": "Lysmata",
   "version": "0.1.0",
   "identifier": "com.fxai.lysmata",
   "build": {
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "OpenClaw",
+        "title": "Lysmata",
         "width": 1280,
         "height": 820,
         "minWidth": 960,

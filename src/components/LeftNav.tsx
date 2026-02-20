@@ -35,7 +35,7 @@ export function LeftNav() {
             expanded ? 'opacity-100 max-w-[180px]' : 'opacity-0 max-w-0',
           )}
         >
-          OpenClaw
+          Lysmata
         </span>
       </div>
 

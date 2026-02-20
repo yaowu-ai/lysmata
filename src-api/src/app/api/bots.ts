@@ -3,6 +3,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { BotService } from '../../core/bot-service';
 import { OpenClawProxy } from '../../core/openclaw-proxy';
+import { PushRelay } from '../../core/push-relay';
 
 const bots = new Hono();
 
@@ -51,6 +52,30 @@ bots.post('/:id/test-connection', async (c) => {
   const result = await OpenClawProxy.testConnection(bot.openclaw_ws_url, bot.openclaw_ws_token ?? undefined);
   BotService.updateStatus(bot.id, result.success ? 'connected' : 'error');
   return c.json(result);
+});
+
+// Global SSE stream for system presence and global events
+bots.get('/global-stream', (c) => {
+  let cleanup: (() => void) | undefined;
+  const stream = new ReadableStream<Uint8Array>({
+    start(ctrl) {
+      const enc = new TextEncoder();
+      const heartbeat = setInterval(() => {
+        try { ctrl.enqueue(enc.encode(': heartbeat\n\n')); } catch {}
+      }, 25_000);
+      cleanup = PushRelay.registerClient('global', ctrl);
+      const originalCleanup = cleanup;
+      cleanup = () => { clearInterval(heartbeat); originalCleanup(); };
+    },
+    cancel() { cleanup?.(); }
+  });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
 });
 
 export default bots;

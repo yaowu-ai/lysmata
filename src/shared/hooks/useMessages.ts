@@ -53,3 +53,18 @@ export function useSendMessage(conversationId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) }),
   });
 }
+
+export function useResolveApproval(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { approvalId: string; botId: string; approved: boolean }) =>
+      apiClient.post<{ success: boolean }>(`/conversations/${conversationId}/messages/approvals/${data.approvalId}/resolve`, {
+        botId: data.botId,
+        approved: data.approved,
+      }),
+    onSuccess: () => {
+      // You might want to update the local state to mark this approval as resolved
+      qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
+    },
+  });
+}

@@ -94,6 +94,14 @@ interface PendingRun {
   onError: (err: Error) => void;
 }
 
+export interface PushEvent {
+  type: 'message' | 'approval' | 'system_presence';
+  sessionId?: string;
+  agentId?: string;
+  content?: string;
+  metadata?: Record<string, unknown>;
+}
+
 interface PoolEntry {
   ws: WebSocket;
   deviceId: string;
@@ -104,8 +112,8 @@ interface PoolEntry {
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   ready: boolean;
   readyWaiters: Array<{ resolve: () => void; reject: (e: Error) => void }>;
-  /** Called when a bot-initiated push message has fully arrived */
-  onPushMessage?: (sessionId: string, agentId: string, content: string) => void;
+  /** Called when a push event arrives */
+  onPushEvent?: (event: PushEvent) => void;
 }
 
 interface GatewayFrame {
@@ -139,7 +147,7 @@ const pool = new Map<string, PoolEntry>();
  */
 const pushHandlerRegistry = new Map<
   string,
-  (sessionId: string, agentId: string, content: string) => void
+  (event: PushEvent) => void
 >();
 
 
@@ -193,6 +201,28 @@ function handleFrame(entry: PoolEntry, data: string): void {
 function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   if (ev.event === 'connect.challenge') return; // handled inside connectWS
 
+  if (ev.event === 'exec.approval.requested') {
+    if (entry.onPushEvent) {
+      entry.onPushEvent({
+        type: 'approval',
+        sessionId: ev.payload?.sessionKey as string | undefined, // Mapped if available
+        agentId: ev.payload?.agentId as string | undefined,
+        metadata: ev.payload,
+      });
+    }
+    return;
+  }
+
+  if (ev.event === 'system-presence') {
+    if (entry.onPushEvent) {
+      entry.onPushEvent({
+        type: 'system_presence',
+        metadata: ev.payload,
+      });
+    }
+    return;
+  }
+
   // Gateway broadcasts all agent streaming events under the single event name "agent".
   // The `stream` field inside the payload indicates the stream type:
   //   "assistant"  — accumulated text in payload.data.text
@@ -239,13 +269,13 @@ function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
 
   if (stream === 'lifecycle') {
     const phase = typeof data?.phase === 'string' ? data.phase : null;
-    if (phase === 'end' && entry.onPushMessage) {
+    if (phase === 'end' && entry.onPushEvent) {
       const content = entry.pushRuns.get(runId) ?? '';
       entry.pushRuns.delete(runId);
       if (content) {
         const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : '';
         const agentId   = typeof payload.agentId   === 'string' ? payload.agentId   : '';
-        entry.onPushMessage(sessionId, agentId, content);
+        entry.onPushEvent({ type: 'message', sessionId, agentId, content });
       }
     } else if (phase === 'error' || phase === 'end') {
       entry.pushRuns.delete(runId);
@@ -478,7 +508,9 @@ async function connectWS(url: string, token?: string): Promise<PoolEntry> {
 
         entry.heartbeatTimer = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            sendFrame(ws, { type: 'req', id: randomUUID(), method: 'heartbeat', params: {} });
+            // Send 'health' request to keep the connection alive, 
+            // as 'heartbeat' is not a valid Gateway RPC method.
+            sendFrame(ws, { type: 'req', id: randomUUID(), method: 'health', params: {} });
           }
         }, tickMs);
 
@@ -505,7 +537,7 @@ async function connectWS(url: string, token?: string): Promise<PoolEntry> {
   // This ensures handlers registered at startup (before any WS connection)
   // or after a reconnect are always wired up correctly.
   const registeredHandler = pushHandlerRegistry.get(url);
-  if (registeredHandler) entry.onPushMessage = registeredHandler;
+  if (registeredHandler) entry.onPushEvent = registeredHandler;
 
   return entry;
 }
@@ -587,13 +619,13 @@ const GatewayWSAdapter = {
 
   setPushHandler(
     url: string,
-    handler: (sessionId: string, agentId: string, content: string) => void,
+    handler: (event: PushEvent) => void,
   ): void {
     // Persist to registry so the handler is re-applied on every new connection
     // (including reconnects and connections that don't exist yet at call time).
     pushHandlerRegistry.set(url, handler);
     const entry = pool.get(url);
-    if (entry) entry.onPushMessage = handler;
+    if (entry) entry.onPushEvent = handler;
   },
 
   async testConnection(
@@ -740,9 +772,25 @@ export const OpenClawProxy = {
    */
   setPushHandler(
     url: string,
-    handler: (sessionId: string, agentId: string, content: string) => void,
+    handler: (event: PushEvent) => void,
   ): void {
     GatewayWSAdapter.setPushHandler(url, handler);
+  },
+
+  async resolveApproval(
+    url: string,
+    token: string | undefined,
+    approvalId: string,
+    approved: boolean,
+  ): Promise<void> {
+    const entry = await getOrCreateWSConnection(url, token);
+    const res = await rpc(entry, 'exec.approval.resolve', {
+      id: approvalId,
+      approved,
+    });
+    if (!res.ok) {
+      throw new Error(`approval resolve RPC failed: ${res.error?.message ?? 'unknown'}`);
+    }
   },
 
   async testConnection(

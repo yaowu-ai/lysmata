@@ -58,6 +58,8 @@ export interface Message {
   bot_id?: string;
   content: string;
   mentioned_bot_id?: string;
+  message_type?: 'text' | 'approval' | 'system_event';
+  metadata?: string; // JSON string for storing complex payloads (like approval parameters)
   created_at: string;
   bot?: Bot;
 }

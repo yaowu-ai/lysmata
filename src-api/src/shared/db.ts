@@ -61,6 +61,8 @@ function ensureSchema(db: Database): void {
       bot_id           TEXT,
       content          TEXT NOT NULL,
       mentioned_bot_id TEXT,
+      message_type     TEXT DEFAULT 'text',
+      metadata         TEXT,
       created_at       TEXT NOT NULL
     );
 
@@ -76,5 +78,17 @@ function ensureSchema(db: Database): void {
     .map((r) => r.name);
   if (!cols.includes('openclaw_agent_id')) {
     db.exec(`ALTER TABLE bots ADD COLUMN openclaw_agent_id TEXT NOT NULL DEFAULT 'main';`);
+  }
+
+  // Migration 3: add message_type and metadata columns to messages table
+  const msgCols = db
+    .query<{ name: string }, []>('PRAGMA table_info(messages)')
+    .all()
+    .map((r) => r.name);
+  if (!msgCols.includes('message_type')) {
+    db.exec(`ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'text';`);
+  }
+  if (!msgCols.includes('metadata')) {
+    db.exec(`ALTER TABLE messages ADD COLUMN metadata TEXT;`);
   }
 }
