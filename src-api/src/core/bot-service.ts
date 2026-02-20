@@ -55,8 +55,8 @@ export const BotService = {
         JSON.stringify(input.skills_config ?? []),
         JSON.stringify(input.mcp_config ?? {}),
         input.openclaw_ws_url,
-        input.openclaw_ws_token ?? null,
-        input.openclaw_agent_id ?? 'main',
+        input.openclaw_ws_token || null,
+        input.openclaw_agent_id || 'main',
         input.is_active !== false ? 1 : 0,
         now,
         now,
@@ -78,8 +78,8 @@ export const BotService = {
     if (input.skills_config !== undefined)    { fields.push('skills_config = ?');     values.push(JSON.stringify(input.skills_config)); }
     if (input.mcp_config !== undefined)       { fields.push('mcp_config = ?');        values.push(JSON.stringify(input.mcp_config)); }
     if (input.openclaw_ws_url !== undefined)  { fields.push('openclaw_ws_url = ?');   values.push(input.openclaw_ws_url); }
-    if (input.openclaw_ws_token !== undefined){ fields.push('openclaw_ws_token = ?'); values.push(input.openclaw_ws_token); }
-    if (input.openclaw_agent_id !== undefined){ fields.push('openclaw_agent_id = ?'); values.push(input.openclaw_agent_id); }
+    if (input.openclaw_ws_token !== undefined){ fields.push('openclaw_ws_token = ?'); values.push(input.openclaw_ws_token || null); }
+    if (input.openclaw_agent_id !== undefined){ fields.push('openclaw_agent_id = ?'); values.push(input.openclaw_agent_id || 'main'); }
     if (input.is_active !== undefined)        { fields.push('is_active = ?');         values.push(input.is_active ? 1 : 0); }
 
     if (fields.length === 0) return existing;

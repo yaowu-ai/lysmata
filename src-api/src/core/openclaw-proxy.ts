@@ -358,7 +358,7 @@ function buildConnectParams(opts: {
     caps: [],
     commands: [],
     permissions: {},
-    auth: { token: opts.token ?? '' },
+    auth: opts.token ? { token: opts.token } : undefined,
     locale: 'zh-CN',
     userAgent: 'lysmata/1.0.0',
     device: opts.device,
