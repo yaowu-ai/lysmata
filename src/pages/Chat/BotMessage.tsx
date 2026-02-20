@@ -11,7 +11,7 @@ export function BotMessage({ message, isPrimary }: Props) {
 
   if (message.sender_type === 'user') {
     return (
-      <div className="flex justify-end">
+      <div className="msg-row flex justify-end">
         <div className="max-w-[75%]">
           <div className="bg-[#2563EB] text-white rounded-[12px_0_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words">
             {message.content}
@@ -23,7 +23,7 @@ export function BotMessage({ message, isPrimary }: Props) {
   }
 
   return (
-    <div className="flex items-start gap-2.5">
+    <div className="msg-row flex items-start gap-2.5">
       {/* Avatar */}
       <div className="relative flex-shrink-0 mt-0.5">
         <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-[17px]">

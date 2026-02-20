@@ -19,6 +19,37 @@ export function useSendMessage(conversationId: string) {
   return useMutation({
     mutationFn: (data: SendMessageInput) =>
       apiClient.post<Message>(`/conversations/${conversationId}/messages`, data),
+
+    // Optimistically add the user message immediately so the UI feels instant
+    onMutate: async (data) => {
+      await qc.cancelQueries({ queryKey: msgKeys.list(conversationId) });
+
+      const previous = qc.getQueryData<Message[]>(msgKeys.list(conversationId));
+
+      const optimisticMsg: Message = {
+        id: `optimistic-${Date.now()}`,
+        conversation_id: conversationId,
+        sender_type: 'user',
+        content: data.content,
+        created_at: new Date().toISOString(),
+      };
+
+      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => [
+        ...old,
+        optimisticMsg,
+      ]);
+
+      return { previous };
+    },
+
+    // Roll back on error to avoid phantom messages
+    onError: (_err, _data, ctx) => {
+      if (ctx?.previous !== undefined) {
+        qc.setQueryData(msgKeys.list(conversationId), ctx.previous);
+      }
+    },
+
+    // Refetch after success to get the real IDs and the bot reply
     onSuccess: () => qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) }),
   });
 }

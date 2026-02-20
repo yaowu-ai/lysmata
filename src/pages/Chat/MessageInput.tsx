@@ -16,35 +16,45 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
   const [focusIdx, setFocusIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Track IME composition state to avoid sending mid-composition (e.g. Chinese input)
+  const isComposingRef = useRef(false);
 
   const filteredBots = mention
     ? bots.filter((b) => b.name.toLowerCase().includes(mention.query.toLowerCase()))
     : [];
 
-  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const v = e.target.value;
-    setValue(v);
-    autoResize(e.target);
-
-    const cursor = e.target.selectionStart;
-    const before = v.slice(0, cursor);
+  function detectMention(v: string, cursorPos: number) {
+    const before = v.slice(0, cursorPos);
     const m = before.match(/@(\w*)$/);
     if (m) {
-      setMention({ query: m[1], start: cursor - m[0].length });
+      setMention({ query: m[1], start: cursorPos - m[0].length });
       setFocusIdx(0);
     } else {
       setMention(null);
     }
   }
 
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    const v = e.target.value;
+    setValue(v);
+    autoResize(e.target);
+    detectMention(v, e.target.selectionStart);
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (mention && filteredBots.length > 0) {
       if (e.key === 'ArrowDown') { e.preventDefault(); setFocusIdx((i) => Math.min(i + 1, filteredBots.length - 1)); return; }
       if (e.key === 'ArrowUp')   { e.preventDefault(); setFocusIdx((i) => Math.max(i - 1, 0)); return; }
-      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(filteredBots[focusIdx]); return; }
-      if (e.key === 'Escape')    { setMention(null); return; }
+      if ((e.key === 'Enter' || e.key === 'Tab') && !isComposingRef.current) {
+        e.preventDefault(); insertMention(filteredBots[focusIdx]); return;
+      }
+      if (e.key === 'Escape') { setMention(null); return; }
     }
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    // Only send when not composing (prevents firing during Chinese/Japanese IME selection)
+    if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
+      e.preventDefault();
+      handleSend();
+    }
   }
 
   function insertMention(bot: Bot) {
@@ -66,8 +76,25 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue('');
-    if (textareaRef.current) { textareaRef.current.style.height = 'auto'; }
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.focus();
+    }
     setMention(null);
+  }
+
+  function handleAtButtonClick() {
+    const el = textareaRef.current;
+    if (!el) return;
+    const pos = el.selectionStart ?? value.length;
+    const newVal = value.slice(0, pos) + '@' + value.slice(pos);
+    setValue(newVal);
+    // Restore focus and cursor position after React re-renders
+    setTimeout(() => {
+      el.focus();
+      el.setSelectionRange(pos + 1, pos + 1);
+      detectMention(newVal, pos + 1);
+    }, 0);
   }
 
   function autoResize(el: HTMLTextAreaElement) {
@@ -75,7 +102,7 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
     el.style.height = Math.min(el.scrollHeight, 100) + 'px';
   }
 
-  // Close popup on outside click
+  // Close mention popup on outside click
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -123,14 +150,16 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
+            onCompositionStart={() => { isComposingRef.current = true; }}
+            onCompositionEnd={() => { isComposingRef.current = false; }}
             disabled={disabled}
             placeholder={placeholder ?? '发送消息… 输入 @ 可提及特定 Bot'}
-            className="w-full border-none outline-none bg-transparent text-[14px] leading-[1.6] resize-none text-[#0F172A] placeholder:text-[#94A3B8] max-h-[100px] overflow-y-auto"
+            className="w-full border-none outline-none bg-transparent text-[14px] leading-[1.6] resize-none text-[#0F172A] caret-[#0F172A] placeholder:text-[#94A3B8] max-h-[100px] overflow-y-auto"
           />
           <div className="flex items-center justify-between mt-2">
             <div className="flex items-center gap-2">
               <button
-                onClick={() => { if (textareaRef.current) { textareaRef.current.value += '@'; textareaRef.current.dispatchEvent(new Event('input', { bubbles: true })); textareaRef.current.focus(); } }}
+                onClick={handleAtButtonClick}
                 className="inline-flex items-center gap-1 text-[12px] font-medium text-[#64748B] bg-[#F1F5F9] border-none px-2.5 py-1 rounded-[6px] cursor-pointer hover:bg-[#E2E8F0] transition-colors"
               >
                 <AtSign size={13} /> @提及 Bot

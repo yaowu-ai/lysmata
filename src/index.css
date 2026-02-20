@@ -31,3 +31,13 @@
   ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 }
+
+/* ── Message fade-in (design spec §6.3 mfade) ── */
+@keyframes mfade {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.msg-row {
+  animation: mfade 0.2s ease;
+}
