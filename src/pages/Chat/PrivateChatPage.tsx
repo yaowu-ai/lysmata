@@ -53,9 +53,10 @@ export function PrivateChatPage() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
-            {messages.map((m) => (
-              <BotMessage key={m.id} message={m} isPrimary />
-            ))}
+            {messages.map((m) => {
+              const msgBot = m.bot_id ? bots.find((b) => b.id === m.bot_id) : undefined;
+              return <BotMessage key={m.id} message={{ ...m, bot: msgBot }} isPrimary />;
+            })}
             {sendMut.isPending && (
               <div className="flex items-start gap-2.5">
                 <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl">

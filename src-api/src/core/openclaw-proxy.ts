@@ -178,6 +178,13 @@ function handleFrame(entry: PoolEntry, data: string): void {
 function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   if (ev.event === 'connect.challenge') return; // handled inside connectWS
 
+  // Gateway broadcasts all agent streaming events under the single event name "agent".
+  // The `stream` field inside the payload indicates the stream type:
+  //   "assistant"  — text delta in payload.data.text
+  //   "lifecycle"  — run state change in payload.data.phase ("end" | "error")
+  // Source: src/infra/agent-events.ts + src/gateway/server-chat.ts
+  if (ev.event !== 'agent') return;
+
   const payload = ev.payload ?? {};
   const runId = payload.runId as string | undefined;
   if (!runId) return;
@@ -185,23 +192,24 @@ function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   const run = entry.activeRuns.get(runId);
   if (!run) return;
 
-  if (ev.event === 'agent.stream') {
-    const stream = payload.stream as string | undefined;
-    if (stream !== 'assistant') return;
-    const delta = payload.delta as Record<string, unknown> | undefined;
-    const text = delta?.text as string | undefined;
+  const stream = payload.stream as string | undefined;
+  const data = payload.data as Record<string, unknown> | undefined;
+
+  if (stream === 'assistant') {
+    // Text content is in data.text (from agent-event-assistant-text.ts)
+    const text = typeof data?.text === 'string' ? data.text : '';
     if (text) run.onChunk(text);
     return;
   }
 
-  if (ev.event === 'agent.lifecycle') {
-    const phase = payload.phase as string | undefined;
+  if (stream === 'lifecycle') {
+    const phase = typeof data?.phase === 'string' ? data.phase : null;
     if (phase === 'end') {
       entry.activeRuns.delete(runId);
       run.onDone();
     } else if (phase === 'error') {
       entry.activeRuns.delete(runId);
-      run.onError(new Error((payload.error as string | undefined) ?? 'Agent lifecycle error'));
+      run.onError(new Error((data?.error as string | undefined) ?? 'Agent error'));
     }
   }
 }
@@ -516,7 +524,15 @@ const GatewayWSAdapter = {
     if (!runId) throw new Error('Gateway did not return a runId');
 
     return new Promise<void>((resolve, reject) => {
-      entry.activeRuns.set(runId, { onChunk, onDone: resolve, onError: reject });
+      const t = setTimeout(() => {
+        entry.activeRuns.delete(runId);
+        reject(new Error('Agent stream timeout (120s)'));
+      }, 120_000);
+      entry.activeRuns.set(runId, {
+        onChunk,
+        onDone: () => { clearTimeout(t); resolve(); },
+        onError: (e) => { clearTimeout(t); reject(e); },
+      });
     });
   },
 
