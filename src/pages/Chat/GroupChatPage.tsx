@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Settings } from 'lucide-react';
-import { useConversations } from '../../shared/hooks/useConversations';
+import { useConversations, useDeleteConversation } from '../../shared/hooks/useConversations';
 import { useMessages, useSendMessage } from '../../shared/hooks/useMessages';
 import { useBots } from '../../shared/hooks/useBots';
 import { useChatStore } from '../../shared/store/chat-store';
@@ -23,7 +23,14 @@ export function GroupChatPage() {
 
   const { data: messages = [] } = useMessages(activeId ?? '');
   const sendMut = useSendMessage(activeId ?? '');
+  const deleteMut = useDeleteConversation();
   usePushStream(activeId);
+
+  function handleDelete(id: string) {
+    deleteMut.mutate(id, {
+      onSuccess: () => { if (activeId === id) setActiveConversationId(null); },
+    });
+  }
 
   useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -40,6 +47,7 @@ export function GroupChatPage() {
         activeId={activeId}
         onSelect={setActiveConversationId}
         onNew={() => setDialogOpen(true)}
+        onDelete={handleDelete}
         isLoading={convLoading}
       />
 

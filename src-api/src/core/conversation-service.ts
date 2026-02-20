@@ -59,7 +59,10 @@ export const ConversationService = {
   },
 
   delete(id: string): boolean {
-    const info = getDb().run('DELETE FROM conversations WHERE id = ?', [id]);
+    const db = getDb();
+    db.run('DELETE FROM messages WHERE conversation_id = ?', [id]);
+    db.run('DELETE FROM conversation_bots WHERE conversation_id = ?', [id]);
+    const info = db.run('DELETE FROM conversations WHERE id = ?', [id]);
     return info.changes > 0;
   },
 

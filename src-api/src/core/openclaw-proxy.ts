@@ -131,6 +131,17 @@ interface GatewayResponse extends GatewayFrame {
 
 const pool = new Map<string, PoolEntry>();
 
+/**
+ * Persistent registry of push handlers keyed by gateway URL.
+ * Handlers are applied automatically whenever a new WS connection is created
+ * (including reconnects), so wirePushHandlers() can safely be called at
+ * startup before any pool entry exists.
+ */
+const pushHandlerRegistry = new Map<
+  string,
+  (sessionId: string, agentId: string, content: string) => void
+>();
+
 
 /**
  * Derive the HTTP origin from a ws:// / wss:// URL.
@@ -489,6 +500,13 @@ async function connectWS(url: string, token?: string): Promise<PoolEntry> {
   ws.onclose = () => teardown(url, entry, new Error('WebSocket closed'));
 
   pool.set(url, entry);
+
+  // Apply any pre-registered push handler for this URL.
+  // This ensures handlers registered at startup (before any WS connection)
+  // or after a reconnect are always wired up correctly.
+  const registeredHandler = pushHandlerRegistry.get(url);
+  if (registeredHandler) entry.onPushMessage = registeredHandler;
+
   return entry;
 }
 
@@ -541,7 +559,7 @@ const GatewayWSAdapter = {
     const res = await rpc(entry, 'agent', {
       message: content,
       agentId,
-      ...(sessionId ? { sessionId } : {}),
+      ...(sessionId ? { sessionKey: sessionId } : {}),
       deliver: false,
       // idempotencyKey is required by AgentParamsSchema (NonEmptyString)
       idempotencyKey: randomUUID(),
@@ -571,6 +589,9 @@ const GatewayWSAdapter = {
     url: string,
     handler: (sessionId: string, agentId: string, content: string) => void,
   ): void {
+    // Persist to registry so the handler is re-applied on every new connection
+    // (including reconnects and connections that don't exist yet at call time).
+    pushHandlerRegistry.set(url, handler);
     const entry = pool.get(url);
     if (entry) entry.onPushMessage = handler;
   },

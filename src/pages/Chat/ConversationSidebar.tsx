@@ -1,4 +1,4 @@
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import type { Conversation } from '../../shared/types';
 import { cn } from '../../shared/lib/utils';
 
@@ -9,10 +9,11 @@ interface Props {
   activeId: string | null;
   onSelect: (id: string) => void;
   onNew: () => void;
+  onDelete?: (id: string) => void;
   isLoading?: boolean;
 }
 
-export function ConversationSidebar({ title, subtitle, conversations, activeId, onSelect, onNew, isLoading }: Props) {
+export function ConversationSidebar({ title, subtitle, conversations, activeId, onSelect, onNew, onDelete, isLoading }: Props) {
   return (
     <aside className="w-[260px] bg-white border-r border-[#E5E7EB] flex flex-col flex-shrink-0 overflow-hidden">
       <div className="px-4 py-3 border-b border-[#F1F5F9]">
@@ -47,14 +48,23 @@ export function ConversationSidebar({ title, subtitle, conversations, activeId, 
           conversations.map((conv) => (
             <div
               key={conv.id}
-              onClick={() => onSelect(conv.id)}
               className={cn(
-                'px-3 py-2.5 rounded-lg cursor-pointer transition-colors mb-0.5',
+                'group relative px-3 py-2.5 rounded-lg cursor-pointer transition-colors mb-0.5',
                 conv.id === activeId ? 'bg-[#EFF6FF]' : 'hover:bg-[#F1F5F9]',
               )}
+              onClick={() => onSelect(conv.id)}
             >
-              <div className="text-[13px] font-medium truncate">{conv.title}</div>
+              <div className="text-[13px] font-medium truncate pr-5">{conv.title}</div>
               <div className="text-[11px] text-[#94A3B8] mt-0.5">{conv.type === 'group' ? '群聊' : '私聊'}</div>
+              {onDelete && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(conv.id); }}
+                  title="删除对话"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded text-[#94A3B8] hover:text-red-500 hover:bg-red-50 transition-all"
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
             </div>
           ))
         )}
