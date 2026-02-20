@@ -91,7 +91,10 @@ export const MessageRouter = {
       targetBot.openclaw_agent_id ?? 'main',
       enrichedContent,
       (chunk) => {
-        replyContent += chunk;
+        // Gateway pushes accumulated text (not deltas), so each chunk is the
+        // full content up to that point. Assign instead of append to avoid
+        // concatenating repeated prefixes into the final stored message.
+        replyContent = chunk;
         onChunk(chunk, targetBot!.id);
       },
     );
