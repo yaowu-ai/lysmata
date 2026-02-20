@@ -16,7 +16,7 @@ export function LeftNav() {
   return (
     <nav
       className={cn(
-        'flex flex-col bg-white border-r border-[#E5E7EB] py-3 flex-shrink-0 z-10 transition-all duration-[260ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
+        'flex flex-col bg-white border-r border-[#E5E7EB] py-3 flex-shrink-0 z-10 overflow-hidden transition-all duration-[260ms] ease-[cubic-bezier(0.4,0,0.2,1)]',
         expanded ? 'w-[220px]' : 'w-16',
       )}
     >
