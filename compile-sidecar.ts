@@ -23,20 +23,20 @@ function resolveTauriTargetTriple() {
 const triple = resolveTauriTargetTriple();
 const windows = triple.includes("windows");
 
-const result = await build({
-  entrypoints: ["./src-api/src/index.ts"],
-  outdir: "./src-tauri/bin",
-  naming: `hono-sidecar-${triple}`,
-  target: "bun",
-  minify: true,
-});
+const result = await Bun.spawn({
+  cmd: [
+    "bun",
+    "build",
+    "--compile",
+    "--minify",
+    "--target",
+    `bun-${process.platform}-${process.arch}`,
+    "./src-api/src/index.ts",
+    "--outfile",
+    `./src-tauri/bin/hono-sidecar-${triple}${windows ? '.exe' : ''}`
+  ]
+}).exited;
 
-if (!result.success || result.outputs.length === 0) {
+if (result !== 0) {
   throw new Error("Failed to build sidecar binary");
-}
-
-if (!windows) {
-  for (const output of result.outputs) {
-    await chmod(output.path, 0o755);
-  }
 }

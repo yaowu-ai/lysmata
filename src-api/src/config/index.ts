@@ -6,3 +6,7 @@ export const PORT = Number(process.env.PORT) || (process.env.NODE_ENV === 'produ
 // DB file path: Tauri writes to the app data dir; in dev use a local file
 export const DB_PATH =
   process.env.DB_PATH ?? join(import.meta.dir, '..', '..', '..', 'app.db');
+
+// Config dir path
+export const CONFIG_DIR =
+  process.env.CONFIG_DIR ?? join(import.meta.dir, '..', '..', '..', 'config');
