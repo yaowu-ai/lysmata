@@ -10,3 +10,7 @@ export const DB_PATH =
 // Config dir path
 export const CONFIG_DIR =
   process.env.CONFIG_DIR ?? join(import.meta.dir, '..', '..', '..', 'config');
+
+// Gateway communication log file — set GATEWAY_LOG_PATH='' to disable logging
+export const GATEWAY_LOG_PATH =
+  process.env.GATEWAY_LOG_PATH ?? join(import.meta.dir, '..', '..', '..', 'logs', 'gateway.log');

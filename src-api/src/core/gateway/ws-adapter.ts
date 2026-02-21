@@ -3,6 +3,7 @@
 import { randomUUID, sign } from 'crypto';
 import { GATEWAY } from '../../config/constants';
 import { getOrCreateIdentity, base64UrlEncode } from './device-identity';
+import { GatewayLogger } from '../../shared/gateway-logger';
 import {
   pool,
   pushHandlerRegistry,
@@ -117,6 +118,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
   const entry: PoolEntry = {
     ws,
     deviceId,
+    url,
     pendingRequests: new Map(),
     activeRuns: new Map(),
     pushRuns: new Map(),
@@ -182,13 +184,12 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
     ws.onerror = () => {
       clearTimeout(handshakeTimeout);
       clearTimeout(challengeFallback);
+      GatewayLogger.logSystem(url, 'WebSocket connection error during handshake');
       reject(new Error('WebSocket connection error'));
     };
 
     ws.onopen = () => {
-      // Do NOT send anything here.
-      // Wait for connect.challenge first (docs: "pre-connect challenge").
-      // challengeFallback fires if the gateway skips the challenge.
+      GatewayLogger.logSystem(url, 'WebSocket opened, waiting for connect.challenge');
     };
 
     // If no challenge arrives within CHALLENGE_TIMEOUT_MS, the gateway is
@@ -209,6 +210,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
       if (frame.type === 'event' && (frame as GatewayEvent).event === 'connect.challenge') {
         clearTimeout(challengeFallback);
         const nonce = ((frame as GatewayEvent).payload?.nonce as string) ?? randomUUID();
+        GatewayLogger.logSystem(url, 'connect.challenge received, sending signed connect', { nonce });
         sendSignedConnect(nonce);
         return;
       }
@@ -220,6 +222,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
         const res = frame as GatewayResponse;
 
         if (!res.ok) {
+          GatewayLogger.logSystem(url, 'handshake rejected', { error: res.error });
           reject(
             new Error(
               `Gateway connect rejected: ${res.error?.message ?? JSON.stringify(res.error)}`,
@@ -232,6 +235,12 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
         const tickMs =
           (res.payload?.policy as { tickIntervalMs?: number } | undefined)?.tickIntervalMs ??
           GATEWAY.DEFAULT_TICK_INTERVAL_MS;
+
+        GatewayLogger.logSystem(url, 'hello-ok: handshake complete', {
+          deviceId,
+          tickIntervalMs: tickMs,
+          policy: res.payload?.policy,
+        });
 
         entry.heartbeatTimer = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
@@ -255,8 +264,14 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
 
   // Post-handshake: wire persistent handlers
   ws.onmessage = (ev) => handleFrame(entry, ev.data as string);
-  ws.onerror = () => teardown(url, entry, new Error('WebSocket error'));
-  ws.onclose = () => teardown(url, entry, new Error('WebSocket closed'));
+  ws.onerror = () => {
+    GatewayLogger.logSystem(url, 'WebSocket error');
+    teardown(url, entry, new Error('WebSocket error'));
+  };
+  ws.onclose = () => {
+    GatewayLogger.logSystem(url, 'WebSocket closed');
+    teardown(url, entry, new Error('WebSocket closed'));
+  };
 
   pool.set(url, entry);
 

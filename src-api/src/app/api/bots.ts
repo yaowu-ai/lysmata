@@ -24,6 +24,9 @@ const updateSchema = createSchema.partial();
 
 bots.get('/', (c) => c.json(BotService.findAll()));
 
+// Must be registered before /:id so the static segment wins over the dynamic one
+bots.get('/global-stream', () => createPushSseResponse('global'));
+
 bots.get('/:id', (c) => {
   const bot = BotService.findById(c.req.param('id'));
   if (!bot) throw notFound('Bot');
@@ -54,8 +57,5 @@ bots.post('/:id/test-connection', async (c) => {
   BotService.updateStatus(bot.id, result.success ? 'connected' : 'error');
   return c.json(result);
 });
-
-// Global SSE stream for system presence and global events
-bots.get('/global-stream', () => createPushSseResponse('global'));
 
 export default bots;

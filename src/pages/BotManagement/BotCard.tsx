@@ -1,6 +1,8 @@
-import { Pencil, Trash2, Wifi } from 'lucide-react';
+import { Pencil, Trash2, Wifi, Activity } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Bot, ConnectionStatus } from '../../shared/types';
 import { cn } from '../../shared/lib/utils';
+import { useAppStore } from '../../shared/store/app-store';
 
 const statusLabel: Record<ConnectionStatus, string> = {
   connected: '已连接',
@@ -32,6 +34,10 @@ interface Props {
 }
 
 export function BotCard({ bot, onEdit, onDelete, onTest, isTesting }: Props) {
+  const navigate = useNavigate();
+  const botStatus = useAppStore((s) => s.botStatuses[bot.id]);
+  const pendingCount = botStatus?.pendingNodeRequests?.length ?? 0;
+
   const skills = (() => {
     try { return Array.isArray(bot.skills_config) ? bot.skills_config : JSON.parse(bot.skills_config as unknown as string); }
     catch { return []; }
@@ -79,6 +85,19 @@ export function BotCard({ bot, onEdit, onDelete, onTest, isTesting }: Props) {
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
+          {/* Status page button — shows a red badge when there are pending node requests */}
+          <button
+            onClick={() => navigate(`/bots/${bot.id}/status`)}
+            title="查看状态"
+            className="relative w-7 h-7 rounded-[7px] border border-[#E5E7EB] bg-white flex items-center justify-center text-[#94A3B8] hover:bg-[#EFF6FF] hover:text-blue-600 hover:border-blue-200 transition-colors"
+          >
+            <Activity size={13} />
+            {pendingCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#EF4444] text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                {pendingCount > 9 ? '9+' : pendingCount}
+              </span>
+            )}
+          </button>
           <button
             onClick={onTest}
             disabled={isTesting}

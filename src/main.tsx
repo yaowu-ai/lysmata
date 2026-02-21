@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from './components/AppLayout';
 import { BotManagementPage } from './pages/BotManagement/BotManagementPage';
+import { BotStatusPage } from './pages/BotManagement/BotStatusPage';
 import { PrivateChatPage } from './pages/Chat/PrivateChatPage';
 import { GroupChatPage } from './pages/Chat/GroupChatPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -38,6 +39,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route element={<AppLayout />}>
             <Route index element={<Navigate to="/bots" replace />} />
             <Route path="bots" element={<BotManagementPage />} />
+            <Route path="bots/:id/status" element={<BotStatusPage />} />
             <Route path="chat/private" element={<PrivateChatPage />} />
             <Route path="chat/group" element={<GroupChatPage />} />
             <Route path="settings" element={<SettingsPage />} />

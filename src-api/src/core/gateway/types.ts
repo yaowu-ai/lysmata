@@ -6,13 +6,95 @@ export interface PendingRun {
   onError: (err: Error) => void;
 }
 
-export interface PushEvent {
-  type: 'message' | 'approval' | 'system_presence';
-  sessionId?: string;
-  agentId?: string;
-  content?: string;
-  metadata?: Record<string, unknown>;
+// ── Per-event payload shapes ─────────────────────────────────────────────────
+
+export interface HealthPayload {
+  uptimeMs?: number;
+  limits?: Record<string, unknown>;
+  nodes?: Record<string, unknown>;
+  [key: string]: unknown;
 }
+
+export interface PresencePayload {
+  devices?: unknown;
+  sessions?: unknown;
+  online?: boolean;
+  [key: string]: unknown;
+}
+
+export interface HeartbeatPayload {
+  status?: string;
+  lastBeat?: unknown;
+  [key: string]: unknown;
+}
+
+export interface NodePairRequestedPayload {
+  nodeId?: string;
+  requestId?: string;
+  [key: string]: unknown;
+}
+
+export interface NodePairResolvedPayload {
+  nodeId?: string;
+  status?: 'approved' | 'rejected';
+  [key: string]: unknown;
+}
+
+export interface CronPayload {
+  jobId?: string;
+  nextRun?: string;
+  action?: string;
+  status?: string;
+  summary?: string;
+  runAtMs?: number;
+  durationMs?: number;
+  nextRunAtMs?: number;
+  [key: string]: unknown;
+}
+
+export interface ChatPayload {
+  sessionKey?: string;
+  message?: unknown;
+  from?: string;
+  [key: string]: unknown;
+}
+
+export interface ExecFinishedPayload {
+  sessionKey?: string;
+  runId?: string;
+  result?: unknown;
+  [key: string]: unknown;
+}
+
+export interface ExecDeniedPayload {
+  sessionKey?: string;
+  runId?: string;
+  reason?: string;
+  [key: string]: unknown;
+}
+
+// ── PushEvent — discriminated union covering all Gateway server-push events ──
+//
+// Each variant maps to one Gateway event name.  The `type` field uses
+// snake_case equivalents for JS safety (e.g. `node.pair.requested` → `node_pair_requested`).
+
+export type PushEvent =
+  | { type: 'message';             sessionId: string; agentId: string; content: string }
+  | { type: 'approval';            sessionId?: string; agentId?: string; metadata: Record<string, unknown> }
+  | { type: 'system_presence';     metadata: Record<string, unknown> }
+  | { type: 'tick' }
+  | { type: 'chat';                payload: ChatPayload }
+  | { type: 'presence';            payload: PresencePayload }
+  | { type: 'health';              payload: HealthPayload }
+  | { type: 'heartbeat';           payload: HeartbeatPayload }
+  | { type: 'shutdown' }
+  | { type: 'node_pair_requested'; payload: NodePairRequestedPayload }
+  | { type: 'node_pair_resolved';  payload: NodePairResolvedPayload }
+  | { type: 'cron';                payload: CronPayload }
+  | { type: 'exec_finished';       sessionId?: string; payload: ExecFinishedPayload }
+  | { type: 'exec_denied';         sessionId?: string; payload: ExecDeniedPayload };
+
+// ── Connection pool entry ────────────────────────────────────────────────────
 
 export interface PoolEntry {
   ws: WebSocket;
@@ -24,9 +106,13 @@ export interface PoolEntry {
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   ready: boolean;
   readyWaiters: Array<{ resolve: () => void; reject: (e: Error) => void }>;
-  /** Called when a push event arrives */
+  /** Called when any push event arrives from the Gateway */
   onPushEvent?: (event: PushEvent) => void;
+  /** Gateway URL — used to trigger teardown on shutdown events */
+  url?: string;
 }
+
+// ── Wire protocol frames ─────────────────────────────────────────────────────
 
 export interface GatewayFrame {
   type: 'req' | 'res' | 'event';
@@ -37,6 +123,8 @@ export interface GatewayEvent extends GatewayFrame {
   event: string;
   payload: Record<string, unknown>;
   seq?: number;
+  /** Monotonically increasing state version for incremental sync */
+  stateVersion?: number;
 }
 
 export interface GatewayResponse extends GatewayFrame {
