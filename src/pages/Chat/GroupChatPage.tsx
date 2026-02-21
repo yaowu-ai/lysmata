@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { Settings } from 'lucide-react';
 import { useConversations, useDeleteConversation } from '../../shared/hooks/useConversations';
 import { useMessages, useSendMessage } from '../../shared/hooks/useMessages';
@@ -10,6 +10,7 @@ import { BotMessage } from './BotMessage';
 import { MessageInput } from './MessageInput';
 import { NewConversationDialog } from './NewConversationDialog';
 import type { Bot } from '../../shared/types';
+import { isSameDay, formatDateLabel } from '../../shared/lib/utils';
 
 export function GroupChatPage() {
   const { data: convs = [], isLoading: convLoading } = useConversations();
@@ -90,9 +91,24 @@ export function GroupChatPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
-              {messages.map((m) => (
-                <BotMessage key={m.id} message={m} isPrimary={m.bot_id === primaryBotId} />
-              ))}
+              {messages.map((m, i) => {
+                const prev = messages[i - 1];
+                const showDateSep = !prev || !isSameDay(prev.created_at, m.created_at);
+                return (
+                  <Fragment key={m.id}>
+                    {showDateSep && (
+                      <div className="flex items-center gap-3 my-1">
+                        <div className="flex-1 h-px bg-[#E5E7EB]" />
+                        <span className="text-[11px] text-[#94A3B8] px-2 select-none">
+                          {formatDateLabel(m.created_at)}
+                        </span>
+                        <div className="flex-1 h-px bg-[#E5E7EB]" />
+                      </div>
+                    )}
+                    <BotMessage message={m} isPrimary={m.bot_id === primaryBotId} />
+                  </Fragment>
+                );
+              })}
               {sendMut.isPending && (
                 <div className="flex items-start gap-2.5">
                   <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl">🤖</div>

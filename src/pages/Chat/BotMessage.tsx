@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Message } from '../../shared/types';
-import { cn } from '../../shared/lib/utils';
+import { cn, formatMsgTime } from '../../shared/lib/utils';
 import { useResolveApproval } from '../../shared/hooks/useMessages';
 
 interface Props {
@@ -37,7 +37,7 @@ export function BotMessage({ message, isPrimary }: Props) {
           <div className="bg-[#2563EB] text-white rounded-[12px_0_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words">
             {message.content}
           </div>
-          <div className="text-[11px] text-[#CBD5E1] text-right mt-1">刚刚</div>
+          <div className="text-[11px] text-[#CBD5E1] text-right mt-1">{formatMsgTime(message.created_at)}</div>
         </div>
       </div>
     );
@@ -133,7 +133,7 @@ export function BotMessage({ message, isPrimary }: Props) {
           </div>
         )}
 
-        <div className="text-[11px] text-[#CBD5E1] mt-1">刚刚</div>
+        <div className="text-[11px] text-[#CBD5E1] mt-1">{formatMsgTime(message.created_at)}</div>
       </div>
     </div>
   );

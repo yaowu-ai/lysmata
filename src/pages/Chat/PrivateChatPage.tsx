@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useConversations, useDeleteConversation } from '../../shared/hooks/useConversations';
 import { useMessages, useSendMessage } from '../../shared/hooks/useMessages';
 import { useBots } from '../../shared/hooks/useBots';
@@ -8,6 +8,7 @@ import { ConversationSidebar } from './ConversationSidebar';
 import { BotMessage } from './BotMessage';
 import { MessageInput } from './MessageInput';
 import { NewConversationDialog } from './NewConversationDialog';
+import { isSameDay, formatDateLabel } from '../../shared/lib/utils';
 
 export function PrivateChatPage() {
   const { data: convs = [], isLoading: convLoading } = useConversations();
@@ -63,9 +64,24 @@ export function PrivateChatPage() {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
-            {messages.map((m) => {
+            {messages.map((m, i) => {
               const msgBot = m.bot_id ? bots.find((b) => b.id === m.bot_id) : undefined;
-              return <BotMessage key={m.id} message={{ ...m, bot: msgBot }} isPrimary />;
+              const prev = messages[i - 1];
+              const showDateSep = !prev || !isSameDay(prev.created_at, m.created_at);
+              return (
+                <Fragment key={m.id}>
+                  {showDateSep && (
+                    <div className="flex items-center gap-3 my-1">
+                      <div className="flex-1 h-px bg-[#E5E7EB]" />
+                      <span className="text-[11px] text-[#94A3B8] px-2 select-none">
+                        {formatDateLabel(m.created_at)}
+                      </span>
+                      <div className="flex-1 h-px bg-[#E5E7EB]" />
+                    </div>
+                  )}
+                  <BotMessage message={{ ...m, bot: msgBot }} isPrimary />
+                </Fragment>
+              );
             })}
             {sendMut.isPending && (
               <div className="flex items-start gap-2.5">
