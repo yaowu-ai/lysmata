@@ -9,6 +9,7 @@ import messages from './app/api/messages';
 import { OpenClawProxy } from './core/openclaw-proxy';
 import { PushRelay } from './core/push-relay';
 import { BotService } from './core/bot-service';
+import { ApiError } from './shared/errors';
 
 const app = new Hono();
 
@@ -21,6 +22,15 @@ app.route('/health', health);
 app.route('/bots', bots);
 app.route('/conversations', conversations);
 app.route('/conversations/:conversationId/messages', messages);
+
+// Global error handler
+app.onError((err, c) => {
+  if (err instanceof ApiError) {
+    return c.json({ error: err.message }, err.statusCode as 400 | 404 | 500);
+  }
+  console.error('[sidecar] Unhandled error:', err);
+  return c.json({ error: 'Internal server error' }, 500);
+});
 
 // Wire push handlers for all active WS bots so bot-initiated messages are captured
 function wirePushHandlers() {

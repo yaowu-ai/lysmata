@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { ConversationService } from '../../core/conversation-service';
+import { notFound } from '../../shared/errors';
 
 const conversations = new Hono();
 
@@ -16,7 +17,7 @@ conversations.get('/', (c) => c.json(ConversationService.findAll()));
 
 conversations.get('/:id', (c) => {
   const conv = ConversationService.findById(c.req.param('id'));
-  if (!conv) return c.json({ error: 'Not found' }, 404);
+  if (!conv) throw notFound('Conversation');
   return c.json(conv);
 });
 
@@ -27,7 +28,7 @@ conversations.post('/', zValidator('json', createSchema), (c) => {
 
 conversations.delete('/:id', (c) => {
   const deleted = ConversationService.delete(c.req.param('id'));
-  if (!deleted) return c.json({ error: 'Not found' }, 404);
+  if (!deleted) throw notFound('Conversation');
   return c.json({ success: true });
 });
 

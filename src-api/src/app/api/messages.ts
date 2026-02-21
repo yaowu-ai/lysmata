@@ -2,9 +2,10 @@ import { Hono } from 'hono';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { MessageRouter } from '../../core/message-router';
-import { PushRelay } from '../../core/push-relay';
 import { BotService } from '../../core/bot-service';
 import { OpenClawProxy } from '../../core/openclaw-proxy';
+import { notFound } from '../../shared/errors';
+import { createPushSseResponse } from '../../shared/sse';
 
 const messages = new Hono();
 
@@ -19,12 +20,8 @@ messages.post(
   async (c) => {
     const { content } = c.req.valid('json');
     const convId = c.req.param('conversationId');
-    try {
-      const botMsg = await MessageRouter.route(convId, content, () => {});
-      return c.json(botMsg, 201);
-    } catch (err) {
-      return c.json({ error: String(err) }, 500);
-    }
+    const botMsg = await MessageRouter.route(convId, content, () => {});
+    return c.json(botMsg, 201);
   },
 );
 
@@ -35,27 +32,16 @@ messages.post(
     const { botId, approved } = c.req.valid('json');
     const approvalId = c.req.param('approvalId');
     const bot = BotService.findById(botId);
-    if (!bot) return c.json({ error: 'Bot not found' }, 404);
+    if (!bot) throw notFound('Bot');
 
-    try {
-      await OpenClawProxy.resolveApproval(
-        bot.openclaw_ws_url,
-        bot.openclaw_ws_token || undefined,
-        approvalId,
-        approved
-      );
-      
-      // Update message metadata to mark as resolved
-      const db = require('../../shared/db').getDb();
-      // Find the message that has this approval id in its metadata
-      // Since SQLite JSON functions are available, or we can just fetch and parse,
-      // but it's simpler to just let the frontend refresh or ignore DB update.
-      // Ideally we would update the message in DB to reflect the new state.
+    await OpenClawProxy.resolveApproval(
+      bot.openclaw_ws_url,
+      bot.openclaw_ws_token || undefined,
+      approvalId,
+      approved
+    );
 
-      return c.json({ success: true });
-    } catch (err) {
-      return c.json({ error: String(err) }, 500);
-    }
+    return c.json({ success: true });
   }
 );
 
@@ -92,37 +78,6 @@ messages.get('/stream', async (c) => {
 });
 
 // Push-stream SSE endpoint — long-lived connection for bot-initiated messages
-messages.get('/push-stream', (c) => {
-  const convId = c.req.param('conversationId');
-
-  let cleanup: (() => void) | undefined;
-
-  const stream = new ReadableStream<Uint8Array>({
-    start(ctrl) {
-      // Send a heartbeat comment every 25s to keep the connection alive
-      const enc = new TextEncoder();
-      const heartbeat = setInterval(() => {
-        try { ctrl.enqueue(enc.encode(': heartbeat\n\n')); } catch { /* closed */ }
-      }, 25_000);
-
-      cleanup = PushRelay.registerClient(convId, ctrl);
-
-      // Override cleanup to also clear the heartbeat timer
-      const originalCleanup = cleanup;
-      cleanup = () => { clearInterval(heartbeat); originalCleanup(); };
-    },
-    cancel() {
-      cleanup?.();
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
-  });
-});
+messages.get('/push-stream', (c) => createPushSseResponse(c.req.param('conversationId')));
 
 export default messages;
