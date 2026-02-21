@@ -71,6 +71,9 @@ function ensureSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_bots_active ON bots(is_active);
   `);
 
+  // Cleanup: remove orphaned conversation_bots rows whose bot no longer exists
+  db.exec(`DELETE FROM conversation_bots WHERE bot_id NOT IN (SELECT id FROM bots);`);
+
   // Migration 2: add openclaw_agent_id column (idempotent via PRAGMA table_info)
   const cols = db
     .query<{ name: string }, []>('PRAGMA table_info(bots)')

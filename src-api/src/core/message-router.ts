@@ -3,6 +3,7 @@ import { ConversationService } from './conversation-service';
 import { OpenClawProxy } from './openclaw-proxy';
 import { getDb } from '../shared/db';
 import { randomUUID } from 'crypto';
+import { ApiError, notFound } from '../shared/errors';
 
 export interface Message {
   id: string;
@@ -11,6 +12,8 @@ export interface Message {
   bot_id: string | null;
   content: string;
   mentioned_bot_id: string | null;
+  message_type: string;
+  metadata: string | null;
   created_at: string;
 }
 
@@ -30,7 +33,7 @@ export const MessageRouter = {
     onChunk: (chunk: string, botId: string) => void,
   ): Promise<Message> {
     const conv = ConversationService.findById(conversationId);
-    if (!conv) throw new Error('Conversation not found');
+    if (!conv) throw notFound('Conversation');
 
     const now = new Date().toISOString();
 
@@ -65,7 +68,7 @@ export const MessageRouter = {
       if (primaryCb) targetBot = BotService.findById(primaryCb.bot_id);
     }
 
-    if (!targetBot) throw new Error('No target bot found for conversation');
+    if (!targetBot) throw new ApiError(422, 'No active bot found for this conversation — the bot may have been deleted');
 
     // Build context injection for group chats
     let enrichedContent = userContent;

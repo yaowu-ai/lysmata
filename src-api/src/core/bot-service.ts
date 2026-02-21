@@ -97,7 +97,9 @@ export const BotService = {
   },
 
   delete(id: string): boolean {
-    const info = getDb().run('DELETE FROM bots WHERE id = ?', [id]);
+    const db = getDb();
+    db.run('DELETE FROM conversation_bots WHERE bot_id = ?', [id]);
+    const info = db.run('DELETE FROM bots WHERE id = ?', [id]);
     return info.changes > 0;
   },
 };

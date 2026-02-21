@@ -6,6 +6,7 @@ import { BotService } from '../../core/bot-service';
 import { OpenClawProxy } from '../../core/openclaw-proxy';
 import { notFound } from '../../shared/errors';
 import { createPushSseResponse } from '../../shared/sse';
+import { SSE } from '../../config/constants';
 
 const messages = new Hono();
 
@@ -20,7 +21,8 @@ messages.post(
   async (c) => {
     const { content } = c.req.valid('json');
     const convId = c.req.param('conversationId');
-    const botMsg = await MessageRouter.route(convId, content, () => {});
+    // Non-streaming endpoint: chunks are not forwarded, only the final message is returned.
+    const botMsg = await MessageRouter.route(convId, content, (_chunk, _botId) => {});
     return c.json(botMsg, 201);
   },
 );
@@ -45,16 +47,16 @@ messages.post(
   }
 );
 
-// SSE streaming endpoint
+// SSE streaming endpoint — streams bot reply chunks as they arrive
 messages.get('/stream', async (c) => {
   const { content } = c.req.query();
   if (!content) return c.json({ error: 'content query param required' }, 400);
   const convId = c.req.param('conversationId');
+  const enc = new TextEncoder();
 
   return new Response(
     new ReadableStream({
       async start(controller) {
-        const enc = new TextEncoder();
         try {
           await MessageRouter.route(convId, content, (chunk) => {
             controller.enqueue(enc.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
@@ -67,13 +69,7 @@ messages.get('/stream', async (c) => {
         }
       },
     }),
-    {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      },
-    },
+    { headers: SSE.HEADERS },
   );
 });
 
