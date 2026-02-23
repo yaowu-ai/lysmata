@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { API_BASE_URL } from '../../config';
 import { apiClient } from '../api-client';
 import type { Message, SendMessageInput } from '../types';
 
@@ -67,4 +68,65 @@ export function useResolveApproval(conversationId: string) {
       qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
     },
   });
+}
+
+/**
+ * Returns an async function that sends a message via the streaming endpoint
+ * (GET /stream) and calls onChunk for each text chunk received.
+ * Optimistically inserts the user message before streaming starts.
+ * Invalidates the message list after streaming completes.
+ */
+export function useSendMessageStream(conversationId: string) {
+  const qc = useQueryClient();
+
+  return async (content: string, onChunk: (text: string) => void): Promise<void> => {
+    // Optimistically insert user message
+    const optimisticId = `optimistic-${Date.now()}`;
+    qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => [
+      ...old,
+      {
+        id: optimisticId,
+        conversation_id: conversationId,
+        sender_type: 'user',
+        content,
+        created_at: new Date().toISOString(),
+      } as Message,
+    ]);
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/conversations/${conversationId}/messages/stream?content=${encodeURIComponent(content)}`,
+      );
+      if (!res.ok || !res.body) throw new Error(`Stream error: ${res.status}`);
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') break;
+          try {
+            const parsed = JSON.parse(raw) as { chunk?: string; error?: string };
+            if (parsed.chunk) onChunk(parsed.chunk);
+          } catch {}
+        }
+      }
+    } finally {
+      // Remove optimistic message and refetch to get real IDs + bot reply
+      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
+        old.filter((m) => m.id !== optimisticId),
+      );
+      await qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
+    }
+  };
 }
