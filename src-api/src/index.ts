@@ -10,6 +10,7 @@ import { OpenClawProxy } from './core/openclaw-proxy';
 import { PushRelay } from './core/push-relay';
 import { BotService } from './core/bot-service';
 import { ApiError } from './shared/errors';
+import settings from './app/api/settings';
 
 const app = new Hono();
 
@@ -22,6 +23,7 @@ app.route('/health', health);
 app.route('/bots', bots);
 app.route('/conversations', conversations);
 app.route('/conversations/:conversationId/messages', messages);
+app.route('/settings', settings);
 
 // Global error handler
 app.onError((err, c) => {
