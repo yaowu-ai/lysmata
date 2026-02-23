@@ -58,7 +58,7 @@ export interface OpenClawConfig {
   plugins?: Record<string, unknown>;
   models?: {
     mode?: string;
-    providers?: Record<string, unknown>;
+    providers?: Record<string, OpenClawProvider>;
   };
   [key: string]: unknown;
 }
@@ -182,9 +182,9 @@ export interface OpenClawProviderModel {
 }
 
 export interface OpenClawProvider {
-  baseUrl: string;
-  apiKey: string;
-  api: string;
+  baseUrl?: string;
+  apiKey?: string;
+  api?: string;
   models: OpenClawProviderModel[];
 }
 
@@ -192,14 +192,14 @@ export interface LlmSettings {
   providers: Record<string, OpenClawProvider>;
   defaultModel: {
     primary: string;
-    fallbacks: string[];
+    fallbacks?: string[];
   };
 }
 
 export async function readLlmSettings(): Promise<LlmSettings> {
   const config = await readOpenClawConfig();
   return {
-    providers: (config?.models?.providers ?? {}) as Record<string, OpenClawProvider>,
+    providers: config?.models?.providers ?? {},
     defaultModel: {
       primary: config?.agents?.defaults?.model?.primary ?? '',
       fallbacks: config?.agents?.defaults?.model?.fallbacks ?? [],
@@ -213,7 +213,7 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
 
   // Write providers
   updated.models ??= { mode: 'merge', providers: {} };
-  (updated.models as Record<string, unknown>).providers = settings.providers;
+  updated.models.providers = settings.providers;
 
   // Write default model
   updated.agents ??= {};
