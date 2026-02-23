@@ -78,7 +78,7 @@ export function BotMessage({ message, isPrimary }: Props) {
   const resolveMut = useResolveApproval(message.conversation_id);
   const [resolvedState, setResolvedState] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
-  let metadata: any = {};
+  let metadata: Record<string, unknown> = {};
   try {
     if (message.metadata) metadata = JSON.parse(message.metadata);
   } catch {}
@@ -89,7 +89,7 @@ export function BotMessage({ message, isPrimary }: Props) {
   const handleResolve = (approved: boolean) => {
     if (!bot || !metadata.id) return;
     resolveMut.mutate(
-      { approvalId: metadata.id, botId: bot.id, approved },
+      { approvalId: metadata.id as string, botId: bot.id, approved },
       {
         onSuccess: () => setResolvedState(approved ? 'approved' : 'rejected'),
       }
@@ -149,13 +149,13 @@ export function BotMessage({ message, isPrimary }: Props) {
               <div className="mb-2">
                 <span className="text-[#64748B] mr-2">命令:</span>
                 <code className="bg-[#F1F5F9] px-1.5 py-0.5 rounded text-[#0F172A]">
-                  {metadata.call?.command || metadata.command || '未知'}
+                  {(metadata.call as Record<string, unknown>)?.command as string || metadata.command as string || '未知'}
                 </code>
               </div>
               <div className="mb-3">
                 <span className="text-[#64748B] block mb-1">参数:</span>
                 <pre className="bg-[#1E293B] text-[#E2E8F0] p-2 rounded-md overflow-x-auto text-[12px]">
-                  {JSON.stringify(metadata.call?.args || metadata.args || {}, null, 2)}
+                  {JSON.stringify((metadata.call as Record<string, unknown>)?.args || metadata.args || {}, null, 2)}
                 </pre>
               </div>
 

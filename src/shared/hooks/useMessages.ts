@@ -111,15 +111,17 @@ export function useSendMessageStream(conversationId: string) {
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
 
+        let streamDone = false;
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const raw = line.slice(6).trim();
-          if (raw === '[DONE]') break;
+          if (raw === '[DONE]') { streamDone = true; break; }
           try {
             const parsed = JSON.parse(raw) as { chunk?: string; error?: string };
             if (parsed.chunk) onChunk(parsed.chunk);
           } catch {}
         }
+        if (streamDone) break;
       }
     } finally {
       // Remove optimistic message and refetch to get real IDs + bot reply
