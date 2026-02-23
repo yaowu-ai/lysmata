@@ -30,9 +30,16 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
     }
   }, [open, providerKey, provider]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onClose]);
 
-  function updateModel(index: number, field: keyof ProviderModel, value: string | number) {
+  function updateModel<K extends keyof ProviderModel>(index: number, field: K, value: ProviderModel[K]) {
     setForm((prev) => {
       const models = [...prev.models];
       models[index] = { ...models[index], [field]: value };
@@ -53,6 +60,8 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
     if (!key.trim()) return;
     onSave(key.trim(), form);
   }
+
+  if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
