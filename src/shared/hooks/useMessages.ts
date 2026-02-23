@@ -132,3 +132,7 @@ export function useSendMessageStream(conversationId: string) {
     }
   };
 }
+
+export async function fetchSingleMessage(conversationId: string, msgId: string): Promise<Message> {
+  return apiClient.get<Message>(`/conversations/${conversationId}/messages/${msgId}`);
+}

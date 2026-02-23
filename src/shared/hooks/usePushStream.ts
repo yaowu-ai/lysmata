@@ -1,15 +1,15 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { API_BASE_URL } from '../../config';
-import { msgKeys } from './useMessages';
+import { msgKeys, fetchSingleMessage } from './useMessages';
+import type { Message } from '../types';
 
 /**
  * Subscribe to bot-initiated (push) messages for a conversation via SSE.
  *
- * When the bot proactively sends a message (e.g. a scheduled greeting or
- * task completion notification), the server writes it to the DB and broadcasts
- * an SSE event on /push-stream. This hook invalidates the React Query cache
- * so the message list refreshes automatically.
+ * Instead of invalidating the full list on every event, we insert a placeholder
+ * immediately and then fetch the single message to replace it, avoiding a full
+ * refetch round-trip.
  */
 export function usePushStream(conversationId: string | null | undefined) {
   const qc = useQueryClient();
@@ -20,8 +20,38 @@ export function usePushStream(conversationId: string | null | undefined) {
     const url = `${API_BASE_URL}/conversations/${conversationId}/messages/push-stream`;
     const es = new EventSource(url);
 
-    es.onmessage = () => {
-      qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
+    es.onmessage = (event) => {
+      let data: { msgId?: string; conversationId?: string; type?: string };
+      try {
+        data = JSON.parse(event.data as string);
+      } catch {
+        return;
+      }
+
+      const { msgId } = data;
+      if (!msgId) return;
+
+      // 1. Insert placeholder to avoid list jump
+      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
+        if (old.some((m) => m.id === msgId)) return old;
+        return [...old, {
+          id: msgId,
+          conversation_id: conversationId,
+          sender_type: 'bot',
+          content: '',
+          created_at: new Date().toISOString(),
+        } as Message];
+      });
+
+      // 2. Fetch full message and replace placeholder
+      fetchSingleMessage(conversationId, msgId).then((msg) => {
+        qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
+          old.map((m) => (m.id === msgId ? msg : m)),
+        );
+      }).catch(() => {
+        // Fall back to full invalidate if fetch fails
+        qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
+      });
     };
 
     es.onerror = () => {
