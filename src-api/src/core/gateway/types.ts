@@ -110,6 +110,8 @@ export interface PoolEntry {
   onPushEvent?: (event: PushEvent) => void;
   /** Gateway URL — used to trigger teardown on shutdown events */
   url?: string;
+  /** Gateway token used for authentication — stored for reconnect */
+  token?: string;
 }
 
 // ── Wire protocol frames ─────────────────────────────────────────────────────

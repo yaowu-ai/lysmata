@@ -119,6 +119,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
     ws,
     deviceId,
     url,
+    token,
     pendingRequests: new Map(),
     activeRuns: new Map(),
     pushRuns: new Map(),
@@ -361,7 +362,7 @@ export const GatewayWSAdapter = {
   ): Promise<{ success: boolean; message: string }> {
     try {
       const entry = await connectWS(url, token);
-      teardown(url, entry, new Error('test complete'));
+      teardown(url, entry, new Error('test complete'), true);
       entry.ws.close();
       return { success: true, message: '连接成功（握手完成）' };
     } catch (err) {

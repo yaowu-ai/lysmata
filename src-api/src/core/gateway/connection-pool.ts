@@ -18,6 +18,9 @@ export const pushHandlerRegistry = new Map<
   (event: PushEvent) => void
 >();
 
+/** URLs currently undergoing reconnect — prevents concurrent reconnect attempts */
+const reconnectingUrls = new Set<string>();
+
 export function sendFrame(ws: WebSocket, frame: object): void {
   // Derive URL from the pool for logging
   const url = [...pool.entries()].find(([, e]) => e.ws === ws)?.[0] ?? 'unknown';
@@ -350,6 +353,8 @@ function scheduleReconnect(url: string, token: string | undefined, attempt: numb
   GatewayLogger.logSystem(url, `reconnect: attempt ${attempt + 1} in ${delayMs}ms`);
   setTimeout(async () => {
     if (pool.has(url)) return; // already reconnected by another path
+    if (reconnectingUrls.has(url)) return; // prevent concurrent reconnect
+    reconnectingUrls.add(url);
     try {
       const { connectWS } = await import('./ws-adapter');
       const entry = await connectWS(url, token);
@@ -358,6 +363,8 @@ function scheduleReconnect(url: string, token: string | undefined, attempt: numb
       GatewayLogger.logSystem(url, `reconnect: success on attempt ${attempt + 1}`);
     } catch {
       scheduleReconnect(url, token, attempt + 1);
+    } finally {
+      reconnectingUrls.delete(url);
     }
   }, delayMs);
 }
@@ -377,7 +384,7 @@ export function teardown(url: string, entry: PoolEntry, err: Error, intentional 
   pool.delete(url);
 
   if (!intentional) {
-    scheduleReconnect(url, undefined, 0);
+    scheduleReconnect(url, entry.token, 0);
   }
 }
 
