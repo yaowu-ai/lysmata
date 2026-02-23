@@ -22,14 +22,14 @@ function SystemEventCard({ metadata, content }: { metadata: Record<string, unkno
         </div>
         {result && (
           <div className="p-3">
-            {result.command && (
+            {result.command != null && (
               <div className="mb-1">
                 <code className="bg-[#DCFCE7] px-1.5 py-0.5 rounded text-[#166534] text-[12px]">
                   {result.command}
                 </code>
               </div>
             )}
-            {result.output && (
+            {result.output != null && (
               <pre className="bg-[#1E293B] text-[#E2E8F0] p-2 rounded-md overflow-x-auto text-[12px] max-h-[120px] overflow-y-auto mt-2">
                 {result.output}
               </pre>
