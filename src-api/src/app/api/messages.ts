@@ -54,19 +54,34 @@ messages.get('/stream', async (c) => {
   const convId = c.req.param('conversationId');
   const enc = new TextEncoder();
 
+  let closed = false;
+
   return new Response(
     new ReadableStream({
       async start(controller) {
+        const safeEnqueue = (data: string) => {
+          if (closed) return;
+          try {
+            controller.enqueue(enc.encode(data));
+          } catch {
+            closed = true;
+          }
+        };
+
         try {
           await MessageRouter.route(convId, content, (chunk) => {
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ chunk })}\n\n`));
+            safeEnqueue(`data: ${JSON.stringify({ chunk })}\n\n`);
           });
-          controller.enqueue(enc.encode('data: [DONE]\n\n'));
+          safeEnqueue('data: [DONE]\n\n');
         } catch (err) {
-          controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+          safeEnqueue(`data: ${JSON.stringify({ error: String(err) })}\n\n`);
         } finally {
-          controller.close();
+          closed = true;
+          try { controller.close(); } catch { /* already closed */ }
         }
+      },
+      cancel() {
+        closed = true;
       },
     }),
     { headers: SSE.HEADERS },
