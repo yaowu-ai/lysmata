@@ -153,7 +153,7 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
     GatewayLogger.logSystem(url, 'Gateway shutdown event received');
     entry.onPushEvent?.({ type: 'shutdown' });
     if (entry.url) {
-      teardown(entry.url, entry, new Error('Gateway shutdown'));
+      teardown(entry.url, entry, new Error('Gateway shutdown'), true);
       entry.ws.close();
     }
     return;
