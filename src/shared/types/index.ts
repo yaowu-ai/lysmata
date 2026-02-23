@@ -36,8 +36,9 @@ export interface SkillConfig {
   description: string;
 }
 
-export type CreateBotInput = Omit<Bot, 'id' | 'connection_status' | 'created_at' | 'updated_at'> & {
+export type CreateBotInput = Omit<Bot, 'id' | 'connection_status' | 'created_at' | 'updated_at' | 'llm_config'> & {
   openclaw_agent_id?: string;
+  llm_config?: LlmConfig | null;
 };
 export type UpdateBotInput = Partial<CreateBotInput>;
 

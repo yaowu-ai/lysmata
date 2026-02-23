@@ -124,7 +124,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       avatar_emoji: emoji,
       description,
       skills_config: skills,
-      mcp_config: parsedMcp,
+      mcp_config: typeof parsedMcp === 'string' ? parsedMcp : JSON.stringify(parsedMcp),
       openclaw_ws_url: gatewayUrl,
       openclaw_agent_id: agentId || 'main',
       openclaw_ws_token: wsToken || undefined,
