@@ -35,7 +35,12 @@ export function GroupChatPage() {
     });
   }
 
-  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingContent]);
+
+  useEffect(() => {
+    setStreamingContent(null);
+    setIsSending(false);
+  }, [activeId]);
 
   const convBotIds = activeConv?.bots?.map((b) => b.bot_id) ?? [];
   const convBots: Bot[] = convBotIds.map((id) => bots.find((b) => b.id === id)!).filter(Boolean);

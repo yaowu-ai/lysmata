@@ -33,7 +33,12 @@ export function PrivateChatPage() {
     });
   }
 
-  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingContent]);
+
+  useEffect(() => {
+    setStreamingContent(null);
+    setIsSending(false);
+  }, [activeId]);
 
   const convBotId = activeConv?.bots?.[0]?.bot_id;
   const convBot = bots.find((b) => b.id === convBotId);

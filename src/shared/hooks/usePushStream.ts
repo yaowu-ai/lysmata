@@ -17,6 +17,7 @@ export function usePushStream(conversationId: string | null | undefined) {
   useEffect(() => {
     if (!conversationId) return;
 
+    let isActive = true;
     const url = `${API_BASE_URL}/conversations/${conversationId}/messages/push-stream`;
     const es = new EventSource(url);
 
@@ -45,6 +46,7 @@ export function usePushStream(conversationId: string | null | undefined) {
 
       // 2. Fetch full message and replace placeholder
       fetchSingleMessage(conversationId, msgId).then((msg) => {
+        if (!isActive) return;
         qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
           old.map((m) => (m.id === msgId ? msg : m)),
         );
@@ -59,6 +61,7 @@ export function usePushStream(conversationId: string | null | undefined) {
     };
 
     return () => {
+      isActive = false;
       es.close();
     };
   }, [conversationId, qc]);
