@@ -168,7 +168,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
     } catch { return 0; }
   })();
 
-  // Remote config sync status banner (shown in LLM / MCP / Skills tabs)
+  // Remote config sync status banner (shown in MCP / Skills tabs)
   const syncBanner = isEdit ? (() => {
     if (remoteConfig.isLoading || remoteConfig.isFetching) return 'loading' as const;
     if (remoteConfig.data?.success) return 'ok' as const;
@@ -189,7 +189,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="font-semibold text-[17px]">{isEdit ? '编辑 Bot' : '新建 Bot'}</h2>
-          <p className="text-[12px] text-[#64748B] mt-0.5">配置 LLM、MCP、Skills 与 Gateway 连接</p>
+          <p className="text-[12px] text-[#64748B] mt-0.5">配置 MCP、Skills 与 Gateway 连接</p>
         </div>
         <button
           onClick={onClose}
@@ -227,7 +227,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
         ))}
       </div>
 
-      {/* Sync status banner — shown in LLM / MCP / Skills tabs when editing */}
+      {/* Sync status banner — shown in MCP / Skills tabs when editing */}
       {isEdit && ['MCP', 'Skills'].includes(tab) && syncBanner && (
         <SyncBanner
           status={syncBanner}
@@ -396,7 +396,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
               <Info size={13} />
               {isHttpMode
                 ? 'HTTP 模式：使用 OpenAI 兼容 API（需在 OpenClaw 配置中启用 chatCompletions）'
-                : 'WS 模式：使用 Gateway WebSocket 协议（推荐）。LLM 配置写入 ~/.openclaw/openclaw.json'}
+                : 'WS 模式：使用 Gateway WebSocket 协议（推荐）'}
             </div>
 
             <Field
@@ -471,7 +471,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
                   <div>
                     <p className="text-[13px] font-medium text-[#0F172A]">推送配置到 Gateway</p>
                     <p className="text-[11px] text-[#94A3B8] mt-0.5">
-                      验证 Gateway 连通性后，将 LLM 配置写入{' '}
+                      验证 Gateway 连通性后，将配置写入{' '}
                       <code className="font-mono bg-[#F1F5F9] px-1 rounded">~/.openclaw/openclaw.json</code>，
                       重启 OpenClaw 后生效
                     </p>
@@ -513,7 +513,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
                       {applyResult.needsRestart && (
                         <div className="flex items-center gap-1.5 text-[11px] bg-[#FFFBEB] border border-[#FDE68A] text-[#92400E] px-2 py-1 rounded ml-5">
                           <RotateCcw size={10} className="flex-shrink-0" />
-                          重启 OpenClaw 后新 LLM 设置生效
+                          重启 OpenClaw 后新配置生效
                         </div>
                       )}
                     </div>
