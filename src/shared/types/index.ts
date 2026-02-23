@@ -92,7 +92,7 @@ export interface ProviderModel {
   maxTokens?: number;
 }
 
-export interface LlmProviderConfig {
+export interface ProviderConfig {
   baseUrl?: string;
   apiKey?: string;
   api?: string;
@@ -100,7 +100,7 @@ export interface LlmProviderConfig {
 }
 
 export interface LlmSettings {
-  providers: Record<string, LlmProviderConfig>;
+  providers: Record<string, ProviderConfig>;
   defaultModel: {
     primary: string;
     fallbacks?: string[];
