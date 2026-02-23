@@ -124,10 +124,9 @@ export function useSendMessageStream(conversationId: string) {
         if (streamDone) break;
       }
     } finally {
-      // Remove optimistic message and refetch to get real IDs + bot reply
-      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
-        old.filter((m) => m.id !== optimisticId),
-      );
+      // Refetch to get real messages — this naturally replaces the optimistic entry.
+      // Do NOT remove the optimistic message before refetch completes, or the list
+      // will flash empty during the round-trip.
       await qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
     }
   };
