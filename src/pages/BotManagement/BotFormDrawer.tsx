@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  X, Plus, Trash2, Wifi, CheckCircle, XCircle, Info, Upload, ChevronDown,
+  X, Plus, Trash2, Wifi, CheckCircle, XCircle, Info, Upload,
   RefreshCw, CloudDownload, AlertTriangle, FolderOpen, RotateCcw,
 } from 'lucide-react';
 import {
