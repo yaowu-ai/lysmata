@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useConversations, useDeleteConversation } from '../../shared/hooks/useConversations';
-import { useMessages, useSendMessage } from '../../shared/hooks/useMessages';
+import { useMessages, useSendMessageStream } from '../../shared/hooks/useMessages';
 import { useBots } from '../../shared/hooks/useBots';
 import { useChatStore } from '../../shared/store/chat-store';
 import { usePushStream } from '../../shared/hooks/usePushStream';
@@ -21,7 +21,9 @@ export function PrivateChatPage() {
   const activeConv = singleConvs.find((c) => c.id === activeId) ?? null;
 
   const { data: messages = [] } = useMessages(activeId ?? '');
-  const sendMut = useSendMessage(activeId ?? '');
+  const sendStream = useSendMessageStream(activeId ?? '');
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
   const deleteMut = useDeleteConversation();
   usePushStream(activeId);
 
@@ -83,15 +85,24 @@ export function PrivateChatPage() {
                 </Fragment>
               );
             })}
-            {sendMut.isPending && (
+            {streamingContent !== null && (
               <div className="flex items-start gap-2.5">
-                <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl">
+                <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
                   {convBot?.avatar_emoji ?? '🤖'}
                 </div>
-                <div className="bg-[#F1F5F9] rounded-[0_12px_12px_12px] px-3.5 py-2.5 flex gap-1.5 items-center">
-                  {[0, 1, 2].map((i) => (
-                    <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-                  ))}
+                <div className="max-w-[75%]">
+                  {streamingContent === '' ? (
+                    <div className="bg-[#F1F5F9] rounded-[0_12px_12px_12px] px-3.5 py-2.5 flex gap-1.5 items-center">
+                      {[0, 1, 2].map((i) => (
+                        <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-[#F0F7FF] border-l-[3px] border-[#2563EB] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap">
+                      {streamingContent}
+                      <span className="inline-block w-[2px] h-[14px] bg-[#2563EB] ml-0.5 animate-pulse align-middle" />
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -100,8 +111,17 @@ export function PrivateChatPage() {
 
           <MessageInput
             bots={convBot ? [convBot] : []}
-            onSend={(content) => sendMut.mutate({ content })}
-            disabled={sendMut.isPending}
+            onSend={async (content) => {
+              setIsSending(true);
+              setStreamingContent('');
+              try {
+                await sendStream(content, (chunk) => setStreamingContent(chunk));
+              } finally {
+                setStreamingContent(null);
+                setIsSending(false);
+              }
+            }}
+            disabled={isSending}
           />
         </div>
       ) : (
