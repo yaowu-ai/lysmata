@@ -8,6 +8,7 @@ export interface Bot {
   description: string;
   skills_config: string; // JSON string
   mcp_config: string;    // JSON string
+  llm_config: string;    // JSON string
   openclaw_ws_url: string;
   openclaw_ws_token: string | null;
   openclaw_agent_id: string; // which OpenClaw Agent to target (default: "main")
@@ -23,6 +24,7 @@ export interface CreateBotInput {
   description?: string;
   skills_config?: unknown[];
   mcp_config?: unknown;
+  llm_config?: unknown;
   openclaw_ws_url: string;
   openclaw_ws_token?: string;
   openclaw_agent_id?: string;
@@ -43,10 +45,10 @@ export const BotService = {
     const now = new Date().toISOString();
     const db = getDb();
     db.run(
-      `INSERT INTO bots (id, name, avatar_emoji, description, skills_config, mcp_config,
+      `INSERT INTO bots (id, name, avatar_emoji, description, skills_config, mcp_config, llm_config,
         openclaw_ws_url, openclaw_ws_token, openclaw_agent_id,
         connection_status, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'disconnected', ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disconnected', ?, ?, ?)`,
       [
         id,
         input.name,
@@ -54,6 +56,7 @@ export const BotService = {
         input.description ?? '',
         JSON.stringify(input.skills_config ?? []),
         JSON.stringify(input.mcp_config ?? {}),
+        JSON.stringify(input.llm_config ?? {}),
         input.openclaw_ws_url,
         input.openclaw_ws_token || null,
         input.openclaw_agent_id || 'main',
@@ -77,6 +80,7 @@ export const BotService = {
     if (input.description !== undefined)      { fields.push('description = ?');       values.push(input.description); }
     if (input.skills_config !== undefined)    { fields.push('skills_config = ?');     values.push(JSON.stringify(input.skills_config)); }
     if (input.mcp_config !== undefined)       { fields.push('mcp_config = ?');        values.push(JSON.stringify(input.mcp_config)); }
+    if (input.llm_config !== undefined)       { fields.push('llm_config = ?');        values.push(JSON.stringify(input.llm_config)); }
     if (input.openclaw_ws_url !== undefined)  { fields.push('openclaw_ws_url = ?');   values.push(input.openclaw_ws_url); }
     if (input.openclaw_ws_token !== undefined){ fields.push('openclaw_ws_token = ?'); values.push(input.openclaw_ws_token || null); }
     if (input.openclaw_agent_id !== undefined){ fields.push('openclaw_agent_id = ?'); values.push(input.openclaw_agent_id || 'main'); }

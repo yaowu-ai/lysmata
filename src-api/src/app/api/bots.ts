@@ -8,12 +8,23 @@ import { createPushSseResponse } from '../../shared/sse';
 
 const bots = new Hono();
 
+const llmConfigSchema = z.object({
+  provider: z.enum(['openai', 'anthropic', 'google', 'openrouter', 'custom']).optional(),
+  model: z.string().optional(),
+  apiKey: z.string().optional(),
+  baseUrl: z.string().optional(),
+  temperature: z.number().min(0).max(2).optional(),
+  maxTokens: z.number().int().positive().optional(),
+  systemPrompt: z.string().optional(),
+}).optional();
+
 const createSchema = z.object({
   name: z.string().min(1),
   avatar_emoji: z.string().optional(),
   description: z.string().optional(),
   skills_config: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
   mcp_config: z.unknown().optional(),
+  llm_config: llmConfigSchema,
   openclaw_ws_url: z.string().min(1),
   openclaw_ws_token: z.string().optional(),
   openclaw_agent_id: z.string().optional(),
@@ -50,11 +61,46 @@ bots.delete('/:id', (c) => {
   return c.json({ success: true });
 });
 
+bots.get('/:id/remote-config', async (c) => {
+  const bot = BotService.findById(c.req.param('id'));
+  if (!bot) throw notFound('Bot');
+  const result = await OpenClawProxy.getConfig(
+    bot.openclaw_ws_url,
+    bot.openclaw_ws_token ?? undefined,
+    bot.openclaw_agent_id || 'main',
+  );
+  return c.json(result);
+});
+
 bots.post('/:id/test-connection', async (c) => {
   const bot = BotService.findById(c.req.param('id'));
   if (!bot) throw notFound('Bot');
   const result = await OpenClawProxy.testConnection(bot.openclaw_ws_url, bot.openclaw_ws_token ?? undefined);
   BotService.updateStatus(bot.id, result.success ? 'connected' : 'error');
+  return c.json(result);
+});
+
+bots.post('/:id/apply-config', async (c) => {
+  const bot = BotService.findById(c.req.param('id'));
+  if (!bot) throw notFound('Bot');
+
+  let llm: Record<string, unknown> | undefined;
+  try { llm = JSON.parse(bot.llm_config) as Record<string, unknown>; } catch { llm = undefined; }
+  if (llm && Object.keys(llm).length === 0) llm = undefined;
+
+  const result = await OpenClawProxy.applyConfig(
+    bot.openclaw_ws_url,
+    bot.openclaw_ws_token ?? undefined,
+    {
+      agentId: bot.openclaw_agent_id || 'main',
+      ...(llm ? { llm } : {}),
+    },
+  );
+
+  if (result.success) {
+    BotService.updateStatus(bot.id, 'connected');
+  }
+
   return c.json(result);
 });
 
