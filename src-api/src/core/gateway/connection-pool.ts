@@ -340,8 +340,30 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   }
 }
 
-export function teardown(url: string, entry: PoolEntry, err: Error): void {
-  GatewayLogger.logSystem(url, `teardown: ${err.message}`);
+/** Schedules an exponential-backoff reconnect for unintentional disconnects. */
+function scheduleReconnect(url: string, token: string | undefined, attempt: number): void {
+  if (attempt > 10) {
+    GatewayLogger.logSystem(url, `reconnect: giving up after ${attempt} attempts`);
+    return;
+  }
+  const delayMs = Math.min(1000 * 2 ** attempt, 30_000);
+  GatewayLogger.logSystem(url, `reconnect: attempt ${attempt + 1} in ${delayMs}ms`);
+  setTimeout(async () => {
+    if (pool.has(url)) return; // already reconnected by another path
+    try {
+      const { connectWS } = await import('./ws-adapter');
+      const entry = await connectWS(url, token);
+      const handler = pushHandlerRegistry.get(url);
+      if (handler) entry.onPushEvent = handler;
+      GatewayLogger.logSystem(url, `reconnect: success on attempt ${attempt + 1}`);
+    } catch {
+      scheduleReconnect(url, token, attempt + 1);
+    }
+  }, delayMs);
+}
+
+export function teardown(url: string, entry: PoolEntry, err: Error, intentional = false): void {
+  GatewayLogger.logSystem(url, `teardown: ${err.message} (intentional=${intentional})`);
   if (entry.heartbeatTimer) clearInterval(entry.heartbeatTimer);
   entry.activeRuns.forEach((run) => run.onError(err));
   entry.activeRuns.clear();
@@ -353,6 +375,10 @@ export function teardown(url: string, entry: PoolEntry, err: Error): void {
   entry.readyWaiters.length = 0;
   entry.ready = false;
   pool.delete(url);
+
+  if (!intentional) {
+    scheduleReconnect(url, undefined, 0);
+  }
 }
 
 export function rpc(entry: PoolEntry, method: string, params: object): Promise<GatewayResponse> {

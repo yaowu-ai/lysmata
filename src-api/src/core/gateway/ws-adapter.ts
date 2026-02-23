@@ -371,7 +371,7 @@ export const GatewayWSAdapter = {
 
   closeAll(): void {
     pool.forEach((entry, url) => {
-      teardown(url, entry, new Error('sidecar shutdown'));
+      teardown(url, entry, new Error('sidecar shutdown'), true);
       entry.ws.close();
     });
     pool.clear();
