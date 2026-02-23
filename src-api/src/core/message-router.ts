@@ -26,6 +26,14 @@ export const MessageRouter = {
       .all(conversationId);
   },
 
+  getMessage(msgId: string): Message | null {
+    return getDb()
+      .query<Message, [string]>(
+        'SELECT * FROM messages WHERE id = ?',
+      )
+      .get(msgId) ?? null;
+  },
+
   /** Save user message, determine routing target, forward to OpenClaw, save bot reply. */
   async route(
     conversationId: string,

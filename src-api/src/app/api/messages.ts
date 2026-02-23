@@ -15,6 +15,12 @@ messages.get('/', (c) => {
   return c.json(msgs);
 });
 
+messages.get('/:msgId', (c) => {
+  const msg = MessageRouter.getMessage(c.req.param('msgId'));
+  if (!msg) throw notFound('Message');
+  return c.json(msg);
+});
+
 messages.post(
   '/',
   zValidator('json', z.object({ content: z.string().min(1) })),
