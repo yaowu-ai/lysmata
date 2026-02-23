@@ -1,6 +1,18 @@
 // ── Bot ────────────────────────────────────────────────────────
 export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'connecting';
 
+export type LlmProvider = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'custom';
+
+export interface LlmConfig {
+  provider: LlmProvider;
+  model: string;
+  apiKey?: string;
+  baseUrl?: string;
+  temperature?: number;
+  maxTokens?: number;
+  systemPrompt?: string;
+}
+
 export interface Bot {
   id: string;
   name: string;
@@ -8,6 +20,7 @@ export interface Bot {
   description: string;
   skills_config: SkillConfig[];
   mcp_config: string; // raw JSON string
+  llm_config: LlmConfig | null;
   openclaw_ws_url: string;
   openclaw_ws_token?: string;
   /** Target OpenClaw Agent ID (default: "main"). Supports agent alias names. */
@@ -66,4 +79,30 @@ export interface Message {
 
 export interface SendMessageInput {
   content: string;
+}
+
+// ── LLM Settings ────────────────────────────────────────────────
+export interface ProviderModel {
+  id: string;
+  name: string;
+  reasoning?: boolean;
+  input?: string[];
+  cost?: { input: number; output: number; cacheRead: number; cacheWrite: number };
+  contextWindow?: number;
+  maxTokens?: number;
+}
+
+export interface LlmProviderConfig {
+  baseUrl?: string;
+  apiKey?: string;
+  api?: string;
+  models: ProviderModel[];
+}
+
+export interface LlmSettings {
+  providers: Record<string, LlmProviderConfig>;
+  defaultModel: {
+    primary: string;
+    fallbacks?: string[];
+  };
 }
