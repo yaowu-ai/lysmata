@@ -119,7 +119,7 @@ export function useSendMessageStream(conversationId: string) {
           try {
             const parsed = JSON.parse(raw) as { chunk?: string; error?: string };
             if (parsed.chunk) onChunk(parsed.chunk);
-          } catch {}
+          } catch { /* ignore malformed SSE JSON frames */ }
         }
         if (streamDone) break;
       }
