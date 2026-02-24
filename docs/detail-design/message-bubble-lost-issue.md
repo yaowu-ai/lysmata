@@ -1,7 +1,7 @@
 # Issue：Bot 回复消息气泡丢失专项分析
 
 > 创建时间：2026-02-24  
-> 状态：**未完全修复**（根因已定位，待完成修复）  
+> 状态：**已完全修复**  
 > 涉及文件：见第 5 节
 
 ---
@@ -140,42 +140,11 @@ case 'message': {
 | 移除 `message-router.ts` 里 `route()` 的 `broadcast()` 调用（消除双路径竞态） | `src-api/src/core/message-router.ts` | ✅ 已修复 |
 | `finally` 块无条件保留 user optimistic 消息 | `src/shared/hooks/useMessages.ts` | ✅ 已修复 |
 | `/stream` 结束帧携带真实 `botMsg` 对象，前端直接写入 cache 无需等待 refetch | `src-api/src/app/api/messages.ts` + `src/shared/hooks/useMessages.ts` | ✅ 已修复 |
-| `AbortController` 链路：`cancel()` → `abortCtrl.abort()` → `ws-adapter` 监听 `abort` 事件 → 从 `activeRuns` 移除 run | `messages.ts` / `message-router.ts` / `openclaw-proxy.ts` / `ws-adapter.ts` | ✅ 已实现，但 push_run 兜底路径还有 Bug（见 4.2） |
+| `AbortController` 链路：`cancel()` → `abortCtrl.abort()` → `ws-adapter` 监听 `abort` 事件 → 从 `activeRuns` 移除 run | `messages.ts` / `message-router.ts` / `openclaw-proxy.ts` / `ws-adapter.ts` | ✅ 已修复 |
 | stream error 时前端展示错误气泡，不再静默无提示 | `src/pages/Chat/PrivateChatPage.tsx` + `GroupChatPage.tsx` | ✅ 已修复 |
-| `pushRuns` 类型从 `Map<string, string>` 改为 `Map<string, PushRunEntry>`，在 lifecycle.start 和 assistant chunk 时捕获 sessionId | `src-api/src/core/gateway/connection-pool.ts` + `types.ts` | ✅ 已实现，但字段名仍有 Bug（见 4.2） |
-
-### 4.2 已识别但未完成的修复
-
-**待修复 1（阻塞 push_run 兜底路径）：`payload.sessionId` → `payload.sessionKey`**
-
-`connection-pool.ts` 里提取 sessionId 的逻辑读取了错误字段名：
-
-```typescript
-// 当前（错误）：
-const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
-
-// 应改为：
-const rawSessionKey = typeof payload.sessionKey === 'string' ? payload.sessionKey : undefined;
-// Gateway 的 sessionKey 格式是 "agent:main:{conversationId}"
-// 需要提取最后一段 UUID 作为 conversationId
-const sessionId = rawSessionKey?.split(':').at(-1);
-```
-
-Gateway 的 `agent` 事件 payload 中，会话标识符字段名为 `sessionKey`，格式为 `"agent:main:{conversationId}"`，而非 `sessionId`。`conversationId` 是最后一个 `:` 后面的 UUID。
-
-**待修复 2（根本改善，降低超时概率）：预热 WS 连接**
-
-在 Bot 创建/激活时就提前建立 WS 连接（调用 `getOrCreateWSConnection`），而不是等到第一条消息发出时才冷启动。这可以将每次消息的 WS 握手延迟（~38ms）和握手超时风险从关键路径上移除，同时减少 LLM 等待期间累计的时间，降低 Tauri webview 超时的概率。
-
-**待修复 3（治本）：前端 `/stream` 请求发送心跳 keepalive**
-
-Tauri webview 的超时是因为 `/stream` 连接在 LLM 推理期间没有任何数据流出。解决方法：sidecar 在 `await MessageRouter.route()` 期间每隔 5 秒向 `/stream` 发送一个 SSE 注释帧（keepalive）：
-
-```
-: keepalive\n\n
-```
-
-SSE 注释帧（以 `:` 开头）会被 `EventSource`/`fetch` 忽略，但会刷新连接的空闲计时器，防止 Tauri/浏览器超时关闭连接。
+| `pushRuns` 类型改造及 `sessionKey` 提取：在 lifecycle.start 和 assistant chunk 时从 `sessionKey` 正确提取 `conversationId`，打通 push_run 兜底路径 | `src-api/src/core/gateway/connection-pool.ts` + `types.ts` | ✅ 已修复 |
+| 在 `/stream` 推理等待期间定期发 SSE keepalive 帧，防止 Tauri webview 超时关闭 | `src-api/src/app/api/messages.ts` | ✅ 已修复 |
+| Bot 激活/启动时预热 WS 连接，消除冷启动耗时 | `src-api/src/core/openclaw-proxy.ts`, `index.ts`, `bots.ts` | ✅ 已修复 |
 
 ---
 
@@ -206,48 +175,7 @@ SSE 注释帧（以 `:` 开头）会被 `EventSource`/`fetch` 忽略，但会刷
 
 ## 6. 待修复的下一步行动
 
-### 优先级 P0（✅ 已修复）
-
-**修复 `connection-pool.ts` 的 `sessionKey` 提取逻辑**
-
-```typescript
-// ❌ 修复前（错误字段名）：
-const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
-
-// ✅ 修复后：从 sessionKey 字段里提取 conversationId
-// payload.sessionKey 格式: "agent:main:{conversationId}"
-const rawSessionKey = typeof payload.sessionKey === 'string' ? payload.sessionKey : undefined;
-const sessionId = rawSessionKey?.split(':').at(-1) || undefined;
-```
-
-已在 `src-api/src/core/gateway/connection-pool.ts` 完成修复。push_run 兜底路径现在能正确提取 `conversationId`，写入 DB 并 broadcast，`usePushStream` 可接收并显示消息。
-
-### 优先级 P1（治本，消除超时根因）
-
-**在 `/stream` 推理等待期间定期发 SSE keepalive 帧**
-
-```typescript
-// src-api/src/app/api/messages.ts，start() 内
-// await MessageRouter.route() 之前启动定时器
-
-const keepaliveTimer = setInterval(() => {
-  safeEnqueue(': keepalive\n\n');
-}, 5000);
-
-try {
-  const botMsg = await MessageRouter.route(...);
-  // ...
-} finally {
-  clearInterval(keepaliveTimer);
-  // ...
-}
-```
-
-### 优先级 P2（改善冷启动）
-
-**Bot 激活时预热 WS 连接**
-
-在 `BotService.getOrCreate` 或 Bot 管理页加载时调用 `GatewayWSAdapter.getOrCreateWSConnection`，使得第一条消息不需要等待握手。
+*(所有之前识别的问题均已在 2026-02-24 完成修复)*
 
 ---
 
@@ -322,10 +250,12 @@ try {
 
 | 时间 | 修复内容 | commit |
 |---|---|---|
-| 2026-02-24 | 移除 route() 中的 broadcast()，消除双路径竞态 | 本次工作 |
-| 2026-02-24 | done 帧携带 botMsg，直接写 cache 消除 refetch 空窗 | 本次工作 |
-| 2026-02-24 | AbortController 链路，cancel() 中断 WS run | 本次工作 |
-| 2026-02-24 | pushRuns 改为 PushRunEntry，尝试捕获 sessionId | 本次工作（字段名有 bug）|
-| 2026-02-24 | stream error 时前端显示错误气泡 | 本次工作 |
+| 2026-02-24 | 移除 route() 中的 broadcast()，消除双路径竞态 | 历史工作 |
+| 2026-02-24 | done 帧携带 botMsg，直接写 cache 消除 refetch 空窗 | 历史工作 |
+| 2026-02-24 | AbortController 链路，cancel() 中断 WS run | 历史工作 |
+| 2026-02-24 | `sessionKey` 字段提取修复 | 历史工作 |
+| 2026-02-24 | 在 `/stream` 中添加 SSE keepalive 防止超时关闭 | 历史工作 |
+| 2026-02-24 | 添加预热 WS 连接机制 `prewarmConnection` | 历史工作 |
+| 2026-02-24 | stream error 时前端显示错误气泡 | 历史工作 |
 | 历史 | optimistic user msg 修复（lastChunk 条件问题） | 历史 commit |
 | 历史 | usePushStream 占位符防重复逻辑 | 历史 commit |

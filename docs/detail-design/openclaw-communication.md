@@ -510,8 +510,8 @@ MessageRouter.route(conversationId, userContent, onChunk)
   │                        + "如需协作，请在回复中使用 @BotName。\n\n"
   │                        + originalContent
   │
-  ├─ OpenClawProxy.sendMessage(url, token, agentId, enrichedContent, onChunk, conversationId)
-  │    └─ WS模式: GatewayWSAdapter.sendMessage()
+  ├─ OpenClawProxy.sendMessage(url, token, agentId, enrichedContent, onChunk, conversationId, abortCtrl.signal)
+  │    └─ WS模式: GatewayWSAdapter.sendMessage(signal)
   │         ├─ getOrCreateWSConnection()
   │         ├─ rpc(entry, 'agent', {message, agentId, sessionKey, deliver:false, idempotencyKey})
   │         ├─ 等待 res.ok → 获取 runId
@@ -725,7 +725,7 @@ data: {"msgId":"...","conversationId":"...","type":"message"}
 |---|---|---|---|---|
 | GET | `/conversations/:id/messages` | 获取对话全部消息 | — | `Message[]`（按 created_at ASC） |
 | POST | `/conversations/:id/messages` | 发送消息（非流式，等待完成） | `{content: string}` | `Message`（Bot 回复） |
-| GET | `/conversations/:id/messages/stream` | 发送消息（流式 SSE） | `?content=...` | SSE stream |
+| `GET` | `/conversations/:id/messages/stream` | 发送消息（流式 SSE） | `?content=...` | SSE stream（带 `: keepalive` 和 `done:true` JSON） |
 | GET | `/conversations/:id/messages/push-stream` | 订阅 Bot 推送消息 | — | SSE stream（长连接） |
 | GET | `/conversations/:id/messages/:msgId` | 获取单条消息 | — | `Message` |
 | POST | `/conversations/:id/messages/approvals/:approvalId/resolve` | 解析审批请求 | `{botId, approved}` | `{success: boolean}` |
@@ -735,8 +735,9 @@ data: {"msgId":"...","conversationId":"...","type":"message"}
 ```
 data: {"chunk":"累积全文"}    ← 每次 Bot 生成一段文字
 data: {"chunk":"..."}        ← 可多次
-data: [DONE]                 ← 流结束
+data: {"done":true,"botMsg":{...}} ← 流正常结束，包含最终入库的 Message 记录
 data: {"error":"消息"}       ← 出错时
+: keepalive                  ← 每 5s 发送的注释帧，防止前端或代理空闲超时
 ```
 
 ### Bots（Bot 管理）
@@ -1243,7 +1244,14 @@ return async (content, onChunk) => {
       qc.setQueryData(['messages', convId], old => [
         ...old.filter(m => m.id !== optimisticId),
         realUserMsg,
+        // 这里在未收到 done(botMsg) 的兜底情况下 fallback 使用 optimisticMsg
         optimisticBotMsg(lastChunk)
+      ])
+    } else {
+      // 没有任何 chunk (例如 cancel)，只保留 userMsg
+      qc.setQueryData(['messages', convId], old => [
+        ...old.filter(m => m.id !== optimisticId),
+        realUserMsg,
       ])
     }
     void qc.invalidateQueries(['messages', convId])  // 不 await，异步刷新
@@ -1372,11 +1380,30 @@ GET /stream?content=...
 new Response(new ReadableStream({
   async start(ctrl) {
     const enc = new TextEncoder()
-    await MessageRouter.route(convId, content, (chunk, botId) => {
-      ctrl.enqueue(enc.encode(`data: ${JSON.stringify({chunk})}\n\n`))
-    })
-    ctrl.enqueue(enc.encode('data: [DONE]\n\n'))
-    ctrl.close()
+    let closed = false;
+    
+    // 心跳防止浏览器空闲超时 (8~10秒无输出会被 WebView 关闭)
+    const keepaliveTimer = setInterval(() => {
+      if (!closed) ctrl.enqueue(enc.encode(': keepalive\n\n'))
+    }, 5000)
+
+    try {
+      const botMsg = await MessageRouter.route(convId, content, (chunk, botId) => {
+        if (!closed) ctrl.enqueue(enc.encode(`data: ${JSON.stringify({chunk})}\n\n`))
+      }, abortCtrl.signal)
+      
+      if (!closed) ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, botMsg })}\n\n`))
+    } catch (err) {
+      if (!closed) ctrl.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`))
+    } finally {
+      clearInterval(keepaliveTimer)
+      closed = true
+      ctrl.close()
+    }
+  },
+  cancel() {
+    // 监听客户端连接断开，中断等待
+    abortCtrl.abort();
   }
 }), { headers: { 'Content-Type': 'text/event-stream' } })
 ```
