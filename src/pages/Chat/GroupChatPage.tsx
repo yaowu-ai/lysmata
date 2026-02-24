@@ -25,6 +25,7 @@ export function GroupChatPage() {
   const { data: messages = [] } = useMessages(activeId ?? '');
   const sendStream = useSendMessageStream(activeId ?? '');
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const deleteMut = useDeleteConversation();
   usePushStream(activeId);
@@ -39,6 +40,7 @@ export function GroupChatPage() {
 
   useEffect(() => {
     setStreamingContent(null);
+    setStreamError(null);
     setIsSending(false);
   }, [activeId]);
 
@@ -137,6 +139,16 @@ export function GroupChatPage() {
                   </div>
                 </div>
               )}
+              {streamError !== null && (
+                <div className="flex items-start gap-2.5">
+                  <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
+                    🤖
+                  </div>
+                  <div className="max-w-[75%] bg-[#FFF1F2] border-l-[3px] border-[#EF4444] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[13px] text-[#991B1B]">
+                    发送失败，Bot 未能响应。请重试。
+                  </div>
+                </div>
+              )}
               <div ref={msgEndRef} />
             </div>
 
@@ -144,9 +156,11 @@ export function GroupChatPage() {
               bots={convBots}
               onSend={async (content) => {
                 setIsSending(true);
+                setStreamError(null);
                 setStreamingContent('');
                 try {
-                  await sendStream(content, (chunk) => setStreamingContent(chunk));
+                  const result = await sendStream(content, (chunk) => setStreamingContent(chunk));
+                  if (result.error) setStreamError(result.error);
                 } finally {
                   setStreamingContent(null);
                   setIsSending(false);

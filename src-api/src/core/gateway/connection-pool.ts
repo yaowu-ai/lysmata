@@ -283,17 +283,37 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   const stream = payload.stream as string | undefined;
   const data = payload.data as Record<string, unknown> | undefined;
 
-  // Log agent lifecycle events (skip assistant stream chunks to avoid log flooding)
+  // Gateway agent events use `sessionKey` (format: "agent:{agentId}:{conversationId}"),
+  // NOT `sessionId`. Extract the conversationId from the last segment.
+  // e.g. "agent:main:f83a8f60-1c5e-4009-a83b-293d29760963" → "f83a8f60-..."
+  const rawSessionKey = typeof payload.sessionKey === 'string' ? payload.sessionKey : undefined;
+  const sessionId = rawSessionKey?.split(':').at(-1) || undefined;
+
+  // ── Structured logging per stream type ──────────────────────────────────────
   if (stream === 'lifecycle') {
+    const phase = typeof data?.phase === 'string' ? data.phase : 'unknown';
     GatewayLogger.logPushEvent(url, 'agent', {
       runId,
       stream,
-      phase: data?.phase,
-      sessionId: payload.sessionId,
+      phase,
+      sessionId,
       agentId: payload.agentId,
+      // On error, capture the error message
+      ...(phase === 'error' && { agentError: data?.error }),
     });
-  } else if (stream !== 'assistant') {
-    // Log other non-streaming agent events (thinking, tool calls, etc.)
+  } else if (stream === 'assistant') {
+    // Log each chunk: seq from the outer event + text length (not content to
+    // avoid flooding the log with long messages).
+    const text = typeof data?.text === 'string' ? data.text : '';
+    GatewayLogger.logPushEvent(url, 'agent_chunk', {
+      runId,
+      seq: ev.seq,
+      textLength: text.length,
+      isActiveRun: entry.activeRuns.has(runId),
+      isPushRun: !entry.activeRuns.has(runId),
+    });
+  } else {
+    // Thinking, tool calls, etc.
     GatewayLogger.logPushEvent(url, 'agent', { runId, stream, data });
   }
 
@@ -323,21 +343,79 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   // Buffer the accumulated text; on lifecycle.end deliver via onPushMessage.
   if (stream === 'assistant') {
     const text = typeof data?.text === 'string' ? data.text : '';
-    if (text) entry.pushRuns.set(runId, text);
+    if (text) {
+      const existing = entry.pushRuns.get(runId);
+      // Capture sessionId from this frame too in case lifecycle.start wasn't received
+      const frameSessionId = sessionId ?? existing?.sessionId;
+      const frameAgentId = typeof payload.agentId === 'string' ? payload.agentId : existing?.agentId;
+      entry.pushRuns.set(runId, {
+        text,
+        sessionId: frameSessionId,
+        agentId: frameAgentId,
+      });
+    }
     return;
   }
 
   if (stream === 'lifecycle') {
     const phase = typeof data?.phase === 'string' ? data.phase : null;
+
+    // Capture sessionId/agentId from lifecycle.start into the pushRun entry so
+    // it is available even if the lifecycle.end frame omits them.
+    if (phase === 'start') {
+      const existing = entry.pushRuns.get(runId);
+      const startSessionId = sessionId ?? existing?.sessionId;
+      const startAgentId = typeof payload.agentId === 'string' ? payload.agentId : existing?.agentId;
+      entry.pushRuns.set(runId, {
+        text: existing?.text ?? '',
+        sessionId: startSessionId,
+        agentId: startAgentId,
+      });
+      return;
+    }
+
     if (phase === 'end' && entry.onPushEvent) {
-      const content = entry.pushRuns.get(runId) ?? '';
+      const pushEntry = entry.pushRuns.get(runId);
       entry.pushRuns.delete(runId);
+      const content = pushEntry?.text ?? '';
+      // Prefer sessionId from the buffered entry (captured at lifecycle.start/assistant)
+      // over the one in this end frame, since some Gateway versions omit it at end.
+      const resolvedSessionId = pushEntry?.sessionId ?? sessionId ?? '';
+      const resolvedAgentId = pushEntry?.agentId ?? (typeof payload.agentId === 'string' ? payload.agentId : '') ;
+
       if (content) {
-        const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : '';
-        const agentId   = typeof payload.agentId   === 'string' ? payload.agentId   : '';
-        entry.onPushEvent({ type: 'message', sessionId, agentId, content });
+        GatewayLogger.logPushEvent(url, 'agent_push_deliver', {
+          runId,
+          sessionId: resolvedSessionId,
+          agentId: resolvedAgentId,
+          contentLength: content.length,
+          sessionIdSource: pushEntry?.sessionId ? 'buffered' : sessionId ? 'end_frame' : 'missing',
+        });
+        entry.onPushEvent({ type: 'message', sessionId: resolvedSessionId, agentId: resolvedAgentId, content });
+      } else {
+        // lifecycle.end but no content buffered — log so we can diagnose missing bubbles
+        GatewayLogger.logPushEvent(url, 'agent_push_empty', {
+          runId,
+          sessionId: resolvedSessionId,
+          reason: 'lifecycle.end received but pushRuns had no content',
+        });
       }
-    } else if (phase === 'error' || phase === 'end') {
+    } else if (phase === 'error') {
+      const pushEntry = entry.pushRuns.get(runId);
+      GatewayLogger.logPushEvent(url, 'agent_push_error', {
+        runId,
+        sessionId: pushEntry?.sessionId ?? sessionId,
+        agentError: data?.error,
+        hadBufferedContent: !!(pushEntry?.text),
+      });
+      entry.pushRuns.delete(runId);
+    } else if (phase === 'end') {
+      // end without onPushEvent registered — bot push will be silently dropped
+      GatewayLogger.logPushEvent(url, 'agent_push_no_handler', {
+        runId,
+        sessionId,
+        reason: 'lifecycle.end but no onPushEvent handler registered',
+      });
       entry.pushRuns.delete(runId);
     }
   }

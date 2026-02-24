@@ -123,6 +123,73 @@ export const GatewayLogger = {
     });
   },
 
+  /**
+   * Log a user-to-Bot message dispatch (OUT direction).
+   * Written just before the agent RPC frame is enqueued so the log entry
+   * appears immediately before the corresponding OUT req frame.
+   */
+  logUserMessage(opts: {
+    url: string;
+    agentId: string;
+    sessionKey: string | undefined;
+    conversationId: string | undefined;
+    content: string;
+    idempotencyKey: string;
+  }): void {
+    write({
+      ts: new Date().toISOString(),
+      dir: 'OUT',
+      url: opts.url,
+      type: 'user_message',
+      agentId: opts.agentId,
+      sessionKey: opts.sessionKey,
+      conversationId: opts.conversationId,
+      idempotencyKey: opts.idempotencyKey,
+      contentLength: opts.content.length,
+      content: opts.content,
+    });
+  },
+
+  /**
+   * Log streaming bubble lifecycle events (sidecar-level, not WS-level).
+   * These entries bridge the gap between WS agent events and the HTTP SSE
+   * stream seen by the frontend — useful for diagnosing "message bubble vanished" issues.
+   *
+   * phase values:
+   *   "waiting"  — /stream request received, waiting for Gateway to accept
+   *   "accepted" — Gateway returned runId (agent RPC ok)
+   *   "chunk"    — first or subsequent assistant text received
+   *   "done"     — lifecycle.end received, bot message persisted
+   *   "error"    — any error (RPC failed, stream timeout, etc.)
+   *   "bubble_cleared" — done frame sent to frontend, streaming bubble will be cleared
+   */
+  logStreamEvent(opts: {
+    phase: 'waiting' | 'accepted' | 'chunk' | 'done' | 'error' | 'bubble_cleared';
+    url: string;
+    conversationId: string;
+    runId?: string;
+    chunkSeq?: number;
+    chunkLength?: number;
+    totalLength?: number;
+    botMsgId?: string;
+    error?: string;
+  }): void {
+    write({
+      ts: new Date().toISOString(),
+      dir: 'SYS',
+      url: opts.url,
+      type: 'stream_event',
+      phase: opts.phase,
+      conversationId: opts.conversationId,
+      ...(opts.runId !== undefined && { runId: opts.runId }),
+      ...(opts.chunkSeq !== undefined && { chunkSeq: opts.chunkSeq }),
+      ...(opts.chunkLength !== undefined && { chunkLength: opts.chunkLength }),
+      ...(opts.totalLength !== undefined && { totalLength: opts.totalLength }),
+      ...(opts.botMsgId !== undefined && { botMsgId: opts.botMsgId }),
+      ...(opts.error !== undefined && { error: opts.error }),
+    });
+  },
+
   /** Log a system-level connection lifecycle event (connect, disconnect, error) */
   logSystem(url: string, message: string, extra?: Record<string, unknown>): void {
     write({

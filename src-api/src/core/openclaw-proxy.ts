@@ -70,9 +70,10 @@ export const OpenClawProxy = {
     content: string,
     onChunk: (text: string) => void,
     sessionId?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     if (isWsUrl(url)) {
-      return GatewayWSAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId);
+      return GatewayWSAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId, signal);
     }
     return OpenAIHttpAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId);
   },
@@ -231,6 +232,19 @@ export const OpenClawProxy = {
   ): Promise<{ success: boolean; message: string }> {
     if (isWsUrl(url)) return GatewayWSAdapter.testConnection(url, token);
     return OpenAIHttpAdapter.testConnection(url, token);
+  },
+
+  /**
+   * Prewarm WS connection so the first message does not incur handshake latency.
+   */
+  async prewarmConnection(url: string, token: string | undefined): Promise<void> {
+    if (isWsUrl(url)) {
+      try {
+        await getOrCreateWSConnection(url, token);
+      } catch (err) {
+        console.warn(`[prewarm] Failed to prewarm connection to ${url}:`, err);
+      }
+    }
   },
 
   closeAll(): void {

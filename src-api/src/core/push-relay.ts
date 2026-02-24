@@ -33,7 +33,7 @@ function sseFrame(payload: unknown): Uint8Array {
 }
 
 /** Broadcast a payload to every subscriber on a given channel */
-function broadcast(channelId: string, payload: unknown): void {
+export function broadcast(channelId: string, payload: unknown): void {
   const clients = sseClients.get(channelId);
   if (!clients) return;
   const frame = sseFrame(payload);

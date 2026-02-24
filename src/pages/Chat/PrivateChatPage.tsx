@@ -23,6 +23,7 @@ export function PrivateChatPage() {
   const { data: messages = [] } = useMessages(activeId ?? '');
   const sendStream = useSendMessageStream(activeId ?? '');
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const deleteMut = useDeleteConversation();
   usePushStream(activeId);
@@ -37,6 +38,7 @@ export function PrivateChatPage() {
 
   useEffect(() => {
     setStreamingContent(null);
+    setStreamError(null);
     setIsSending(false);
   }, [activeId]);
 
@@ -111,6 +113,16 @@ export function PrivateChatPage() {
                 </div>
               </div>
             )}
+            {streamError !== null && (
+              <div className="flex items-start gap-2.5">
+                <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
+                  {convBot?.avatar_emoji ?? '🤖'}
+                </div>
+                <div className="max-w-[75%] bg-[#FFF1F2] border-l-[3px] border-[#EF4444] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[13px] text-[#991B1B]">
+                  发送失败，Bot 未能响应。请重试。
+                </div>
+              </div>
+            )}
             <div ref={msgEndRef} />
           </div>
 
@@ -118,10 +130,15 @@ export function PrivateChatPage() {
             bots={convBot ? [convBot] : []}
             onSend={async (content) => {
               setIsSending(true);
+              setStreamError(null);
               setStreamingContent('');
               try {
-                await sendStream(content, (chunk) => setStreamingContent(chunk));
+                const result = await sendStream(content, (chunk) => setStreamingContent(chunk));
+                if (result.error) setStreamError(result.error);
               } finally {
+                // By the time sendStream resolves, the real bot message has already
+                // been written into the React Query cache inside useSendMessageStream.
+                // We can clear the streaming bubble immediately — no gap.
                 setStreamingContent(null);
                 setIsSending(false);
               }

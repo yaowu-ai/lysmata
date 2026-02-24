@@ -35,15 +35,18 @@ app.onError((err, c) => {
 });
 
 // Wire push handlers for all active WS bots so bot-initiated messages are captured
-function wirePushHandlers() {
+// Also prewarm WS connections to reduce first-message latency
+function wirePushHandlersAndPrewarm() {
   const bots = BotService.findAll().filter((b) => b.openclaw_ws_url?.startsWith('ws'));
   for (const bot of bots) {
     OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
       PushRelay.handlePush(event, bot.id);
     });
+    // Prewarm connection
+    OpenClawProxy.prewarmConnection(bot.openclaw_ws_url, bot.openclaw_ws_token || undefined).catch(() => {});
   }
 }
-wirePushHandlers();
+wirePushHandlersAndPrewarm();
 
 // Graceful shutdown
 process.on('SIGTERM', () => { OpenClawProxy.closeAll(); process.exit(0); });

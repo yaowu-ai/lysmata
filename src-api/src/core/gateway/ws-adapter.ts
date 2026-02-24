@@ -313,16 +313,34 @@ export const GatewayWSAdapter = {
     content: string,
     onChunk: (text: string) => void,
     sessionId?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
+    // If the caller already aborted before we even start, bail immediately.
+    if (signal?.aborted) throw new Error('Aborted before connect');
+
     const entry = await getOrCreateWSConnection(url, token);
+
+    if (signal?.aborted) throw new Error('Aborted after connect');
+
+    const idempotencyKey = randomUUID();
+
+    // Log the user message before dispatching so the log entry appears
+    // immediately before the corresponding OUT req frame.
+    GatewayLogger.logUserMessage({
+      url,
+      agentId,
+      sessionKey: sessionId,
+      conversationId: sessionId,
+      content,
+      idempotencyKey,
+    });
 
     const res = await rpc(entry, 'agent', {
       message: content,
       agentId,
       ...(sessionId ? { sessionKey: sessionId } : {}),
       deliver: false,
-      // idempotencyKey is required by AgentParamsSchema (NonEmptyString)
-      idempotencyKey: randomUUID(),
+      idempotencyKey,
     });
 
     if (!res.ok) {
@@ -337,11 +355,27 @@ export const GatewayWSAdapter = {
         entry.activeRuns.delete(runId);
         reject(new Error('Agent stream timeout (120s)'));
       }, GATEWAY.STREAM_TIMEOUT_MS);
+
+      const cleanup = () => {
+        clearTimeout(t);
+        entry.activeRuns.delete(runId);
+      };
+
       entry.activeRuns.set(runId, {
         onChunk,
-        onDone: () => { clearTimeout(t); resolve(); },
-        onError: (e) => { clearTimeout(t); reject(e); },
+        onDone: () => { cleanup(); resolve(); },
+        onError: (e) => { cleanup(); reject(e); },
       });
+
+      // If the HTTP /stream connection is cancelled (browser navigates away,
+      // user closes tab, etc.) abort this run immediately so we don't keep
+      // waiting up to STREAM_TIMEOUT_MS and then silently drop everything.
+      signal?.addEventListener('abort', () => {
+        if (!entry.activeRuns.has(runId)) return; // already done
+        cleanup();
+        GatewayLogger.logSystem(url, 'agent run aborted by client cancel', { runId, sessionId });
+        reject(new Error('Aborted by client'));
+      }, { once: true });
     });
   },
 

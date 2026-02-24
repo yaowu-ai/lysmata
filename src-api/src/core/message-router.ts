@@ -39,6 +39,7 @@ export const MessageRouter = {
     conversationId: string,
     userContent: string,
     onChunk: (chunk: string, botId: string) => void,
+    signal?: AbortSignal,
   ): Promise<Message> {
     const conv = ConversationService.findById(conversationId);
     if (!conv) throw notFound('Conversation');
@@ -109,6 +110,7 @@ export const MessageRouter = {
         onChunk(chunk, targetBot!.id);
       },
       conversationId,  // isolate each conversation's memory in the Gateway
+      signal,
     );
 
     // Persist bot reply
@@ -121,6 +123,12 @@ export const MessageRouter = {
 
     // Touch conversation updated_at
     getDb().run('UPDATE conversations SET updated_at = ? WHERE id = ?', [botNow, conversationId]);
+
+    // Do NOT broadcast here. The /stream endpoint is an active user-initiated
+    // request: the frontend useSendMessageStream reads the streaming SSE
+    // directly and writes the bot reply into the React Query cache.
+    // Broadcasting would create a duplicate write via usePushStream and cause
+    // a race condition that drops the message bubble on slow Gateway responses.
 
     return {
       id: botMsgId,

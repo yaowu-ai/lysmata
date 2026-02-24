@@ -6,6 +6,7 @@ import { BotService } from '../../core/bot-service';
 import { OpenClawProxy } from '../../core/openclaw-proxy';
 import { notFound } from '../../shared/errors';
 import { createPushSseResponse } from '../../shared/sse';
+import { GatewayLogger } from '../../shared/gateway-logger';
 import { SSE } from '../../config/constants';
 
 const messages = new Hono();
@@ -54,7 +55,19 @@ messages.get('/stream', async (c) => {
   const convId = c.req.param('conversationId');
   const enc = new TextEncoder();
 
+  // We need the bot's WS URL for stream_event logs. Resolve it lazily inside
+  // the stream (MessageRouter.route determines the target bot).
+  // Use a placeholder for now; ws-adapter logUserMessage already has the URL.
+  const logUrl = 'stream://' + convId;
+
+  // AbortController lets cancel() interrupt the in-flight route() / WS run.
+  const abortCtrl = new AbortController();
+
   let closed = false;
+  let chunkSeq = 0;
+  let keepaliveTimer: ReturnType<typeof setInterval> | undefined;
+
+  GatewayLogger.logStreamEvent({ phase: 'waiting', url: logUrl, conversationId: convId });
 
   return new Response(
     new ReadableStream({
@@ -68,20 +81,82 @@ messages.get('/stream', async (c) => {
           }
         };
 
+        // Send keepalive ping to prevent Tauri webview timeout (which happens after ~8-10s of silence)
+        keepaliveTimer = setInterval(() => {
+          safeEnqueue(': keepalive\n\n');
+        }, 5000);
+
         try {
-          await MessageRouter.route(convId, content, (chunk) => {
+          // Gateway sends accumulated text in each chunk (not a delta).
+          // chunk.length == total chars received so far.
+          let prevLength = 0;
+          const botMsg = await MessageRouter.route(convId, content, (chunk) => {
+            chunkSeq += 1;
+            const deltaLength = chunk.length - prevLength;
+            GatewayLogger.logStreamEvent({
+              phase: 'chunk',
+              url: logUrl,
+              conversationId: convId,
+              chunkSeq,
+              // deltaLength: new chars in this chunk (Gateway sends accumulated text)
+              chunkLength: deltaLength,
+              // totalLength: accumulated text length so far
+              totalLength: chunk.length,
+            });
+            prevLength = chunk.length;
             safeEnqueue(`data: ${JSON.stringify({ chunk })}\n\n`);
+          }, abortCtrl.signal);
+
+          // Send the real bot message record before [DONE] so the frontend can
+          // write it directly into the React Query cache without waiting for a
+          // full refetch round-trip. This eliminates the flash of missing bot
+          // reply between stream-end and invalidateQueries completing.
+          GatewayLogger.logStreamEvent({
+            phase: 'done',
+            url: logUrl,
+            conversationId: convId,
+            botMsgId: botMsg.id,
+            totalLength: botMsg.content.length,
           });
-          safeEnqueue('data: [DONE]\n\n');
+          safeEnqueue(`data: ${JSON.stringify({ done: true, botMsg })}\n\n`);
         } catch (err) {
-          safeEnqueue(`data: ${JSON.stringify({ error: String(err) })}\n\n`);
+          const errStr = String(err);
+          // Do not forward abort errors to the client — the client already left.
+          if (!abortCtrl.signal.aborted) {
+            GatewayLogger.logStreamEvent({
+              phase: 'error',
+              url: logUrl,
+              conversationId: convId,
+              error: errStr,
+            });
+            safeEnqueue(`data: ${JSON.stringify({ error: errStr })}\n\n`);
+          }
         } finally {
+          if (keepaliveTimer) clearInterval(keepaliveTimer);
+          // bubble_cleared = streaming bubble on the frontend will be dismissed.
+          // Only log when the stream completed normally (not cancelled).
+          if (!abortCtrl.signal.aborted) {
+            GatewayLogger.logStreamEvent({
+              phase: 'bubble_cleared',
+              url: logUrl,
+              conversationId: convId,
+            });
+          }
           closed = true;
           try { controller.close(); } catch { /* already closed */ }
         }
       },
       cancel() {
+        // Browser closed tab / navigated away — abort the in-flight WS run
+        // so we don't keep waiting 120s and then silently discard everything.
+        abortCtrl.abort();
         closed = true;
+        GatewayLogger.logStreamEvent({
+          phase: 'error',
+          url: logUrl,
+          conversationId: convId,
+          error: 'client cancelled stream (browser closed/navigated away)',
+        });
       },
     }),
     { headers: SSE.HEADERS },

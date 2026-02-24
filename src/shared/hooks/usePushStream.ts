@@ -44,12 +44,21 @@ export function usePushStream(conversationId: string | null | undefined) {
         } as Message];
       });
 
-      // 2. Fetch full message and replace placeholder
+      // 2. Fetch full message and replace placeholder.
+      //    If the placeholder was already evicted by a concurrent invalidateQueries
+      //    refetch, check whether the real message arrived via that refetch; if not,
+      //    append it so it is never silently dropped.
       fetchSingleMessage(conversationId, msgId).then((msg) => {
         if (!isActive) return;
-        qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
-          old.map((m) => (m.id === msgId ? msg : m)),
-        );
+        qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
+          // Replace placeholder if still present
+          if (old.some((m) => m.id === msgId)) {
+            return old.map((m) => (m.id === msgId ? msg : m));
+          }
+          // Placeholder evicted — only append if refetch didn't already include it
+          if (old.some((m) => m.id === msg.id)) return old;
+          return [...old, msg];
+        });
       }).catch(() => {
         // Fall back to full invalidate if fetch fails
         qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });

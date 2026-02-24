@@ -96,13 +96,24 @@ export type PushEvent =
 
 // ── Connection pool entry ────────────────────────────────────────────────────
 
+export interface PushRunEntry {
+  text: string;
+  /** sessionId from the first lifecycle.start or assistant frame seen for this run */
+  sessionId?: string;
+  agentId?: string;
+}
+
 export interface PoolEntry {
   ws: WebSocket;
   deviceId: string;
   pendingRequests: Map<string, (res: GatewayResponse) => void>;
   activeRuns: Map<string, PendingRun>;
-  /** Accumulates text for bot-initiated (push) runs not in activeRuns */
-  pushRuns: Map<string, string>;
+  /**
+   * Accumulates text + session context for bot-initiated (push) runs.
+   * sessionId is captured from the first frame so it is available at lifecycle.end
+   * even if the final frame omits it (some Gateway versions).
+   */
+  pushRuns: Map<string, PushRunEntry>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   ready: boolean;
   readyWaiters: Array<{ resolve: () => void; reject: (e: Error) => void }>;

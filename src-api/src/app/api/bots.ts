@@ -6,6 +6,8 @@ import { OpenClawProxy } from '../../core/openclaw-proxy';
 import { notFound } from '../../shared/errors';
 import { createPushSseResponse } from '../../shared/sse';
 
+import { PushRelay } from '../../core/push-relay';
+
 const bots = new Hono();
 
 const llmConfigSchema = z.object({
@@ -46,12 +48,24 @@ bots.get('/:id', (c) => {
 
 bots.post('/', zValidator('json', createSchema), (c) => {
   const bot = BotService.create(c.req.valid('json'));
+  if (bot.openclaw_ws_url?.startsWith('ws')) {
+    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
+      PushRelay.handlePush(event, bot.id);
+    });
+    OpenClawProxy.prewarmConnection(bot.openclaw_ws_url, bot.openclaw_ws_token || undefined).catch(() => {});
+  }
   return c.json(bot, 201);
 });
 
 bots.put('/:id', zValidator('json', updateSchema), (c) => {
   const bot = BotService.update(c.req.param('id'), c.req.valid('json'));
   if (!bot) throw notFound('Bot');
+  if (bot.openclaw_ws_url?.startsWith('ws')) {
+    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
+      PushRelay.handlePush(event, bot.id);
+    });
+    OpenClawProxy.prewarmConnection(bot.openclaw_ws_url, bot.openclaw_ws_token || undefined).catch(() => {});
+  }
   return c.json(bot);
 });
 

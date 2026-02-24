@@ -74,12 +74,20 @@ export function useResolveApproval(conversationId: string) {
  * Returns an async function that sends a message via the streaming endpoint
  * (GET /stream) and calls onChunk for each text chunk received.
  * Optimistically inserts the user message before streaming starts.
- * Invalidates the message list after streaming completes.
+ *
+ * On stream completion the server sends a `{ done: true, botMsg }` frame
+ * containing the persisted bot message record. We write both the real user
+ * message (replacing the optimistic entry) and the real bot message directly
+ * into the React Query cache so the UI never has a gap between the streaming
+ * bubble disappearing and the refetch completing — even on slow networks.
  */
 export function useSendMessageStream(conversationId: string) {
   const qc = useQueryClient();
 
-  return async (content: string, onChunk: (text: string) => void): Promise<void> => {
+  return async (
+    content: string,
+    onChunk: (text: string) => void,
+  ): Promise<{ error?: string }> => {
     // Optimistically insert user message
     const optimisticId = `optimistic-${Date.now()}`;
     qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => [
@@ -93,6 +101,9 @@ export function useSendMessageStream(conversationId: string) {
       } as Message,
     ]);
 
+    let botMsg: Message | null = null;
+    let streamError: string | undefined;
+
     try {
       const res = await fetch(
         `${API_BASE_URL}/conversations/${conversationId}/messages/stream?content=${encodeURIComponent(content)}`,
@@ -103,7 +114,7 @@ export function useSendMessageStream(conversationId: string) {
       const decoder = new TextDecoder();
       let buffer = '';
 
-      while (true) {
+      outer: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
@@ -111,24 +122,68 @@ export function useSendMessageStream(conversationId: string) {
         const lines = buffer.split('\n');
         buffer = lines.pop() ?? '';
 
-        let streamDone = false;
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue;
           const raw = line.slice(6).trim();
-          if (raw === '[DONE]') { streamDone = true; break; }
+          if (raw === '[DONE]') break outer; // legacy sentinel kept for compat
           try {
-            const parsed = JSON.parse(raw) as { chunk?: string; error?: string };
-            if (parsed.chunk) onChunk(parsed.chunk);
+            const parsed = JSON.parse(raw) as {
+              chunk?: string;
+              done?: boolean;
+              botMsg?: Message;
+              error?: string;
+            };
+            if (parsed.error) {
+              streamError = parsed.error;
+              break outer;
+            }
+            if (parsed.chunk) {
+              onChunk(parsed.chunk);
+            }
+            if (parsed.done && parsed.botMsg) {
+              botMsg = parsed.botMsg;
+              break outer;
+            }
           } catch { /* ignore malformed SSE JSON frames */ }
         }
-        if (streamDone) break;
       }
+    } catch (err) {
+      streamError = String(err);
     } finally {
-      // Refetch to get real messages — this naturally replaces the optimistic entry.
-      // Do NOT remove the optimistic message before refetch completes, or the list
-      // will flash empty during the round-trip.
-      await qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
+      // Write real records into the cache immediately so there is no visual gap
+      // between the streaming bubble disappearing and the refetch completing.
+      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
+        // Replace the optimistic user entry with a confirmed one (same content,
+        // but keep optimisticId so it is still replaced by the real ID on refetch).
+        const withoutOptimistic = old.filter((m) => m.id !== optimisticId);
+        const userMsg: Message = {
+          id: optimisticId,
+          conversation_id: conversationId,
+          sender_type: 'user',
+          content,
+          created_at: new Date().toISOString(),
+        } as Message;
+
+        if (botMsg) {
+          // Already have real bot message — write it directly.
+          // Guard against duplicate if a concurrent invalidate already fetched it.
+          const hasBotMsg = old.some((m) => m.id === botMsg!.id);
+          return hasBotMsg
+            ? old
+            : [...withoutOptimistic, userMsg, botMsg!];
+        }
+        // No bot message yet (stream error or timeout) — keep user message so
+        // the bubble doesn't disappear, and let refetch bring the real data.
+        const hasUser = old.some((m) => m.id === optimisticId);
+        return hasUser ? old : [...withoutOptimistic, userMsg];
+      });
+
+      // Background refetch to replace the optimistic user ID with the real DB
+      // record ID and pick up any messages we may have missed.
+      void qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
     }
+
+    return streamError ? { error: streamError } : {};
   };
 }
 
