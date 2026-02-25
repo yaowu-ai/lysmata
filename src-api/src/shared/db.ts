@@ -30,6 +30,7 @@ function ensureSchema(db: Database): void {
       description        TEXT NOT NULL DEFAULT '',
       skills_config      TEXT NOT NULL DEFAULT '[]',
       mcp_config         TEXT NOT NULL DEFAULT '{}',
+      llm_config         TEXT NOT NULL DEFAULT '{}',
       openclaw_ws_url    TEXT NOT NULL,
       openclaw_ws_token  TEXT,
       connection_status  TEXT NOT NULL DEFAULT 'disconnected',
@@ -74,13 +75,16 @@ function ensureSchema(db: Database): void {
   // Cleanup: remove orphaned conversation_bots rows whose bot no longer exists
   db.exec(`DELETE FROM conversation_bots WHERE bot_id NOT IN (SELECT id FROM bots);`);
 
-  // Migration 2: add openclaw_agent_id column (idempotent via PRAGMA table_info)
+  // Migration 2: add openclaw_agent_id and llm_config column (idempotent via PRAGMA table_info)
   const cols = db
     .query<{ name: string }, []>('PRAGMA table_info(bots)')
     .all()
     .map((r) => r.name);
   if (!cols.includes('openclaw_agent_id')) {
     db.exec(`ALTER TABLE bots ADD COLUMN openclaw_agent_id TEXT NOT NULL DEFAULT 'main';`);
+  }
+  if (!cols.includes('llm_config')) {
+    db.exec(`ALTER TABLE bots ADD COLUMN llm_config TEXT NOT NULL DEFAULT '{}';`);
   }
 
   // Migration 3: add message_type and metadata columns to messages table
