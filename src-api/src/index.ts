@@ -11,6 +11,7 @@ import { PushRelay } from './core/push-relay';
 import { BotService } from './core/bot-service';
 import { ApiError } from './shared/errors';
 import settings from './app/api/settings';
+import openclawInstall from './app/api/openclaw-install';
 
 const app = new Hono();
 
@@ -24,6 +25,7 @@ app.route('/bots', bots);
 app.route('/conversations', conversations);
 app.route('/conversations/:conversationId/messages', messages);
 app.route('/settings', settings);
+app.route('/openclaw', openclawInstall);
 
 // Global error handler
 app.onError((err, c) => {

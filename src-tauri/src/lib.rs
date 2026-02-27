@@ -95,6 +95,12 @@ pub fn run() {
                     sql: include_str!("../migrations/0002_bot_agent_id.sql"),
                     kind: MigrationKind::Up,
                 },
+                Migration {
+                    version: 3,
+                    description: "add llm_config to bots",
+                    sql: include_str!("../migrations/0003_llm_config.sql"),
+                    kind: MigrationKind::Up,
+                },
             ];
 
             let db_path = lysmata_dir.join("app.db");

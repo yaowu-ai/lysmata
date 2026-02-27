@@ -8,6 +8,7 @@ import { BotStatusPage } from './pages/BotManagement/BotStatusPage';
 import { PrivateChatPage } from './pages/Chat/PrivateChatPage';
 import { GroupChatPage } from './pages/Chat/GroupChatPage';
 import SettingsPage from './pages/SettingsPage';
+// import OpenClawInstallPage from './pages/OpenClawInstallPage';
 import { startSidecar } from './shared/tauri-bridge';
 import './index.css';
 

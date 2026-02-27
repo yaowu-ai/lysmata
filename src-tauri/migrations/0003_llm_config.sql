@@ -1,1 +1,1 @@
-ALTER TABLE bots ADD COLUMN llm_config TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE bots ADD COLUMN llm_config TEXT DEFAULT '{}';

@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useLlmSettings, useUpdateLlmSettings } from '../shared/hooks/useLlmSettings';
 import type { LlmSettings, ProviderConfig } from '../shared/types';
 import ProviderFormDrawer from './Settings/ProviderFormDrawer';
+import { OpenClawInstallSection } from './Settings/OpenClawInstallSection';
 
 export default function SettingsPage() {
   const { data: settings, isLoading } = useLlmSettings();
@@ -117,6 +118,8 @@ export default function SettingsPage() {
           )}
         </div>
       </section>
+
+      <OpenClawInstallSection />
 
       <ProviderFormDrawer
         open={drawerOpen}
