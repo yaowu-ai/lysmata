@@ -3,10 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useWizardStore, markOnboardingComplete } from '../../shared/store/wizard-store';
 import { WizardStepper } from './WizardStepper';
 import { WizardFooter } from './WizardFooter';
+import { IntroView }          from './views/IntroView';
+import { EnvCheckView }       from './views/EnvCheckView';
+import { InstallingView }     from './views/InstallingView';
+import { InstallSuccessView } from './views/InstallSuccessView';
 
 export function WizardPage() {
   const navigate = useNavigate();
-  const { currentStep, skippedSteps, goNext, goPrev, skipCurrentStep } =
+  const { currentStep, skippedSteps, goNext, goPrev, skipCurrentStep, goToStep } =
     useWizardStore();
   const step = currentStep();
 
@@ -64,9 +68,28 @@ export function WizardPage() {
           </div>
         )}
 
-        {/* Content — step views will be added here in subsequent tasks */}
+        {/* Content */}
         <div className="flex-1 px-8 py-7 overflow-y-auto">
-          <p className="text-[#64748B] text-sm">当前步骤：{step.id}</p>
+          {step.id === 'intro' && (
+            <IntroView
+              onStartInstall={goNext}
+              onSkipToConfig={() => goToStep('step1')}
+            />
+          )}
+          {step.id === 'env' && <EnvCheckView />}
+          {step.id === 'installing' && <InstallingView onSuccess={goNext} />}
+          {step.id === 'install-success' && (
+            <InstallSuccessView
+              onConfigNow={() => goToStep('step1')}
+              onDefer={() => { markOnboardingComplete(); navigate('/bots'); }}
+            />
+          )}
+          {step.type === 'config' && (
+            <p className="text-[#64748B] text-sm">配置步骤：{step.id}（后续 Task 实现）</p>
+          )}
+          {step.id === 'done' && (
+            <p className="text-[#64748B] text-sm">完成页（后续 Task 实现）</p>
+          )}
         </div>
 
         {/* Footer — hidden on done view */}
