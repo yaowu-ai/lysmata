@@ -16,9 +16,9 @@
  *         → broadcast SSE event to subscribers
  */
 
-import { randomUUID } from 'crypto';
-import { getDb } from '../shared/db';
-import type { PushEvent } from './openclaw-proxy';
+import { randomUUID } from "crypto";
+import { getDb } from "../shared/db";
+import type { PushEvent } from "./openclaw-proxy";
 
 type SseController = ReadableStreamDefaultController<Uint8Array>;
 
@@ -49,7 +49,7 @@ export function broadcast(channelId: string, payload: unknown): void {
 /** Check that a conversationId is known to our database */
 function convExists(conversationId: string): boolean {
   return !!getDb()
-    .query<{ id: string }, [string]>('SELECT id FROM conversations WHERE id = ?')
+    .query<{ id: string }, [string]>("SELECT id FROM conversations WHERE id = ?")
     .get(conversationId);
 }
 
@@ -58,16 +58,26 @@ function persistMessage(opts: {
   conversationId: string;
   botId: string | null;
   content: string;
-  messageType: 'text' | 'approval' | 'system_event';
+  messageType: "text" | "approval" | "system_event";
   metadata: string | null;
 }): string {
   const msgId = randomUUID();
   const now = new Date().toISOString();
   getDb().run(
-    'INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, message_type, metadata, created_at) VALUES (?,?,?,?,?,?,?,?,?)',
-    [msgId, opts.conversationId, 'bot', opts.botId, opts.content, null, opts.messageType, opts.metadata, now],
+    "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, message_type, metadata, created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+    [
+      msgId,
+      opts.conversationId,
+      "bot",
+      opts.botId,
+      opts.content,
+      null,
+      opts.messageType,
+      opts.metadata,
+      now,
+    ],
   );
-  getDb().run('UPDATE conversations SET updated_at = ? WHERE id = ?', [now, opts.conversationId]);
+  getDb().run("UPDATE conversations SET updated_at = ? WHERE id = ?", [now, opts.conversationId]);
   return msgId;
 }
 
@@ -100,48 +110,49 @@ export const PushRelay = {
     switch (event.type) {
       // ── Global events (no session context) ──────────────────────────────
 
-      case 'tick':
+      case "tick":
         // Keep-alive pulse — emit to global channel for optional liveness monitoring
-        broadcast('global', { type: 'tick', botId });
+        broadcast("global", { type: "tick", botId });
         return;
 
-      case 'system_presence':
-        broadcast('global', { type: 'system_presence', botId, metadata: event.metadata });
+      case "system_presence":
+        broadcast("global", { type: "system_presence", botId, metadata: event.metadata });
         return;
 
-      case 'presence':
-        broadcast('global', { type: 'presence', botId, payload: event.payload });
+      case "presence":
+        broadcast("global", { type: "presence", botId, payload: event.payload });
         return;
 
-      case 'health':
-        broadcast('global', { type: 'health', botId, payload: event.payload });
+      case "health":
+        broadcast("global", { type: "health", botId, payload: event.payload });
         return;
 
-      case 'heartbeat':
-        broadcast('global', { type: 'heartbeat', botId, payload: event.payload });
+      case "heartbeat":
+        broadcast("global", { type: "heartbeat", botId, payload: event.payload });
         return;
 
-      case 'shutdown':
-        broadcast('global', { type: 'shutdown', botId });
+      case "shutdown":
+        broadcast("global", { type: "shutdown", botId });
         return;
 
-      case 'node_pair_requested':
-        broadcast('global', { type: 'node_pair_requested', botId, payload: event.payload });
+      case "node_pair_requested":
+        broadcast("global", { type: "node_pair_requested", botId, payload: event.payload });
         return;
 
-      case 'node_pair_resolved':
-        broadcast('global', { type: 'node_pair_resolved', botId, payload: event.payload });
+      case "node_pair_resolved":
+        broadcast("global", { type: "node_pair_resolved", botId, payload: event.payload });
         return;
 
-      case 'cron': {
-        broadcast('global', { type: 'cron', botId, payload: event.payload });
+      case "cron": {
+        broadcast("global", { type: "cron", botId, payload: event.payload });
 
         const { action, summary } = event.payload;
-        if (action === 'finished' && typeof summary === 'string' && summary.trim()) {
+        if (action === "finished" && typeof summary === "string" && summary.trim()) {
           const rows = getDb()
-            .query<{ conversation_id: string }, [string]>(
-              'SELECT conversation_id FROM conversation_bots WHERE bot_id = ?',
-            )
+            .query<
+              { conversation_id: string },
+              [string]
+            >("SELECT conversation_id FROM conversation_bots WHERE bot_id = ?")
             .all(botId);
 
           for (const { conversation_id } of rows) {
@@ -150,10 +161,10 @@ export const PushRelay = {
               conversationId: conversation_id,
               botId: botId || null,
               content: summary,
-              messageType: 'system_event',
+              messageType: "system_event",
               metadata: JSON.stringify(event.payload),
             });
-            broadcast(conversation_id, { msgId, conversationId: conversation_id, type: 'cron' });
+            broadcast(conversation_id, { msgId, conversationId: conversation_id, type: "cron" });
           }
         }
         return;
@@ -161,7 +172,7 @@ export const PushRelay = {
 
       // ── Session / conversation events ────────────────────────────────────
 
-      case 'message': {
+      case "message": {
         const { sessionId, agentId, content } = event;
         if (!sessionId || !content) return;
         const conversationId = sessionId;
@@ -171,15 +182,15 @@ export const PushRelay = {
           conversationId,
           botId: botId || null,
           content,
-          messageType: 'text',
+          messageType: "text",
           metadata: agentId ? JSON.stringify({ agentId }) : null,
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'message' });
+        broadcast(conversationId, { msgId, conversationId, type: "message" });
         return;
       }
 
-      case 'approval': {
+      case "approval": {
         const { sessionId, metadata } = event;
         if (!sessionId) return;
         const conversationId = sessionId;
@@ -188,91 +199,99 @@ export const PushRelay = {
         const msgId = persistMessage({
           conversationId,
           botId: botId || null,
-          content: '需要执行审批',
-          messageType: 'approval',
+          content: "需要执行审批",
+          messageType: "approval",
           metadata: JSON.stringify(metadata ?? {}),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'approval' });
+        broadcast(conversationId, { msgId, conversationId, type: "approval" });
         return;
       }
 
-      case 'chat': {
+      case "chat": {
         // Cross-platform chat message arriving on a known session
         const sessionId = event.payload.sessionKey;
         if (!sessionId) {
           // No session context — broadcast to global for informational purposes
-          broadcast('global', { type: 'chat', payload: event.payload });
+          broadcast("global", { type: "chat", payload: event.payload });
           return;
         }
+
+        // If this chat event has a runId, it means it's a final state message from a stream
+        // that is already handled and persisted by MessageRouter.route.
+        // We ignore it here to prevent duplicate messages in the UI.
+        if (event.payload.runId) {
+          return;
+        }
+
         const conversationId = sessionId;
         if (!convExists(conversationId)) {
-          broadcast('global', { type: 'chat', payload: event.payload });
+          broadcast("global", { type: "chat", payload: event.payload });
           return;
         }
 
         const content =
-          typeof event.payload.message === 'string'
+          typeof event.payload.message === "string"
             ? event.payload.message
-            : JSON.stringify(event.payload.message ?? '');
+            : JSON.stringify(event.payload.message ?? "");
 
         const msgId = persistMessage({
           conversationId,
           botId: botId || null,
           content,
-          messageType: 'text',
+          messageType: "text",
           metadata: JSON.stringify({ from: event.payload.from, raw: event.payload }),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'chat' });
+        broadcast(conversationId, { msgId, conversationId, type: "chat" });
         return;
       }
 
-      case 'exec_finished': {
+      case "exec_finished": {
         const { sessionId, payload } = event;
         if (!sessionId) {
-          broadcast('global', { type: 'exec_finished', payload });
+          broadcast("global", { type: "exec_finished", payload });
           return;
         }
         const conversationId = sessionId;
         if (!convExists(conversationId)) {
-          broadcast('global', { type: 'exec_finished', payload });
+          broadcast("global", { type: "exec_finished", payload });
           return;
         }
 
         const msgId = persistMessage({
           conversationId,
           botId: botId || null,
-          content: '命令执行完成',
-          messageType: 'system_event',
+          content: "命令执行完成",
+          messageType: "system_event",
           metadata: JSON.stringify(payload),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'exec_finished', payload });
+        broadcast(conversationId, { msgId, conversationId, type: "exec_finished", payload });
         return;
       }
 
-      case 'exec_denied': {
+      case "exec_denied": {
         const { sessionId, payload } = event;
         if (!sessionId) {
-          broadcast('global', { type: 'exec_denied', payload });
+          broadcast("global", { type: "exec_denied", payload });
           return;
         }
         const conversationId = sessionId;
         if (!convExists(conversationId)) {
-          broadcast('global', { type: 'exec_denied', payload });
+          broadcast("global", { type: "exec_denied", payload });
           return;
         }
 
         const msgId = persistMessage({
           conversationId,
           botId: botId || null,
-          content: `命令执行被拒绝${payload.reason ? `：${payload.reason}` : ''}`,
-          messageType: 'system_event',
+          content: `命令执行被拒绝${payload.reason ? `：${payload.reason}` : ""}`,
+          messageType: "system_event",
           metadata: JSON.stringify(payload),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'exec_denied', payload });
+        broadcast(conversationId, { msgId, conversationId, type: "exec_denied", payload });
         return;
       }
     }
