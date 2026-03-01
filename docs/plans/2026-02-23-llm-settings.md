@@ -13,6 +13,7 @@
 ### Task 1: Extend `openclaw-config-file.ts` with provider helpers
 
 **Files:**
+
 - Modify: `src-api/src/core/openclaw-config-file.ts`
 
 **Step 1: Add `OpenClawProvider` interface and `readLlmSettings()` function**
@@ -50,7 +51,7 @@ export async function readLlmSettings(): Promise<LlmSettings> {
   return {
     providers: (config?.models?.providers ?? {}) as Record<string, OpenClawProvider>,
     defaultModel: {
-      primary: config?.agents?.defaults?.model?.primary ?? '',
+      primary: config?.agents?.defaults?.model?.primary ?? "",
       fallbacks: config?.agents?.defaults?.model?.fallbacks ?? [],
     },
   };
@@ -65,7 +66,7 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   const updated: OpenClawConfig = structuredClone(existing);
 
   // Write providers
-  updated.models ??= { mode: 'merge', providers: {} };
+  updated.models ??= { mode: "merge", providers: {} };
   (updated.models as Record<string, unknown>).providers = settings.providers;
 
   // Write default model
@@ -92,6 +93,7 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
 **Step 3: Also add `models` to `OpenClawConfig` interface**
 
 Find the existing `OpenClawConfig` interface and add:
+
 ```typescript
 models?: {
   mode?: string;
@@ -111,16 +113,17 @@ git commit -m "feat: add provider CRUD helpers to openclaw-config-file"
 ### Task 2: Add `/settings/llm` Hono routes
 
 **Files:**
+
 - Create: `src-api/src/app/api/settings.ts`
 - Modify: `src-api/src/index.ts`
 
 **Step 1: Create `src-api/src/app/api/settings.ts`**
 
 ```typescript
-import { Hono } from 'hono';
-import { zValidator } from '@hono/zod-validator';
-import { z } from 'zod';
-import { readLlmSettings, updateLlmSettings } from '../../core/openclaw-config-file';
+import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
+import { z } from "zod";
+import { readLlmSettings, updateLlmSettings } from "../../core/openclaw-config-file";
 
 const settings = new Hono();
 
@@ -129,12 +132,14 @@ const providerModelSchema = z.object({
   name: z.string(),
   reasoning: z.boolean().optional(),
   input: z.array(z.string()).optional(),
-  cost: z.object({
-    input: z.number(),
-    output: z.number(),
-    cacheRead: z.number(),
-    cacheWrite: z.number(),
-  }).optional(),
+  cost: z
+    .object({
+      input: z.number(),
+      output: z.number(),
+      cacheRead: z.number(),
+      cacheWrite: z.number(),
+    })
+    .optional(),
   contextWindow: z.number().optional(),
   maxTokens: z.number().optional(),
 });
@@ -142,7 +147,7 @@ const providerModelSchema = z.object({
 const providerSchema = z.object({
   baseUrl: z.string().url(),
   apiKey: z.string(),
-  api: z.string().default('openai-completions'),
+  api: z.string().default("openai-completions"),
   models: z.array(providerModelSchema),
 });
 
@@ -154,13 +159,13 @@ const llmSettingsSchema = z.object({
   }),
 });
 
-settings.get('/llm', async (c) => {
+settings.get("/llm", async (c) => {
   const data = await readLlmSettings();
   return c.json(data);
 });
 
-settings.put('/llm', zValidator('json', llmSettingsSchema), async (c) => {
-  const body = c.req.valid('json');
+settings.put("/llm", zValidator("json", llmSettingsSchema), async (c) => {
+  const body = c.req.valid("json");
   await updateLlmSettings(body);
   return c.json({ success: true });
 });
@@ -171,13 +176,15 @@ export default settings;
 **Step 2: Register route in `src-api/src/index.ts`**
 
 Add import after existing imports:
+
 ```typescript
-import settings from './app/api/settings';
+import settings from "./app/api/settings";
 ```
 
 Add route after existing routes:
+
 ```typescript
-app.route('/settings', settings);
+app.route("/settings", settings);
 ```
 
 **Step 3: Commit**
@@ -192,6 +199,7 @@ git commit -m "feat: add /settings/llm GET and PUT routes"
 ### Task 3: Add frontend types and hooks
 
 **Files:**
+
 - Modify: `src/shared/types/index.ts`
 - Create: `src/shared/hooks/useLlmSettings.ts`
 
@@ -229,28 +237,28 @@ export interface LlmSettings {
 **Step 2: Create `src/shared/hooks/useLlmSettings.ts`**
 
 ```typescript
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { LlmSettings } from '../types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import type { LlmSettings } from "../types";
 
-const API_BASE = 'http://127.0.0.1:' + (import.meta.env.VITE_API_PORT ?? '1989');
+const API_BASE = "http://127.0.0.1:" + (import.meta.env.VITE_API_PORT ?? "1989");
 
 const llmSettingsKeys = {
-  all: ['settings', 'llm'] as const,
+  all: ["settings", "llm"] as const,
 };
 
 async function fetchLlmSettings(): Promise<LlmSettings> {
   const res = await fetch(`${API_BASE}/settings/llm`);
-  if (!res.ok) throw new Error('Failed to fetch LLM settings');
+  if (!res.ok) throw new Error("Failed to fetch LLM settings");
   return res.json();
 }
 
 async function saveLlmSettings(settings: LlmSettings): Promise<void> {
   const res = await fetch(`${API_BASE}/settings/llm`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
   });
-  if (!res.ok) throw new Error('Failed to save LLM settings');
+  if (!res.ok) throw new Error("Failed to save LLM settings");
 }
 
 export function useLlmSettings() {
@@ -285,6 +293,7 @@ git commit -m "feat: add LlmSettings types and hooks"
 ### Task 4: Build `SettingsPage` — Provider list and form
 
 **Files:**
+
 - Modify: `src/pages/SettingsPage.tsx`
 
 **Step 1: Read the existing `SettingsPage.tsx`** to understand what's already there before overwriting.
@@ -292,16 +301,19 @@ git commit -m "feat: add LlmSettings types and hooks"
 **Step 2: Replace with full implementation**
 
 ```tsx
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { useLlmSettings, useUpdateLlmSettings } from '../shared/hooks/useLlmSettings';
-import type { LlmSettings, LlmProvider, ProviderModel } from '../shared/types';
-import ProviderFormDrawer from './Settings/ProviderFormDrawer';
+import { useState } from "react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { useLlmSettings, useUpdateLlmSettings } from "../shared/hooks/useLlmSettings";
+import type { LlmSettings, LlmProvider, ProviderModel } from "../shared/types";
+import ProviderFormDrawer from "./Settings/ProviderFormDrawer";
 
 export default function SettingsPage() {
   const { data: settings, isLoading } = useLlmSettings();
   const { mutate: saveSettings } = useUpdateLlmSettings();
-  const [editingProvider, setEditingProvider] = useState<{ key: string; provider: LlmProvider } | null>(null);
+  const [editingProvider, setEditingProvider] = useState<{
+    key: string;
+    provider: LlmProvider;
+  } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -311,9 +323,7 @@ export default function SettingsPage() {
     if (!settings) return;
     const updated: LlmSettings = {
       ...settings,
-      providers: Object.fromEntries(
-        Object.entries(settings.providers).filter(([k]) => k !== key)
-      ),
+      providers: Object.fromEntries(Object.entries(settings.providers).filter(([k]) => k !== key)),
     };
     saveSettings(updated);
   }
@@ -332,7 +342,7 @@ export default function SettingsPage() {
 
   // Aggregate all models across providers for the default model selector
   const allModels = Object.entries(settings.providers).flatMap(([providerKey, provider]) =>
-    provider.models.map((m) => ({ value: `${providerKey}/${m.id}`, label: m.name || m.id }))
+    provider.models.map((m) => ({ value: `${providerKey}/${m.id}`, label: m.name || m.id })),
   );
 
   return (
@@ -349,7 +359,9 @@ export default function SettingsPage() {
         >
           <option value="">— 未设置 —</option>
           {allModels.map((m) => (
-            <option key={m.value} value={m.value}>{m.label} ({m.value})</option>
+            <option key={m.value} value={m.value}>
+              {m.label} ({m.value})
+            </option>
           ))}
         </select>
       </section>
@@ -357,9 +369,14 @@ export default function SettingsPage() {
       {/* Providers */}
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">LLM Providers</h2>
+          <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+            LLM Providers
+          </h2>
           <button
-            onClick={() => { setEditingProvider(null); setDrawerOpen(true); }}
+            onClick={() => {
+              setEditingProvider(null);
+              setDrawerOpen(true);
+            }}
             className="flex items-center gap-1 text-sm text-blue-400 hover:text-blue-300"
           >
             <Plus size={14} /> 添加
@@ -379,7 +396,12 @@ export default function SettingsPage() {
                   <span className="text-xs text-gray-500">{provider.models.length} 个模型</span>
                 </button>
                 <div className="flex gap-2">
-                  <button onClick={() => { setEditingProvider({ key, provider }); setDrawerOpen(true); }}>
+                  <button
+                    onClick={() => {
+                      setEditingProvider({ key, provider });
+                      setDrawerOpen(true);
+                    }}
+                  >
                     <Pencil size={14} className="text-gray-400 hover:text-white" />
                   </button>
                   <button onClick={() => handleDeleteProvider(key)}>
@@ -408,9 +430,12 @@ export default function SettingsPage() {
 
       <ProviderFormDrawer
         open={drawerOpen}
-        providerKey={editingProvider?.key ?? ''}
+        providerKey={editingProvider?.key ?? ""}
         provider={editingProvider?.provider ?? null}
-        onClose={() => { setDrawerOpen(false); setEditingProvider(null); }}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditingProvider(null);
+        }}
         onSave={handleSaveProvider}
       />
     </div>
@@ -430,6 +455,7 @@ git commit -m "feat: implement SettingsPage with provider list and default model
 ### Task 5: Build `ProviderFormDrawer`
 
 **Files:**
+
 - Create: `src/pages/Settings/ProviderFormDrawer.tsx`
 
 **Step 1: Create the directory and file**
@@ -441,9 +467,9 @@ mkdir -p src/pages/Settings
 **Step 2: Create `ProviderFormDrawer.tsx`**
 
 ```tsx
-import { useEffect, useState } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
-import type { LlmProvider, ProviderModel } from '../../shared/types';
+import { useEffect, useState } from "react";
+import { X, Plus, Trash2 } from "lucide-react";
+import type { LlmProvider, ProviderModel } from "../../shared/types";
 
 interface Props {
   open: boolean;
@@ -454,16 +480,22 @@ interface Props {
 }
 
 const emptyProvider = (): LlmProvider => ({
-  baseUrl: '',
-  apiKey: '',
-  api: 'openai-completions',
+  baseUrl: "",
+  apiKey: "",
+  api: "openai-completions",
   models: [],
 });
 
-const emptyModel = (): ProviderModel => ({ id: '', name: '' });
+const emptyModel = (): ProviderModel => ({ id: "", name: "" });
 
-export default function ProviderFormDrawer({ open, providerKey, provider, onClose, onSave }: Props) {
-  const [key, setKey] = useState('');
+export default function ProviderFormDrawer({
+  open,
+  providerKey,
+  provider,
+  onClose,
+  onSave,
+}: Props) {
+  const [key, setKey] = useState("");
   const [form, setForm] = useState<LlmProvider>(emptyProvider());
 
   useEffect(() => {
@@ -502,8 +534,10 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-[480px] h-full bg-gray-950 border-l border-gray-700 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
-          <h2 className="text-sm font-semibold">{provider ? '编辑 Provider' : '添加 Provider'}</h2>
-          <button onClick={onClose}><X size={16} /></button>
+          <h2 className="text-sm font-semibold">{provider ? "编辑 Provider" : "添加 Provider"}</h2>
+          <button onClick={onClose}>
+            <X size={16} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
@@ -558,7 +592,11 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs text-gray-400">模型列表</label>
-              <button type="button" onClick={addModel} className="flex items-center gap-1 text-xs text-blue-400">
+              <button
+                type="button"
+                onClick={addModel}
+                className="flex items-center gap-1 text-xs text-blue-400"
+              >
                 <Plus size={12} /> 添加模型
               </button>
             </div>
@@ -569,13 +607,13 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
                     <input
                       className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs"
                       value={m.id}
-                      onChange={(e) => updateModel(i, 'id', e.target.value)}
+                      onChange={(e) => updateModel(i, "id", e.target.value)}
                       placeholder="模型 ID (e.g. gpt-4o)"
                     />
                     <input
                       className="w-full rounded border border-gray-700 bg-gray-900 px-2 py-1 text-xs"
                       value={m.name}
-                      onChange={(e) => updateModel(i, 'name', e.target.value)}
+                      onChange={(e) => updateModel(i, "name", e.target.value)}
                       placeholder="显示名称"
                     />
                   </div>
@@ -621,6 +659,7 @@ git commit -m "feat: add ProviderFormDrawer for LLM provider add/edit"
 ### Task 6: Remove `llm_config` from `BotFormDrawer`
 
 **Files:**
+
 - Modify: `src/pages/BotManagement/BotFormDrawer.tsx`
 
 **Step 1: Read `BotFormDrawer.tsx`** to find the LLM tab and `llm_config` fields.

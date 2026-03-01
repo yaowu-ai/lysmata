@@ -1,7 +1,7 @@
-import { useRef, useState, useEffect } from 'react';
-import { Send, AtSign } from 'lucide-react';
-import type { Bot } from '../../shared/types';
-import { cn } from '../../shared/lib/utils';
+import { useRef, useState, useEffect } from "react";
+import { Send, AtSign } from "lucide-react";
+import type { Bot } from "../../shared/types";
+import { cn } from "../../shared/lib/utils";
 
 interface Props {
   bots: Bot[];
@@ -11,7 +11,7 @@ interface Props {
 }
 
 export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
-  const [value, setValue] = useState('');
+  const [value, setValue] = useState("");
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [focusIdx, setFocusIdx] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -43,15 +43,28 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (mention && filteredBots.length > 0) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); setFocusIdx((i) => Math.min(i + 1, filteredBots.length - 1)); return; }
-      if (e.key === 'ArrowUp')   { e.preventDefault(); setFocusIdx((i) => Math.max(i - 1, 0)); return; }
-      if ((e.key === 'Enter' || e.key === 'Tab') && !isComposingRef.current) {
-        e.preventDefault(); insertMention(filteredBots[focusIdx]); return;
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.min(i + 1, filteredBots.length - 1));
+        return;
       }
-      if (e.key === 'Escape') { setMention(null); return; }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setFocusIdx((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if ((e.key === "Enter" || e.key === "Tab") && !isComposingRef.current) {
+        e.preventDefault();
+        insertMention(filteredBots[focusIdx]);
+        return;
+      }
+      if (e.key === "Escape") {
+        setMention(null);
+        return;
+      }
     }
     // Only send when not composing (prevents firing during Chinese/Japanese IME selection)
-    if (e.key === 'Enter' && !e.shiftKey && !isComposingRef.current) {
+    if (e.key === "Enter" && !e.shiftKey && !isComposingRef.current) {
       e.preventDefault();
       handleSend();
     }
@@ -60,7 +73,7 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
   function insertMention(bot: Bot) {
     if (!mention) return;
     const before = value.slice(0, mention.start);
-    const after  = value.slice(textareaRef.current?.selectionStart ?? mention.start);
+    const after = value.slice(textareaRef.current?.selectionStart ?? mention.start);
     const newVal = `${before}@${bot.name} ${after}`;
     setValue(newVal);
     setMention(null);
@@ -75,9 +88,9 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
     const trimmed = value.trim();
     if (!trimmed || disabled) return;
     onSend(trimmed);
-    setValue('');
+    setValue("");
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       textareaRef.current.focus();
     }
     setMention(null);
@@ -87,7 +100,7 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
     const el = textareaRef.current;
     if (!el) return;
     const pos = el.selectionStart ?? value.length;
-    const newVal = value.slice(0, pos) + '@' + value.slice(pos);
+    const newVal = value.slice(0, pos) + "@" + value.slice(pos);
     setValue(newVal);
     // Restore focus and cursor position after React re-renders
     setTimeout(() => {
@@ -98,8 +111,8 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
   }
 
   function autoResize(el: HTMLTextAreaElement) {
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 100) + "px";
   }
 
   // Close mention popup on outside click
@@ -109,8 +122,8 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
         setMention(null);
       }
     }
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const routingHint = (() => {
@@ -126,16 +139,26 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
         {/* @mention popup */}
         {mention && filteredBots.length > 0 && (
           <div className="absolute bottom-full left-0 mb-2 w-72 bg-white border border-[#E5E7EB] rounded-[10px] shadow-[0_8px_24px_rgba(0,0,0,0.1)] z-50 overflow-hidden">
-            <div className="px-3 py-1.5 border-b border-[#F1F5F9] text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">选择 Bot</div>
+            <div className="px-3 py-1.5 border-b border-[#F1F5F9] text-[11px] text-[#94A3B8] font-semibold uppercase tracking-wider">
+              选择 Bot
+            </div>
             {filteredBots.map((bot, i) => (
-              <div key={bot.id} onClick={() => insertMention(bot)}
-                className={cn('flex items-center gap-2.5 px-3.5 py-2 cursor-pointer text-[14px] hover:bg-[#F8FAFC]', i === focusIdx && 'bg-[#EFF6FF]')}>
+              <div
+                key={bot.id}
+                onClick={() => insertMention(bot)}
+                className={cn(
+                  "flex items-center gap-2.5 px-3.5 py-2 cursor-pointer text-[14px] hover:bg-[#F8FAFC]",
+                  i === focusIdx && "bg-[#EFF6FF]",
+                )}
+              >
                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-sm flex-shrink-0">
                   {bot.avatar_emoji}
                 </div>
                 <div>
                   <div className="font-semibold">@{bot.name}</div>
-                  <div className="text-[11px] text-[#94A3B8]">{bot.description?.slice(0, 40) || bot.connection_status}</div>
+                  <div className="text-[11px] text-[#94A3B8]">
+                    {bot.description?.slice(0, 40) || bot.connection_status}
+                  </div>
                 </div>
               </div>
             ))}
@@ -150,10 +173,14 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
             value={value}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            onCompositionStart={() => { isComposingRef.current = true; }}
-            onCompositionEnd={() => { isComposingRef.current = false; }}
+            onCompositionStart={() => {
+              isComposingRef.current = true;
+            }}
+            onCompositionEnd={() => {
+              isComposingRef.current = false;
+            }}
             disabled={disabled}
-            placeholder={placeholder ?? '发送消息… 输入 @ 可提及特定 Bot'}
+            placeholder={placeholder ?? "发送消息… 输入 @ 可提及特定 Bot"}
             className="w-full border-none outline-none bg-transparent text-[14px] leading-[1.6] resize-none text-[#0F172A] caret-[#0F172A] placeholder:text-[#94A3B8] max-h-[100px] overflow-y-auto"
           />
           <div className="flex items-center justify-between mt-2">
@@ -165,7 +192,12 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
                 <AtSign size={13} /> @提及 Bot
               </button>
               {routingHint && (
-                <span className={cn('text-[12px]', routingHint.startsWith('→ 将路由至 @') ? 'text-[#16A34A]' : 'text-[#94A3B8]')}>
+                <span
+                  className={cn(
+                    "text-[12px]",
+                    routingHint.startsWith("→ 将路由至 @") ? "text-[#16A34A]" : "text-[#94A3B8]",
+                  )}
+                >
                   {routingHint}
                 </span>
               )}
@@ -179,7 +211,9 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
             </button>
           </div>
         </div>
-        <p className="text-[11px] text-[#CBD5E1] text-center mt-1.5">Enter 发送 · Shift+Enter 换行 · @ 触发 Bot 提及</p>
+        <p className="text-[11px] text-[#CBD5E1] text-center mt-1.5">
+          Enter 发送 · Shift+Enter 换行 · @ 触发 Bot 提及
+        </p>
       </div>
     </div>
   );

@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL } from '../../config';
-import { msgKeys, fetchSingleMessage } from './useMessages';
-import type { Message } from '../types';
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "../../config";
+import { msgKeys, fetchSingleMessage } from "./useMessages";
+import type { Message } from "../types";
 
 /**
  * Subscribe to bot-initiated (push) messages for a conversation via SSE.
@@ -35,34 +35,39 @@ export function usePushStream(conversationId: string | null | undefined) {
       // 1. Insert placeholder to avoid list jump
       qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
         if (old.some((m) => m.id === msgId)) return old;
-        return [...old, {
-          id: msgId,
-          conversation_id: conversationId,
-          sender_type: 'bot',
-          content: '',
-          created_at: new Date().toISOString(),
-        } as Message];
+        return [
+          ...old,
+          {
+            id: msgId,
+            conversation_id: conversationId,
+            sender_type: "bot",
+            content: "",
+            created_at: new Date().toISOString(),
+          } as Message,
+        ];
       });
 
       // 2. Fetch full message and replace placeholder.
       //    If the placeholder was already evicted by a concurrent invalidateQueries
       //    refetch, check whether the real message arrived via that refetch; if not,
       //    append it so it is never silently dropped.
-      fetchSingleMessage(conversationId, msgId).then((msg) => {
-        if (!isActive) return;
-        qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
-          // Replace placeholder if still present
-          if (old.some((m) => m.id === msgId)) {
-            return old.map((m) => (m.id === msgId ? msg : m));
-          }
-          // Placeholder evicted — only append if refetch didn't already include it
-          if (old.some((m) => m.id === msg.id)) return old;
-          return [...old, msg];
+      fetchSingleMessage(conversationId, msgId)
+        .then((msg) => {
+          if (!isActive) return;
+          qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
+            // Replace placeholder if still present
+            if (old.some((m) => m.id === msgId)) {
+              return old.map((m) => (m.id === msgId ? msg : m));
+            }
+            // Placeholder evicted — only append if refetch didn't already include it
+            if (old.some((m) => m.id === msg.id)) return old;
+            return [...old, msg];
+          });
+        })
+        .catch(() => {
+          // Fall back to full invalidate if fetch fails
+          qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
         });
-      }).catch(() => {
-        // Fall back to full invalidate if fetch fails
-        qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
-      });
     };
 
     es.onerror = () => {

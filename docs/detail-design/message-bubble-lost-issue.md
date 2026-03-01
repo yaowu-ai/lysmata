@@ -31,6 +31,7 @@ Sidecar (Bun/Hono)                                         │
 ```
 
 消息流向：
+
 - **用户发消息路径**：前端 fetch → sidecar `/stream` SSE → WS `agent` RPC → Gateway → 流式 chunks 回传
 - **Bot 主动推送路径**：Gateway WS push event → `pushRuns` 缓冲 → `onPushEvent` → `PushRelay` → SSE `/push-stream` → 前端 `usePushStream`
 
@@ -57,6 +58,7 @@ T+30s               前端永远收不到 done 帧 → React Query cache 里无 
 **触发机制**：Tauri webview（WKWebView / WebView2）对没有数据流出的 `fetch` `ReadableStream` 有内置的空闲超时（实测约 8-10 秒）。当 LLM 首 token 延迟超过此阈值，前端的 `/stream` 连接被浏览器层单方面关闭。
 
 `ReadableStream` 的 `cancel()` 回调被触发，但此时：
+
 - `start()` 里的 `await MessageRouter.route(...)` **仍在后台继续运行**
 - 只有 `closed = true` 被设置
 - 所有后续 `safeEnqueue` 调用因 `if (closed) return` 被静默丢弃
@@ -92,9 +94,10 @@ Gateway 的 `agent` 事件 payload 结构：
 ```
 
 但代码里读取的是：
+
 ```typescript
 // connection-pool.ts 第 ~290 行
-const sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+const sessionId = typeof payload.sessionId === "string" ? payload.sessionId : undefined;
 //                                   ^^^^^^^^^ 错误！应该是 sessionKey
 ```
 
@@ -135,16 +138,16 @@ case 'message': {
 
 ### 4.1 已完成并生效的修复
 
-| 修复 | 文件 | 状态 |
-|---|---|---|
-| 移除 `message-router.ts` 里 `route()` 的 `broadcast()` 调用（消除双路径竞态） | `src-api/src/core/message-router.ts` | ✅ 已修复 |
-| `finally` 块无条件保留 user optimistic 消息 | `src/shared/hooks/useMessages.ts` | ✅ 已修复 |
-| `/stream` 结束帧携带真实 `botMsg` 对象，前端直接写入 cache 无需等待 refetch | `src-api/src/app/api/messages.ts` + `src/shared/hooks/useMessages.ts` | ✅ 已修复 |
-| `AbortController` 链路：`cancel()` → `abortCtrl.abort()` → `ws-adapter` 监听 `abort` 事件 → 从 `activeRuns` 移除 run | `messages.ts` / `message-router.ts` / `openclaw-proxy.ts` / `ws-adapter.ts` | ✅ 已修复 |
-| stream error 时前端展示错误气泡，不再静默无提示 | `src/pages/Chat/PrivateChatPage.tsx` + `GroupChatPage.tsx` | ✅ 已修复 |
-| `pushRuns` 类型改造及 `sessionKey` 提取：在 lifecycle.start 和 assistant chunk 时从 `sessionKey` 正确提取 `conversationId`，打通 push_run 兜底路径 | `src-api/src/core/gateway/connection-pool.ts` + `types.ts` | ✅ 已修复 |
-| 在 `/stream` 推理等待期间定期发 SSE keepalive 帧，防止 Tauri webview 超时关闭 | `src-api/src/app/api/messages.ts` | ✅ 已修复 |
-| Bot 激活/启动时预热 WS 连接，消除冷启动耗时 | `src-api/src/core/openclaw-proxy.ts`, `index.ts`, `bots.ts` | ✅ 已修复 |
+| 修复                                                                                                                                               | 文件                                                                        | 状态      |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------- |
+| 移除 `message-router.ts` 里 `route()` 的 `broadcast()` 调用（消除双路径竞态）                                                                      | `src-api/src/core/message-router.ts`                                        | ✅ 已修复 |
+| `finally` 块无条件保留 user optimistic 消息                                                                                                        | `src/shared/hooks/useMessages.ts`                                           | ✅ 已修复 |
+| `/stream` 结束帧携带真实 `botMsg` 对象，前端直接写入 cache 无需等待 refetch                                                                        | `src-api/src/app/api/messages.ts` + `src/shared/hooks/useMessages.ts`       | ✅ 已修复 |
+| `AbortController` 链路：`cancel()` → `abortCtrl.abort()` → `ws-adapter` 监听 `abort` 事件 → 从 `activeRuns` 移除 run                               | `messages.ts` / `message-router.ts` / `openclaw-proxy.ts` / `ws-adapter.ts` | ✅ 已修复 |
+| stream error 时前端展示错误气泡，不再静默无提示                                                                                                    | `src/pages/Chat/PrivateChatPage.tsx` + `GroupChatPage.tsx`                  | ✅ 已修复 |
+| `pushRuns` 类型改造及 `sessionKey` 提取：在 lifecycle.start 和 assistant chunk 时从 `sessionKey` 正确提取 `conversationId`，打通 push_run 兜底路径 | `src-api/src/core/gateway/connection-pool.ts` + `types.ts`                  | ✅ 已修复 |
+| 在 `/stream` 推理等待期间定期发 SSE keepalive 帧，防止 Tauri webview 超时关闭                                                                      | `src-api/src/app/api/messages.ts`                                           | ✅ 已修复 |
+| Bot 激活/启动时预热 WS 连接，消除冷启动耗时                                                                                                        | `src-api/src/core/openclaw-proxy.ts`, `index.ts`, `bots.ts`                 | ✅ 已修复 |
 
 ---
 
@@ -152,30 +155,30 @@ case 'message': {
 
 ### Sidecar（`src-api/`）
 
-| 文件 | 作用 | 状态 |
-|---|---|---|
-| `src/app/api/messages.ts` | `/stream` SSE 路由，AbortController，bubble 生命周期日志 | 已修改 |
-| `core/message-router.ts` | `route(signal?)` 签名，已移除 `broadcast()` | 已修改 |
-| `core/openclaw-proxy.ts` | `sendMessage(signal?)` 透传 | 已修改 |
-| `core/gateway/ws-adapter.ts` | `GatewayWSAdapter.sendMessage(signal?)`，abort 监听 | 已修改 |
+| 文件                              | 作用                                                        | 状态      |
+| --------------------------------- | ----------------------------------------------------------- | --------- |
+| `src/app/api/messages.ts`         | `/stream` SSE 路由，AbortController，bubble 生命周期日志    | 已修改    |
+| `core/message-router.ts`          | `route(signal?)` 签名，已移除 `broadcast()`                 | 已修改    |
+| `core/openclaw-proxy.ts`          | `sendMessage(signal?)` 透传                                 | 已修改    |
+| `core/gateway/ws-adapter.ts`      | `GatewayWSAdapter.sendMessage(signal?)`，abort 监听         | 已修改    |
 | `core/gateway/connection-pool.ts` | `pushRuns` 结构改造，`sessionKey` 字段提取（P0 Bug 已修复） | 已修改 ✅ |
-| `core/gateway/types.ts` | 新增 `PushRunEntry` 类型 | 已修改 |
-| `shared/gateway-logger.ts` | 新增 `logUserMessage`、`logStreamEvent` 方法 | 已修改 |
+| `core/gateway/types.ts`           | 新增 `PushRunEntry` 类型                                    | 已修改    |
+| `shared/gateway-logger.ts`        | 新增 `logUserMessage`、`logStreamEvent` 方法                | 已修改    |
 
 ### 前端（`src/`）
 
-| 文件 | 作用 | 状态 |
-|---|---|---|
-| `shared/hooks/useMessages.ts` | `useSendMessageStream`：optimistic user msg、done 帧写 cache | 已修改 |
-| `shared/hooks/usePushStream.ts` | EventSource 订阅 push-stream，占位符替换逻辑 | 已修改 |
-| `pages/Chat/PrivateChatPage.tsx` | streamError 状态，onSend finally | 已修改 |
-| `pages/Chat/GroupChatPage.tsx` | 同上 | 已修改 |
+| 文件                             | 作用                                                         | 状态   |
+| -------------------------------- | ------------------------------------------------------------ | ------ |
+| `shared/hooks/useMessages.ts`    | `useSendMessageStream`：optimistic user msg、done 帧写 cache | 已修改 |
+| `shared/hooks/usePushStream.ts`  | EventSource 订阅 push-stream，占位符替换逻辑                 | 已修改 |
+| `pages/Chat/PrivateChatPage.tsx` | streamError 状态，onSend finally                             | 已修改 |
+| `pages/Chat/GroupChatPage.tsx`   | 同上                                                         | 已修改 |
 
 ---
 
 ## 6. 待修复的下一步行动
 
-*(所有之前识别的问题均已在 2026-02-24 完成修复)*
+_(所有之前识别的问题均已在 2026-02-24 完成修复)_
 
 ---
 
@@ -248,14 +251,14 @@ case 'message': {
 
 ## 9. 历史修复记录
 
-| 时间 | 修复内容 | commit |
-|---|---|---|
-| 2026-02-24 | 移除 route() 中的 broadcast()，消除双路径竞态 | 历史工作 |
-| 2026-02-24 | done 帧携带 botMsg，直接写 cache 消除 refetch 空窗 | 历史工作 |
-| 2026-02-24 | AbortController 链路，cancel() 中断 WS run | 历史工作 |
-| 2026-02-24 | `sessionKey` 字段提取修复 | 历史工作 |
-| 2026-02-24 | 在 `/stream` 中添加 SSE keepalive 防止超时关闭 | 历史工作 |
-| 2026-02-24 | 添加预热 WS 连接机制 `prewarmConnection` | 历史工作 |
-| 2026-02-24 | stream error 时前端显示错误气泡 | 历史工作 |
-| 历史 | optimistic user msg 修复（lastChunk 条件问题） | 历史 commit |
-| 历史 | usePushStream 占位符防重复逻辑 | 历史 commit |
+| 时间       | 修复内容                                           | commit      |
+| ---------- | -------------------------------------------------- | ----------- |
+| 2026-02-24 | 移除 route() 中的 broadcast()，消除双路径竞态      | 历史工作    |
+| 2026-02-24 | done 帧携带 botMsg，直接写 cache 消除 refetch 空窗 | 历史工作    |
+| 2026-02-24 | AbortController 链路，cancel() 中断 WS run         | 历史工作    |
+| 2026-02-24 | `sessionKey` 字段提取修复                          | 历史工作    |
+| 2026-02-24 | 在 `/stream` 中添加 SSE keepalive 防止超时关闭     | 历史工作    |
+| 2026-02-24 | 添加预热 WS 连接机制 `prewarmConnection`           | 历史工作    |
+| 2026-02-24 | stream error 时前端显示错误气泡                    | 历史工作    |
+| 历史       | optimistic user msg 修复（lastChunk 条件问题）     | 历史 commit |
+| 历史       | usePushStream 占位符防重复逻辑                     | 历史 commit |

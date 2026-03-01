@@ -36,7 +36,7 @@ export interface NodePairRequestedPayload {
 
 export interface NodePairResolvedPayload {
   nodeId?: string;
-  status?: 'approved' | 'rejected';
+  status?: "approved" | "rejected";
   [key: string]: unknown;
 }
 
@@ -79,20 +79,20 @@ export interface ExecDeniedPayload {
 // snake_case equivalents for JS safety (e.g. `node.pair.requested` → `node_pair_requested`).
 
 export type PushEvent =
-  | { type: 'message';             sessionId: string; agentId: string; content: string }
-  | { type: 'approval';            sessionId?: string; agentId?: string; metadata: Record<string, unknown> }
-  | { type: 'system_presence';     metadata: Record<string, unknown> }
-  | { type: 'tick' }
-  | { type: 'chat';                payload: ChatPayload }
-  | { type: 'presence';            payload: PresencePayload }
-  | { type: 'health';              payload: HealthPayload }
-  | { type: 'heartbeat';           payload: HeartbeatPayload }
-  | { type: 'shutdown' }
-  | { type: 'node_pair_requested'; payload: NodePairRequestedPayload }
-  | { type: 'node_pair_resolved';  payload: NodePairResolvedPayload }
-  | { type: 'cron';                payload: CronPayload }
-  | { type: 'exec_finished';       sessionId?: string; payload: ExecFinishedPayload }
-  | { type: 'exec_denied';         sessionId?: string; payload: ExecDeniedPayload };
+  | { type: "message"; sessionId: string; agentId: string; content: string }
+  | { type: "approval"; sessionId?: string; agentId?: string; metadata: Record<string, unknown> }
+  | { type: "system_presence"; metadata: Record<string, unknown> }
+  | { type: "tick" }
+  | { type: "chat"; payload: ChatPayload }
+  | { type: "presence"; payload: PresencePayload }
+  | { type: "health"; payload: HealthPayload }
+  | { type: "heartbeat"; payload: HeartbeatPayload }
+  | { type: "shutdown" }
+  | { type: "node_pair_requested"; payload: NodePairRequestedPayload }
+  | { type: "node_pair_resolved"; payload: NodePairResolvedPayload }
+  | { type: "cron"; payload: CronPayload }
+  | { type: "exec_finished"; sessionId?: string; payload: ExecFinishedPayload }
+  | { type: "exec_denied"; sessionId?: string; payload: ExecDeniedPayload };
 
 // ── Connection pool entry ────────────────────────────────────────────────────
 
@@ -128,11 +128,11 @@ export interface PoolEntry {
 // ── Wire protocol frames ─────────────────────────────────────────────────────
 
 export interface GatewayFrame {
-  type: 'req' | 'res' | 'event';
+  type: "req" | "res" | "event";
 }
 
 export interface GatewayEvent extends GatewayFrame {
-  type: 'event';
+  type: "event";
   event: string;
   payload: Record<string, unknown>;
   seq?: number;
@@ -141,7 +141,7 @@ export interface GatewayEvent extends GatewayFrame {
 }
 
 export interface GatewayResponse extends GatewayFrame {
-  type: 'res';
+  type: "res";
   id: string;
   ok: boolean;
   payload?: Record<string, unknown>;

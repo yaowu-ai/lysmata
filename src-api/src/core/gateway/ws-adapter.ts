@@ -1,9 +1,9 @@
 // ── Gateway WS Adapter ───────────────────────────────────────────────────────
 
-import { randomUUID, sign } from 'crypto';
-import { GATEWAY } from '../../config/constants';
-import { getOrCreateIdentity, base64UrlEncode } from './device-identity';
-import { GatewayLogger } from '../../shared/gateway-logger';
+import { randomUUID, sign } from "crypto";
+import { GATEWAY } from "../../config/constants";
+import { getOrCreateIdentity, base64UrlEncode } from "./device-identity";
+import { GatewayLogger } from "../../shared/gateway-logger";
 import {
   pool,
   pushHandlerRegistry,
@@ -11,8 +11,8 @@ import {
   handleFrame,
   teardown,
   rpc,
-} from './connection-pool';
-import type { PoolEntry, GatewayFrame, GatewayEvent, GatewayResponse, PushEvent } from './types';
+} from "./connection-pool";
+import type { PoolEntry, GatewayFrame, GatewayEvent, GatewayResponse, PushEvent } from "./types";
 
 // ── Connect params builder ──────────────────────────────────────────────────
 
@@ -30,16 +30,16 @@ function buildSignaturePayload(
   nonce: string,
 ): string {
   return [
-    'v2',
+    "v2",
     deviceId,
     GATEWAY.CLIENT_ID,
     GATEWAY.CLIENT_MODE,
     GATEWAY.ROLE,
-    GATEWAY.SCOPES.join(','),
+    GATEWAY.SCOPES.join(","),
     String(signedAtMs),
     token,
     nonce,
-  ].join('|');
+  ].join("|");
 }
 
 interface DeviceParams {
@@ -50,18 +50,14 @@ interface DeviceParams {
   nonce: string;
 }
 
-function buildConnectParams(opts: {
-  token?: string;
-  deviceId: string;
-  device: DeviceParams;
-}) {
+function buildConnectParams(opts: { token?: string; deviceId: string; device: DeviceParams }) {
   return {
     minProtocol: 3,
     maxProtocol: 3,
     client: {
       id: GATEWAY.CLIENT_ID,
-      version: '1.0.0',
-      platform: 'desktop',
+      version: "1.0.0",
+      platform: "desktop",
       mode: GATEWAY.CLIENT_MODE,
     },
     role: GATEWAY.ROLE,
@@ -70,8 +66,8 @@ function buildConnectParams(opts: {
     commands: [],
     permissions: {},
     auth: opts.token ? { token: opts.token } : undefined,
-    locale: 'zh-CN',
-    userAgent: 'lysmata/1.0.0',
+    locale: "zh-CN",
+    userAgent: "lysmata/1.0.0",
     device: opts.device,
   };
 }
@@ -91,10 +87,10 @@ function buildConnectParams(opts: {
 function deriveWsOrigin(wsUrl: string): string {
   try {
     const u = new URL(wsUrl);
-    const scheme = u.protocol === 'wss:' ? 'https' : 'http';
+    const scheme = u.protocol === "wss:" ? "https" : "http";
     return `${scheme}://${u.host}`;
   } catch {
-    return 'http://localhost';
+    return "http://localhost";
   }
 }
 
@@ -133,7 +129,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
   await new Promise<void>((resolve, reject) => {
     const handshakeTimeout = setTimeout(() => {
       ws.close();
-      reject(new Error('OpenClaw Gateway handshake timeout'));
+      reject(new Error("OpenClaw Gateway handshake timeout"));
     }, GATEWAY.HANDSHAKE_TIMEOUT_MS);
 
     let connectSent = false;
@@ -148,7 +144,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
      */
     function makeSignedDevice(nonce: string): DeviceParams {
       const signedAt = Date.now();
-      const payload = buildSignaturePayload(deviceId, signedAt, token ?? '', nonce);
+      const payload = buildSignaturePayload(deviceId, signedAt, token ?? "", nonce);
       // Signature must be base64url (Gateway's verifyDeviceSignature tries base64url first)
       const signature = base64UrlEncode(sign(null, Buffer.from(payload), privateKey) as Buffer);
       return { id: deviceId, publicKey: publicKeyBase64Url, signature, signedAt, nonce };
@@ -159,9 +155,9 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
       if (connectSent) return;
       connectSent = true;
       sendFrame(ws, {
-        type: 'req',
+        type: "req",
         id: connectReqId,
-        method: 'connect',
+        method: "connect",
         params: buildConnectParams({ token, deviceId, device: makeSignedDevice(nonce) }),
       });
     }
@@ -171,9 +167,9 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
       if (connectSent) return;
       connectSent = true;
       sendFrame(ws, {
-        type: 'req',
+        type: "req",
         id: connectReqId,
-        method: 'connect',
+        method: "connect",
         params: buildConnectParams({
           token,
           deviceId,
@@ -185,12 +181,12 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
     ws.onerror = () => {
       clearTimeout(handshakeTimeout);
       clearTimeout(challengeFallback);
-      GatewayLogger.logSystem(url, 'WebSocket connection error during handshake');
-      reject(new Error('WebSocket connection error'));
+      GatewayLogger.logSystem(url, "WebSocket connection error during handshake");
+      reject(new Error("WebSocket connection error"));
     };
 
     ws.onopen = () => {
-      GatewayLogger.logSystem(url, 'WebSocket opened, waiting for connect.challenge');
+      GatewayLogger.logSystem(url, "WebSocket opened, waiting for connect.challenge");
     };
 
     // If no challenge arrives within CHALLENGE_TIMEOUT_MS, the gateway is
@@ -208,22 +204,24 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
       }
 
       // ── Step 1: Server sends connect.challenge ──
-      if (frame.type === 'event' && (frame as GatewayEvent).event === 'connect.challenge') {
+      if (frame.type === "event" && (frame as GatewayEvent).event === "connect.challenge") {
         clearTimeout(challengeFallback);
         const nonce = ((frame as GatewayEvent).payload?.nonce as string) ?? randomUUID();
-        GatewayLogger.logSystem(url, 'connect.challenge received, sending signed connect', { nonce });
+        GatewayLogger.logSystem(url, "connect.challenge received, sending signed connect", {
+          nonce,
+        });
         sendSignedConnect(nonce);
         return;
       }
 
       // ── Step 2: Server responds to our connect request ──
-      if (frame.type === 'res' && (frame as GatewayResponse).id === connectReqId) {
+      if (frame.type === "res" && (frame as GatewayResponse).id === connectReqId) {
         clearTimeout(handshakeTimeout);
         clearTimeout(challengeFallback);
         const res = frame as GatewayResponse;
 
         if (!res.ok) {
-          GatewayLogger.logSystem(url, 'handshake rejected', { error: res.error });
+          GatewayLogger.logSystem(url, "handshake rejected", { error: res.error });
           reject(
             new Error(
               `Gateway connect rejected: ${res.error?.message ?? JSON.stringify(res.error)}`,
@@ -237,7 +235,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
           (res.payload?.policy as { tickIntervalMs?: number } | undefined)?.tickIntervalMs ??
           GATEWAY.DEFAULT_TICK_INTERVAL_MS;
 
-        GatewayLogger.logSystem(url, 'hello-ok: handshake complete', {
+        GatewayLogger.logSystem(url, "hello-ok: handshake complete", {
           deviceId,
           tickIntervalMs: tickMs,
           policy: res.payload?.policy,
@@ -247,7 +245,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
           if (ws.readyState === WebSocket.OPEN) {
             // Send 'health' request to keep the connection alive,
             // as 'heartbeat' is not a valid Gateway RPC method.
-            sendFrame(ws, { type: 'req', id: randomUUID(), method: 'health', params: {} });
+            sendFrame(ws, { type: "req", id: randomUUID(), method: "health", params: {} });
           }
         }, tickMs);
 
@@ -266,12 +264,12 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
   // Post-handshake: wire persistent handlers
   ws.onmessage = (ev) => handleFrame(entry, ev.data as string);
   ws.onerror = () => {
-    GatewayLogger.logSystem(url, 'WebSocket error');
-    teardown(url, entry, new Error('WebSocket error'));
+    GatewayLogger.logSystem(url, "WebSocket error");
+    teardown(url, entry, new Error("WebSocket error"));
   };
   ws.onclose = () => {
-    GatewayLogger.logSystem(url, 'WebSocket closed');
-    teardown(url, entry, new Error('WebSocket closed'));
+    GatewayLogger.logSystem(url, "WebSocket closed");
+    teardown(url, entry, new Error("WebSocket closed"));
   };
 
   pool.set(url, entry);
@@ -316,11 +314,11 @@ export const GatewayWSAdapter = {
     signal?: AbortSignal,
   ): Promise<void> {
     // If the caller already aborted before we even start, bail immediately.
-    if (signal?.aborted) throw new Error('Aborted before connect');
+    if (signal?.aborted) throw new Error("Aborted before connect");
 
     const entry = await getOrCreateWSConnection(url, token);
 
-    if (signal?.aborted) throw new Error('Aborted after connect');
+    if (signal?.aborted) throw new Error("Aborted after connect");
 
     const idempotencyKey = randomUUID();
 
@@ -335,7 +333,7 @@ export const GatewayWSAdapter = {
       idempotencyKey,
     });
 
-    const res = await rpc(entry, 'agent', {
+    const res = await rpc(entry, "agent", {
       message: content,
       agentId,
       ...(sessionId ? { sessionKey: sessionId } : {}),
@@ -344,16 +342,16 @@ export const GatewayWSAdapter = {
     });
 
     if (!res.ok) {
-      throw new Error(`agent RPC failed: ${res.error?.message ?? 'unknown'}`);
+      throw new Error(`agent RPC failed: ${res.error?.message ?? "unknown"}`);
     }
 
     const runId = res.payload?.runId as string | undefined;
-    if (!runId) throw new Error('Gateway did not return a runId');
+    if (!runId) throw new Error("Gateway did not return a runId");
 
     return new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => {
         entry.activeRuns.delete(runId);
-        reject(new Error('Agent stream timeout (120s)'));
+        reject(new Error("Agent stream timeout (120s)"));
       }, GATEWAY.STREAM_TIMEOUT_MS);
 
       const cleanup = () => {
@@ -363,26 +361,33 @@ export const GatewayWSAdapter = {
 
       entry.activeRuns.set(runId, {
         onChunk,
-        onDone: () => { cleanup(); resolve(); },
-        onError: (e) => { cleanup(); reject(e); },
+        onDone: () => {
+          cleanup();
+          resolve();
+        },
+        onError: (e) => {
+          cleanup();
+          reject(e);
+        },
       });
 
       // If the HTTP /stream connection is cancelled (browser navigates away,
       // user closes tab, etc.) abort this run immediately so we don't keep
       // waiting up to STREAM_TIMEOUT_MS and then silently drop everything.
-      signal?.addEventListener('abort', () => {
-        if (!entry.activeRuns.has(runId)) return; // already done
-        cleanup();
-        GatewayLogger.logSystem(url, 'agent run aborted by client cancel', { runId, sessionId });
-        reject(new Error('Aborted by client'));
-      }, { once: true });
+      signal?.addEventListener(
+        "abort",
+        () => {
+          if (!entry.activeRuns.has(runId)) return; // already done
+          cleanup();
+          GatewayLogger.logSystem(url, "agent run aborted by client cancel", { runId, sessionId });
+          reject(new Error("Aborted by client"));
+        },
+        { once: true },
+      );
     });
   },
 
-  setPushHandler(
-    url: string,
-    handler: (event: PushEvent) => void,
-  ): void {
+  setPushHandler(url: string, handler: (event: PushEvent) => void): void {
     // Persist to registry so the handler is re-applied on every new connection
     // (including reconnects and connections that don't exist yet at call time).
     pushHandlerRegistry.set(url, handler);
@@ -396,9 +401,9 @@ export const GatewayWSAdapter = {
   ): Promise<{ success: boolean; message: string }> {
     try {
       const entry = await connectWS(url, token);
-      teardown(url, entry, new Error('test complete'), true);
+      teardown(url, entry, new Error("test complete"), true);
       entry.ws.close();
-      return { success: true, message: '连接成功（握手完成）' };
+      return { success: true, message: "连接成功（握手完成）" };
     } catch (err) {
       return { success: false, message: String(err) };
     }
@@ -406,7 +411,7 @@ export const GatewayWSAdapter = {
 
   closeAll(): void {
     pool.forEach((entry, url) => {
-      teardown(url, entry, new Error('sidecar shutdown'), true);
+      teardown(url, entry, new Error("sidecar shutdown"), true);
       entry.ws.close();
     });
     pool.clear();

@@ -1,7 +1,7 @@
 // ── Bot ────────────────────────────────────────────────────────
-export type ConnectionStatus = 'connected' | 'disconnected' | 'error' | 'connecting';
+export type ConnectionStatus = "connected" | "disconnected" | "error" | "connecting";
 
-export type LlmProvider = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'custom';
+export type LlmProvider = "openai" | "anthropic" | "google" | "openrouter" | "custom";
 
 export interface LlmConfig {
   provider: LlmProvider;
@@ -36,14 +36,17 @@ export interface SkillConfig {
   description: string;
 }
 
-export type CreateBotInput = Omit<Bot, 'id' | 'connection_status' | 'created_at' | 'updated_at' | 'llm_config'> & {
+export type CreateBotInput = Omit<
+  Bot,
+  "id" | "connection_status" | "created_at" | "updated_at" | "llm_config"
+> & {
   openclaw_agent_id?: string;
   llm_config?: LlmConfig | null;
 };
 export type UpdateBotInput = Partial<CreateBotInput>;
 
 // ── Conversation ────────────────────────────────────────────────
-export type ConversationType = 'single' | 'group';
+export type ConversationType = "single" | "group";
 
 export interface Conversation {
   id: string;
@@ -63,7 +66,7 @@ export interface ConversationBot {
 }
 
 // ── Message ─────────────────────────────────────────────────────
-export type SenderType = 'user' | 'bot';
+export type SenderType = "user" | "bot";
 
 export interface Message {
   id: string;
@@ -72,7 +75,7 @@ export interface Message {
   bot_id?: string;
   content: string;
   mentioned_bot_id?: string;
-  message_type?: 'text' | 'approval' | 'system_event';
+  message_type?: "text" | "approval" | "system_event";
   metadata?: string; // JSON string for storing complex payloads (like approval parameters)
   created_at: string;
   bot?: Bot;

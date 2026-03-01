@@ -1,10 +1,10 @@
-import { useState } from 'react';
-import { Plus, RefreshCw } from 'lucide-react';
-import { useBots, useDeleteBot, useTestBotConnection } from '../../shared/hooks/useBots';
-import type { Bot } from '../../shared/types';
-import { BotFormDrawer } from './BotFormDrawer';
-import { BotCard } from './BotCard';
-import { cn } from '../../shared/lib/utils';
+import { useState } from "react";
+import { Plus, RefreshCw } from "lucide-react";
+import { useBots, useDeleteBot, useTestBotConnection } from "../../shared/hooks/useBots";
+import type { Bot } from "../../shared/types";
+import { BotFormDrawer } from "./BotFormDrawer";
+import { BotCard } from "./BotCard";
+import { cn } from "../../shared/lib/utils";
 
 export function BotManagementPage() {
   const { data: bots = [], isLoading, refetch } = useBots();
@@ -13,9 +13,18 @@ export function BotManagementPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingBot, setEditingBot] = useState<Bot | null>(null);
 
-  function openCreate() { setEditingBot(null); setDrawerOpen(true); }
-  function openEdit(bot: Bot) { setEditingBot(bot); setDrawerOpen(true); }
-  function closeDrawer() { setDrawerOpen(false); setEditingBot(null); }
+  function openCreate() {
+    setEditingBot(null);
+    setDrawerOpen(true);
+  }
+  function openEdit(bot: Bot) {
+    setEditingBot(bot);
+    setDrawerOpen(true);
+  }
+  function closeDrawer() {
+    setDrawerOpen(false);
+    setEditingBot(null);
+  }
 
   return (
     <div className="flex flex-1 overflow-hidden min-w-0 relative">
@@ -33,8 +42,8 @@ export function BotManagementPage() {
             <button
               onClick={() => refetch()}
               className={cn(
-                'w-8 h-8 rounded-[7px] border border-[#E5E7EB] bg-white flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569] transition-colors',
-                isLoading && 'animate-spin',
+                "w-8 h-8 rounded-[7px] border border-[#E5E7EB] bg-white flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569] transition-colors",
+                isLoading && "animate-spin",
               )}
             >
               <RefreshCw size={14} />
@@ -78,18 +87,11 @@ export function BotManagementPage() {
 
       {/* Drawer overlay */}
       {drawerOpen && (
-        <div
-          className="fixed inset-0 bg-[rgba(15,23,42,0.18)] z-20"
-          onClick={closeDrawer}
-        />
+        <div className="fixed inset-0 bg-[rgba(15,23,42,0.18)] z-20" onClick={closeDrawer} />
       )}
 
       {/* Form drawer */}
-      <BotFormDrawer
-        open={drawerOpen}
-        bot={editingBot}
-        onClose={closeDrawer}
-      />
+      <BotFormDrawer open={drawerOpen} bot={editingBot} onClose={closeDrawer} />
     </div>
   );
 }

@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL } from '../../config';
-import { useAppStore } from '../store/app-store';
-import { botKeys } from './useBots';
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "../../config";
+import { useAppStore } from "../store/app-store";
+import { botKeys } from "./useBots";
 
 export function useGlobalStream() {
   const qc = useQueryClient();
@@ -26,18 +26,24 @@ export function useGlobalStream() {
       }
 
       const {
-        setPresence, setHealth, setLastHeartbeat, setShutdown,
-        addNodeRequest, resolveNodeRequest,
-        setBotStatus, addBotNodeRequest, resolveBotNodeRequest,
+        setPresence,
+        setHealth,
+        setLastHeartbeat,
+        setShutdown,
+        addNodeRequest,
+        resolveNodeRequest,
+        setBotStatus,
+        addBotNodeRequest,
+        resolveBotNodeRequest,
       } = storeRef.current();
 
       const { botId } = data;
 
       switch (data.type) {
-        case 'tick':
+        case "tick":
           break;
 
-        case 'system_presence':
+        case "system_presence":
           qc.invalidateQueries({ queryKey: botKeys.all });
           if (botId && data.metadata) {
             setBotStatus(botId, { presence: data.metadata });
@@ -46,7 +52,7 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'presence':
+        case "presence":
           qc.invalidateQueries({ queryKey: botKeys.all });
           if (botId && data.payload) {
             setBotStatus(botId, { presence: data.payload });
@@ -55,7 +61,7 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'health':
+        case "health":
           if (botId && data.payload) {
             setBotStatus(botId, { health: data.payload as Parameters<typeof setHealth>[0] });
           } else if (data.payload) {
@@ -63,15 +69,17 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'heartbeat':
+        case "heartbeat":
           if (botId && data.payload) {
-            setBotStatus(botId, { lastHeartbeat: data.payload as Parameters<typeof setLastHeartbeat>[0] });
+            setBotStatus(botId, {
+              lastHeartbeat: data.payload as Parameters<typeof setLastHeartbeat>[0],
+            });
           } else if (data.payload) {
             setLastHeartbeat(data.payload as Parameters<typeof setLastHeartbeat>[0]);
           }
           break;
 
-        case 'shutdown':
+        case "shutdown":
           if (botId) {
             setBotStatus(botId, { isShutdown: true });
           } else {
@@ -80,7 +88,7 @@ export function useGlobalStream() {
           qc.invalidateQueries();
           break;
 
-        case 'node_pair_requested':
+        case "node_pair_requested":
           if (botId && data.payload) {
             addBotNodeRequest(botId, data.payload as Parameters<typeof addBotNodeRequest>[1]);
           } else if (data.payload) {
@@ -88,18 +96,18 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'node_pair_resolved':
+        case "node_pair_resolved":
           if (botId && data.payload?.nodeId) {
             resolveBotNodeRequest(botId, data.payload.nodeId as string);
           } else if (data.payload?.nodeId && data.payload?.status) {
             resolveNodeRequest(
               data.payload.nodeId as string,
-              data.payload.status as 'approved' | 'rejected',
+              data.payload.status as "approved" | "rejected",
             );
           }
           break;
 
-        case 'cron':
+        case "cron":
           if (botId) {
             setBotStatus(botId, { lastCronAt: new Date().toISOString() });
           }

@@ -33,8 +33,8 @@ const result = await Bun.spawn({
     `bun-${process.platform}-${process.arch}`,
     "./src-api/src/index.ts",
     "--outfile",
-    `./src-tauri/bin/hono-sidecar-${triple}${windows ? '.exe' : ''}`
-  ]
+    `./src-tauri/bin/hono-sidecar-${triple}${windows ? ".exe" : ""}`,
+  ],
 }).exited;
 
 if (result !== 0) {

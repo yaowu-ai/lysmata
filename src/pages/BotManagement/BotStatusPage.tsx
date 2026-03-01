@@ -1,17 +1,26 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from "react-router-dom";
 import {
-  Activity, Heart, Wifi, Users, GitBranch, Clock, ArrowLeft,
-  CheckCircle, XCircle, AlertCircle, Circle,
-} from 'lucide-react';
-import { useBot } from '../../shared/hooks/useBots';
-import { useAppStore } from '../../shared/store/app-store';
-import { cn } from '../../shared/lib/utils';
-import type { ConnectionStatus } from '../../shared/types';
+  Activity,
+  Heart,
+  Wifi,
+  Users,
+  GitBranch,
+  Clock,
+  ArrowLeft,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  Circle,
+} from "lucide-react";
+import { useBot } from "../../shared/hooks/useBots";
+import { useAppStore } from "../../shared/store/app-store";
+import { cn } from "../../shared/lib/utils";
+import type { ConnectionStatus } from "../../shared/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatUptime(ms?: number): string {
-  if (ms == null) return '—';
+  if (ms == null) return "—";
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);
   const m = Math.floor((s % 3600) / 60);
@@ -22,11 +31,14 @@ function formatUptime(ms?: number): string {
 }
 
 function formatTime(iso?: string | unknown): string {
-  if (!iso || typeof iso !== 'string') return '—';
+  if (!iso || typeof iso !== "string") return "—";
   try {
-    return new Date(iso).toLocaleString('zh-CN', {
-      month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    return new Date(iso).toLocaleString("zh-CN", {
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     });
   } catch {
     return iso;
@@ -65,29 +77,30 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
     <div className="flex items-center justify-between py-1.5 border-b border-[#F1F5F9] last:border-0">
       <span className="text-[12px] text-[#64748B]">{label}</span>
       <span className="text-[12px] font-medium text-[#0F172A] max-w-[60%] text-right truncate">
-        {value ?? '—'}
+        {value ?? "—"}
       </span>
     </div>
   );
 }
 
 function EmptyState({ text }: { text: string }) {
-  return (
-    <p className="text-[12px] text-[#94A3B8] text-center py-3">{text}</p>
-  );
+  return <p className="text-[12px] text-[#94A3B8] text-center py-3">{text}</p>;
 }
 
-const connStatusConfig: Record<ConnectionStatus, { dot: string; label: string; icon: React.ElementType }> = {
-  connected:    { dot: 'bg-[#10B981]', label: '已连接',  icon: CheckCircle },
-  disconnected: { dot: 'bg-[#94A3B8]', label: '未连接',  icon: Circle },
-  connecting:   { dot: 'bg-[#F59E0B] animate-pulse', label: '连接中', icon: AlertCircle },
-  error:        { dot: 'bg-[#EF4444]', label: '连接错误', icon: XCircle },
+const connStatusConfig: Record<
+  ConnectionStatus,
+  { dot: string; label: string; icon: React.ElementType }
+> = {
+  connected: { dot: "bg-[#10B981]", label: "已连接", icon: CheckCircle },
+  disconnected: { dot: "bg-[#94A3B8]", label: "未连接", icon: Circle },
+  connecting: { dot: "bg-[#F59E0B] animate-pulse", label: "连接中", icon: AlertCircle },
+  error: { dot: "bg-[#EF4444]", label: "连接错误", icon: XCircle },
 };
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export function BotStatusPage() {
-  const { id = '' } = useParams<{ id: string }>();
+  const { id = "" } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const { data: bot, isLoading } = useBot(id);
@@ -117,7 +130,7 @@ export function BotStatusPage() {
       {/* Header */}
       <div className="bg-white border-b border-[#E5E7EB] px-6 py-4 flex items-center gap-3 flex-shrink-0">
         <button
-          onClick={() => navigate('/bots')}
+          onClick={() => navigate("/bots")}
           className="w-8 h-8 rounded-[7px] border border-[#E5E7EB] flex items-center justify-center text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569] transition-colors"
         >
           <ArrowLeft size={14} />
@@ -145,20 +158,26 @@ export function BotStatusPage() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-4">
-
           {/* 1. 连接状态 */}
           <StatusCard icon={Wifi} title="连接状态">
             <div className="flex items-center gap-3 mb-3">
-              <span className={cn('w-2.5 h-2.5 rounded-full flex-shrink-0', connCfg.dot)} />
+              <span className={cn("w-2.5 h-2.5 rounded-full flex-shrink-0", connCfg.dot)} />
               <span className="text-[13px] font-semibold text-[#0F172A]">{connCfg.label}</span>
-              <ConnIcon size={14} className={cn(
-                bot.connection_status === 'connected' ? 'text-[#10B981]' :
-                bot.connection_status === 'error' ? 'text-[#EF4444]' :
-                bot.connection_status === 'connecting' ? 'text-[#F59E0B]' : 'text-[#94A3B8]'
-              )} />
+              <ConnIcon
+                size={14}
+                className={cn(
+                  bot.connection_status === "connected"
+                    ? "text-[#10B981]"
+                    : bot.connection_status === "error"
+                      ? "text-[#EF4444]"
+                      : bot.connection_status === "connecting"
+                        ? "text-[#F59E0B]"
+                        : "text-[#94A3B8]",
+                )}
+              />
             </div>
             <Row label="Agent ID" value={bot.openclaw_agent_id} />
-            <Row label="Gateway 关闭" value={status?.isShutdown ? '是' : '否'} />
+            <Row label="Gateway 关闭" value={status?.isShutdown ? "是" : "否"} />
           </StatusCard>
 
           {/* 2. 健康快照 */}
@@ -166,9 +185,15 @@ export function BotStatusPage() {
             icon={Activity}
             title="系统健康"
             badge={
-              status?.health
-                ? <span className="text-[11px] text-[#15803D] bg-[#DCFCE7] border border-[#BBF7D0] px-2 py-0.5 rounded-full">正常</span>
-                : <span className="text-[11px] text-[#64748B] bg-[#F1F5F9] border border-[#E5E7EB] px-2 py-0.5 rounded-full">无数据</span>
+              status?.health ? (
+                <span className="text-[11px] text-[#15803D] bg-[#DCFCE7] border border-[#BBF7D0] px-2 py-0.5 rounded-full">
+                  正常
+                </span>
+              ) : (
+                <span className="text-[11px] text-[#64748B] bg-[#F1F5F9] border border-[#E5E7EB] px-2 py-0.5 rounded-full">
+                  无数据
+                </span>
+              )
             }
           >
             {status?.health ? (
@@ -177,9 +202,7 @@ export function BotStatusPage() {
                 <Row
                   label="节点数"
                   value={
-                    status.health.nodes
-                      ? String(Object.keys(status.health.nodes).length)
-                      : '—'
+                    status.health.nodes ? String(Object.keys(status.health.nodes).length) : "—"
                   }
                 />
                 {status.health.limits && (
@@ -200,7 +223,7 @@ export function BotStatusPage() {
           <StatusCard icon={Heart} title="心跳状态">
             {status?.lastHeartbeat ? (
               <>
-                <Row label="状态" value={status.lastHeartbeat.status ?? '—'} />
+                <Row label="状态" value={status.lastHeartbeat.status ?? "—"} />
                 <Row label="上次心跳" value={formatTime(status.lastHeartbeat.lastBeat as string)} />
               </>
             ) : (
@@ -216,10 +239,10 @@ export function BotStatusPage() {
                   label="在线"
                   value={
                     status.presence.online === true
-                      ? '是'
+                      ? "是"
                       : status.presence.online === false
-                        ? '否'
-                        : '—'
+                        ? "否"
+                        : "—"
                   }
                 />
                 <Row
@@ -227,7 +250,7 @@ export function BotStatusPage() {
                   value={
                     Array.isArray(status.presence.devices)
                       ? String(status.presence.devices.length)
-                      : '—'
+                      : "—"
                   }
                 />
                 <Row
@@ -235,7 +258,7 @@ export function BotStatusPage() {
                   value={
                     Array.isArray(status.presence.sessions)
                       ? String(status.presence.sessions.length)
-                      : '—'
+                      : "—"
                   }
                 />
               </>
@@ -249,13 +272,11 @@ export function BotStatusPage() {
             icon={GitBranch}
             title="待配对节点"
             badge={
-              status?.pendingNodeRequests?.length
-                ? (
-                  <span className="text-[11px] font-bold text-white bg-[#EF4444] px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
-                    {status.pendingNodeRequests.length}
-                  </span>
-                )
-                : null
+              status?.pendingNodeRequests?.length ? (
+                <span className="text-[11px] font-bold text-white bg-[#EF4444] px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                  {status.pendingNodeRequests.length}
+                </span>
+              ) : null
             }
           >
             {status?.pendingNodeRequests?.length ? (
@@ -267,7 +288,7 @@ export function BotStatusPage() {
                   >
                     <div>
                       <p className="text-[12px] font-medium text-[#0F172A]">
-                        节点 {req.nodeId ?? '未知'}
+                        节点 {req.nodeId ?? "未知"}
                       </p>
                       {req.requestId && (
                         <p className="text-[11px] text-[#94A3B8] font-mono mt-0.5">
@@ -294,7 +315,6 @@ export function BotStatusPage() {
               <EmptyState text="尚未收到定时任务触发" />
             )}
           </StatusCard>
-
         </div>
       </div>
     </div>

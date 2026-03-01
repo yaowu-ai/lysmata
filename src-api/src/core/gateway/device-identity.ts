@@ -16,10 +16,10 @@
 // Ed25519 SPKI DER = [12-byte prefix] + [32-byte raw key]  (44 bytes total)
 // Ed25519 PKCS#8 v1 DER prefix (RFC 8410 §10.3):
 
-import { createHash, createPrivateKey, createPublicKey } from 'crypto';
-import type { KeyObject } from 'crypto';
+import { createHash, createPrivateKey, createPublicKey } from "crypto";
+import type { KeyObject } from "crypto";
 
-const ED25519_PKCS8_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex');
+const ED25519_PKCS8_PREFIX = Buffer.from("302e020100300506032b657004220420", "hex");
 // Ed25519 SPKI DER prefix length (matches device-identity.ts: "302a300506032b6570032100" = 12 bytes)
 const ED25519_SPKI_PREFIX_LEN = 12;
 
@@ -32,7 +32,7 @@ export interface DeviceIdentity {
 
 /** base64url-encode a Buffer (no + / =) */
 export function base64UrlEncode(buf: Buffer): string {
-  return buf.toString('base64').replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '');
+  return buf.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
 }
 
 /** Cache: gateway URL → stable identity (lives for the process lifetime) */
@@ -52,17 +52,17 @@ export function getOrCreateIdentity(url: string): DeviceIdentity {
   if (cached) return cached;
 
   // Derive a deterministic 32-byte seed from the URL (stable across restarts)
-  const seed = createHash('sha256').update(`openclaw-device-v1:${url}`).digest();
+  const seed = createHash("sha256").update(`openclaw-device-v1:${url}`).digest();
   const pkcs8Der = Buffer.concat([ED25519_PKCS8_PREFIX, seed]);
-  const privateKey = createPrivateKey({ key: pkcs8Der, format: 'der', type: 'pkcs8' });
+  const privateKey = createPrivateKey({ key: pkcs8Der, format: "der", type: "pkcs8" });
   const publicKey = createPublicKey(privateKey);
 
   // Extract just the raw 32-byte key from SPKI DER (strip the 12-byte prefix)
-  const spkiDer = (publicKey as KeyObject).export({ type: 'spki', format: 'der' }) as Buffer;
+  const spkiDer = (publicKey as KeyObject).export({ type: "spki", format: "der" }) as Buffer;
   const rawKey = spkiDer.subarray(ED25519_SPKI_PREFIX_LEN); // raw 32 bytes
 
   // device.id = sha256(raw_32_bytes).hex()
-  const id = createHash('sha256').update(rawKey).digest('hex');
+  const id = createHash("sha256").update(rawKey).digest("hex");
 
   // publicKey field = base64url(raw_32_bytes)  — NOT base64(SPKI_DER)
   const publicKeyBase64Url = base64UrlEncode(rawKey);

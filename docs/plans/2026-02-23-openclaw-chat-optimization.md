@@ -13,6 +13,7 @@
 ## Task 1: Gateway WS 自动重连
 
 **Files:**
+
 - Modify: `src-api/src/core/gateway/connection-pool.ts:343-358`（teardown 函数）
 - Modify: `src-api/src/core/gateway/ws-adapter.ts:267-275`（onerror/onclose）
 
@@ -32,7 +33,7 @@ function scheduleReconnect(url: string, token: string | undefined, attempt: numb
   setTimeout(async () => {
     if (pool.has(url)) return; // already reconnected by another path
     try {
-      const { connectWS } = await import('./ws-adapter');
+      const { connectWS } = await import("./ws-adapter");
       const entry = await connectWS(url, token);
       const handler = pushHandlerRegistry.get(url);
       if (handler) entry.onPushEvent = handler;
@@ -55,7 +56,7 @@ export function teardown(url: string, entry: PoolEntry, err: Error, intentional 
   entry.activeRuns.forEach((run) => run.onError(err));
   entry.activeRuns.clear();
   entry.pendingRequests.forEach((cb) =>
-    cb({ type: 'res', id: '', ok: false, error: { message: err.message } }),
+    cb({ type: "res", id: "", ok: false, error: { message: err.message } }),
   );
   entry.pendingRequests.clear();
   entry.readyWaiters.forEach((w) => w.reject(err));
@@ -74,21 +75,27 @@ export function teardown(url: string, entry: PoolEntry, err: Error, intentional 
 **Step 3: 在 `ws-adapter.ts` 中，`shutdown` 事件的 teardown 调用加 `intentional=true`**
 
 找到（约第 156 行）：
+
 ```ts
-teardown(entry.url, entry, new Error('Gateway shutdown'));
+teardown(entry.url, entry, new Error("Gateway shutdown"));
 ```
+
 改为：
+
 ```ts
-teardown(entry.url, entry, new Error('Gateway shutdown'), true);
+teardown(entry.url, entry, new Error("Gateway shutdown"), true);
 ```
 
 同样找到 sidecar shutdown 的 teardown（约第 374 行）：
+
 ```ts
-teardown(url, entry, new Error('sidecar shutdown'));
+teardown(url, entry, new Error("sidecar shutdown"));
 ```
+
 改为：
+
 ```ts
-teardown(url, entry, new Error('sidecar shutdown'), true);
+teardown(url, entry, new Error("sidecar shutdown"), true);
 ```
 
 **Step 4: 验证 TypeScript 编译无错误**
@@ -97,6 +104,7 @@ teardown(url, entry, new Error('sidecar shutdown'), true);
 cd /path/to/lysmata
 bun run build
 ```
+
 Expected: 编译成功，无 TS 错误
 
 **Step 5: Commit**
@@ -111,6 +119,7 @@ git commit -m "feat: add exponential-backoff WS reconnect on unintentional disco
 ## Task 2: 新增单条消息查询端点
 
 **Files:**
+
 - Modify: `src-api/src/core/message-router.ts`（添加 `getMessage` 方法）
 - Modify: `src-api/src/app/api/messages.ts`（添加 `GET /:msgId` 路由）
 
@@ -129,9 +138,9 @@ getMessage(msgId: string): Message | null {
 **Step 2: 在 `messages.ts` 中，`messages.get('/')` 路由之后添加单条查询路由**
 
 ```ts
-messages.get('/:msgId', (c) => {
-  const msg = MessageRouter.getMessage(c.req.param('msgId'));
-  if (!msg) throw notFound('Message');
+messages.get("/:msgId", (c) => {
+  const msg = MessageRouter.getMessage(c.req.param("msgId"));
+  if (!msg) throw notFound("Message");
   return c.json(msg);
 });
 ```
@@ -143,6 +152,7 @@ messages.get('/:msgId', (c) => {
 ```bash
 bun run build
 ```
+
 Expected: 无错误
 
 **Step 4: 手动验证端点（可选，需先启动 dev:api）**
@@ -152,6 +162,7 @@ Expected: 无错误
 # 再请求单条
 curl http://localhost:3000/conversations/<convId>/messages/<msgId>
 ```
+
 Expected: 返回单条消息 JSON
 
 **Step 5: Commit**
@@ -166,6 +177,7 @@ git commit -m "feat: add GET /messages/:msgId single message endpoint"
 ## Task 3: `useGlobalStream` 稳定化
 
 **Files:**
+
 - Modify: `src/shared/hooks/useGlobalStream.ts`
 
 **Step 1: 将文件改为使用 `useRef` 持有 store getState**
@@ -173,11 +185,11 @@ git commit -m "feat: add GET /messages/:msgId single message endpoint"
 完整替换文件内容：
 
 ```ts
-import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL } from '../../config';
-import { useAppStore } from '../store/app-store';
-import { botKeys } from './useBots';
+import { useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "../../config";
+import { useAppStore } from "../store/app-store";
+import { botKeys } from "./useBots";
 
 export function useGlobalStream() {
   const qc = useQueryClient();
@@ -201,18 +213,24 @@ export function useGlobalStream() {
       }
 
       const {
-        setPresence, setHealth, setLastHeartbeat, setShutdown,
-        addNodeRequest, resolveNodeRequest,
-        setBotStatus, addBotNodeRequest, resolveBotNodeRequest,
+        setPresence,
+        setHealth,
+        setLastHeartbeat,
+        setShutdown,
+        addNodeRequest,
+        resolveNodeRequest,
+        setBotStatus,
+        addBotNodeRequest,
+        resolveBotNodeRequest,
       } = storeRef.current();
 
       const { botId } = data;
 
       switch (data.type) {
-        case 'tick':
+        case "tick":
           break;
 
-        case 'system_presence':
+        case "system_presence":
           qc.invalidateQueries({ queryKey: botKeys.all });
           if (botId && data.metadata) {
             setBotStatus(botId, { presence: data.metadata });
@@ -221,7 +239,7 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'presence':
+        case "presence":
           qc.invalidateQueries({ queryKey: botKeys.all });
           if (botId && data.payload) {
             setBotStatus(botId, { presence: data.payload });
@@ -230,7 +248,7 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'health':
+        case "health":
           if (botId && data.payload) {
             setBotStatus(botId, { health: data.payload as Parameters<typeof setHealth>[0] });
           } else if (data.payload) {
@@ -238,15 +256,17 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'heartbeat':
+        case "heartbeat":
           if (botId && data.payload) {
-            setBotStatus(botId, { lastHeartbeat: data.payload as Parameters<typeof setLastHeartbeat>[0] });
+            setBotStatus(botId, {
+              lastHeartbeat: data.payload as Parameters<typeof setLastHeartbeat>[0],
+            });
           } else if (data.payload) {
             setLastHeartbeat(data.payload as Parameters<typeof setLastHeartbeat>[0]);
           }
           break;
 
-        case 'shutdown':
+        case "shutdown":
           if (botId) {
             setBotStatus(botId, { isShutdown: true });
           } else {
@@ -255,7 +275,7 @@ export function useGlobalStream() {
           qc.invalidateQueries();
           break;
 
-        case 'node_pair_requested':
+        case "node_pair_requested":
           if (botId && data.payload) {
             addBotNodeRequest(botId, data.payload as Parameters<typeof addBotNodeRequest>[1]);
           } else if (data.payload) {
@@ -263,18 +283,18 @@ export function useGlobalStream() {
           }
           break;
 
-        case 'node_pair_resolved':
+        case "node_pair_resolved":
           if (botId && data.payload?.nodeId) {
             resolveBotNodeRequest(botId, data.payload.nodeId as string);
           } else if (data.payload?.nodeId && data.payload?.status) {
             resolveNodeRequest(
               data.payload.nodeId as string,
-              data.payload.status as 'approved' | 'rejected',
+              data.payload.status as "approved" | "rejected",
             );
           }
           break;
 
-        case 'cron':
+        case "cron":
           if (botId) {
             setBotStatus(botId, { lastCronAt: new Date().toISOString() });
           }
@@ -300,6 +320,7 @@ export function useGlobalStream() {
 ```bash
 bun run build
 ```
+
 Expected: 无错误
 
 **Step 3: Commit**
@@ -314,6 +335,7 @@ git commit -m "perf: stabilize useGlobalStream EventSource with useRef store acc
 ## Task 4: `usePushStream` 增量更新
 
 **Files:**
+
 - Modify: `src/shared/hooks/usePushStream.ts`
 - Modify: `src/shared/hooks/useMessages.ts`（添加 `useMessage` 单条查询 hook）
 
@@ -330,11 +352,11 @@ export async function fetchSingleMessage(conversationId: string, msgId: string):
 **Step 2: 替换 `usePushStream.ts` 为增量更新版本**
 
 ```ts
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL } from '../../config';
-import { msgKeys, fetchSingleMessage } from './useMessages';
-import type { Message } from '../types';
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "../../config";
+import { msgKeys, fetchSingleMessage } from "./useMessages";
+import type { Message } from "../types";
 
 export function usePushStream(conversationId: string | null | undefined) {
   const qc = useQueryClient();
@@ -359,28 +381,33 @@ export function usePushStream(conversationId: string | null | undefined) {
       // 1. 先插入占位，避免列表跳动
       qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
         if (old.some((m) => m.id === msgId)) return old; // 已存在则跳过
-        return [...old, {
-          id: msgId,
-          conversation_id: conversationId,
-          sender_type: 'bot',
-          bot_id: null,
-          content: '',
-          mentioned_bot_id: null,
-          message_type: 'text',
-          metadata: null,
-          created_at: new Date().toISOString(),
-        } as Message];
+        return [
+          ...old,
+          {
+            id: msgId,
+            conversation_id: conversationId,
+            sender_type: "bot",
+            bot_id: null,
+            content: "",
+            mentioned_bot_id: null,
+            message_type: "text",
+            metadata: null,
+            created_at: new Date().toISOString(),
+          } as Message,
+        ];
       });
 
       // 2. 拉取完整消息替换占位
-      fetchSingleMessage(conversationId, msgId).then((msg) => {
-        qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
-          old.map((m) => (m.id === msgId ? msg : m)),
-        );
-      }).catch(() => {
-        // 拉取失败时回退到 invalidate
-        qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
-      });
+      fetchSingleMessage(conversationId, msgId)
+        .then((msg) => {
+          qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) =>
+            old.map((m) => (m.id === msgId ? msg : m)),
+          );
+        })
+        .catch(() => {
+          // 拉取失败时回退到 invalidate
+          qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
+        });
     };
 
     es.onerror = () => {};
@@ -397,7 +424,9 @@ export function usePushStream(conversationId: string | null | undefined) {
 ```bash
 grep -n "message_type\|metadata" src/shared/types/index.ts
 ```
+
 如果缺少，在 `Message` 接口中补充：
+
 ```ts
 message_type?: string;
 metadata?: string | null;
@@ -408,6 +437,7 @@ metadata?: string | null;
 ```bash
 bun run build
 ```
+
 Expected: 无错误
 
 **Step 5: Commit**
@@ -422,6 +452,7 @@ git commit -m "perf: replace invalidateQueries with incremental setQueryData in 
 ## Task 5: `useSendMessageStream` 流式 hook
 
 **Files:**
+
 - Modify: `src/shared/hooks/useMessages.ts`
 
 **Step 1: 在 `useMessages.ts` 末尾添加 `useSendMessageStream`**
@@ -444,11 +475,11 @@ export function useSendMessageStream(conversationId: string) {
       {
         id: optimisticId,
         conversation_id: conversationId,
-        sender_type: 'user',
+        sender_type: "user",
         content,
         bot_id: null,
         mentioned_bot_id: null,
-        message_type: 'text',
+        message_type: "text",
         metadata: null,
         created_at: new Date().toISOString(),
       } as Message,
@@ -462,20 +493,20 @@ export function useSendMessageStream(conversationId: string) {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+          if (!line.startsWith("data: ")) continue;
           const raw = line.slice(6).trim();
-          if (raw === '[DONE]') break;
+          if (raw === "[DONE]") break;
           try {
             const parsed = JSON.parse(raw) as { chunk?: string; error?: string };
             if (parsed.chunk) onChunk(parsed.chunk);
@@ -494,8 +525,9 @@ export function useSendMessageStream(conversationId: string) {
 ```
 
 注意：需要在文件顶部导入 `API_BASE_URL`：
+
 ```ts
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL } from "../config";
 ```
 
 **Step 2: 验证编译**
@@ -503,6 +535,7 @@ import { API_BASE_URL } from '../config';
 ```bash
 bun run build
 ```
+
 Expected: 无错误
 
 **Step 3: Commit**
@@ -517,6 +550,7 @@ git commit -m "feat: add useSendMessageStream hook for streaming bot replies"
 ## Task 6: `BotMessage` system_event 渲染
 
 **Files:**
+
 - Modify: `src/pages/Chat/BotMessage.tsx`
 
 **Step 1: 在 `BotMessage.tsx` 中，`isApproval` 判断之后，添加 `isSystemEvent` 判断和渲染**
@@ -524,10 +558,11 @@ git commit -m "feat: add useSendMessageStream hook for streaming bot replies"
 在 `const isApproval = message.message_type === 'approval';` 之后添加：
 
 ```ts
-const isSystemEvent = message.message_type === 'system_event';
+const isSystemEvent = message.message_type === "system_event";
 ```
 
 在 JSX 的气泡区域，将现有的三元表达式：
+
 ```tsx
 {isApproval ? (
   // approval 卡片...
@@ -537,36 +572,43 @@ const isSystemEvent = message.message_type === 'system_event';
 ```
 
 改为：
+
 ```tsx
-{isApproval ? (
-  // 保持现有 approval 卡片不变
-  <div className="border border-[#E2E8F0] bg-white rounded-lg shadow-sm overflow-hidden text-[13px]">
-    {/* ... 现有内容不变 ... */}
-  </div>
-) : isSystemEvent ? (
-  <SystemEventCard metadata={metadata} content={message.content} />
-) : (
-  <div
-    className={cn(
-      'rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap',
-      isPrimary
-        ? 'bg-[#F0F7FF] border-l-[3px] border-[#2563EB]'
-        : 'bg-[#F1F5F9]',
-    )}
-  >
-    {message.content}
-  </div>
-)}
+{
+  isApproval ? (
+    // 保持现有 approval 卡片不变
+    <div className="border border-[#E2E8F0] bg-white rounded-lg shadow-sm overflow-hidden text-[13px]">
+      {/* ... 现有内容不变 ... */}
+    </div>
+  ) : isSystemEvent ? (
+    <SystemEventCard metadata={metadata} content={message.content} />
+  ) : (
+    <div
+      className={cn(
+        "rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap",
+        isPrimary ? "bg-[#F0F7FF] border-l-[3px] border-[#2563EB]" : "bg-[#F1F5F9]",
+      )}
+    >
+      {message.content}
+    </div>
+  );
+}
 ```
 
 **Step 2: 在同文件中，组件函数之前添加 `SystemEventCard` 子组件**
 
 ```tsx
-function SystemEventCard({ metadata, content }: { metadata: Record<string, unknown>; content: string }) {
+function SystemEventCard({
+  metadata,
+  content,
+}: {
+  metadata: Record<string, unknown>;
+  content: string;
+}) {
   // 通过 metadata 字段区分子类型
-  const hasResult = 'result' in metadata;
-  const hasReason = 'reason' in metadata && !hasResult;
-  const hasSummary = 'summary' in metadata;
+  const hasResult = "result" in metadata;
+  const hasReason = "reason" in metadata && !hasResult;
+  const hasSummary = "summary" in metadata;
 
   if (hasResult) {
     // exec_finished
@@ -603,9 +645,7 @@ function SystemEventCard({ metadata, content }: { metadata: Record<string, unkno
         <div className="px-3 py-2 font-semibold flex items-center gap-2 border-b border-[#FEE2E2]">
           <span>🚫</span> 命令执行被拒绝
         </div>
-        <div className="p-3 text-[#991B1B]">
-          {String(metadata.reason || '未提供原因')}
-        </div>
+        <div className="p-3 text-[#991B1B]">{String(metadata.reason || "未提供原因")}</div>
       </div>
     );
   }
@@ -617,9 +657,7 @@ function SystemEventCard({ metadata, content }: { metadata: Record<string, unkno
         <div className="px-3 py-2 font-semibold flex items-center gap-2 border-b border-[#E2E8F0] text-[#475569]">
           <span>🕐</span> 定时任务完成
         </div>
-        <div className="p-3 text-[#334155] whitespace-pre-wrap">
-          {String(metadata.summary)}
-        </div>
+        <div className="p-3 text-[#334155] whitespace-pre-wrap">{String(metadata.summary)}</div>
       </div>
     );
   }
@@ -627,7 +665,8 @@ function SystemEventCard({ metadata, content }: { metadata: Record<string, unkno
   // 兜底：未知 system_event，显示原始 content
   return (
     <div className="border border-[#E2E8F0] bg-[#F8FAFC] rounded-lg px-3 py-2 text-[13px] text-[#64748B]">
-      <span className="mr-2">⚙️</span>{content}
+      <span className="mr-2">⚙️</span>
+      {content}
     </div>
   );
 }
@@ -638,6 +677,7 @@ function SystemEventCard({ metadata, content }: { metadata: Record<string, unkno
 ```bash
 bun run build
 ```
+
 Expected: 无错误
 
 **Step 4: Commit**
@@ -652,26 +692,33 @@ git commit -m "feat: render system_event messages (exec_finished, exec_denied, c
 ## Task 7: PrivateChatPage 接入流式输出
 
 **Files:**
+
 - Modify: `src/pages/Chat/PrivateChatPage.tsx`
 
 **Step 1: 替换 `useSendMessage` 为 `useSendMessageStream`，添加 `streamingContent` 状态**
 
 在 imports 中，将：
+
 ```ts
-import { useMessages, useSendMessage } from '../../shared/hooks/useMessages';
+import { useMessages, useSendMessage } from "../../shared/hooks/useMessages";
 ```
+
 改为：
+
 ```ts
-import { useMessages, useSendMessageStream } from '../../shared/hooks/useMessages';
+import { useMessages, useSendMessageStream } from "../../shared/hooks/useMessages";
 ```
 
 在组件内，将：
+
 ```ts
-const sendMut = useSendMessage(activeId ?? '');
+const sendMut = useSendMessage(activeId ?? "");
 ```
+
 改为：
+
 ```ts
-const sendStream = useSendMessageStream(activeId ?? '');
+const sendStream = useSendMessageStream(activeId ?? "");
 const [streamingContent, setStreamingContent] = useState<string | null>(null);
 const [isSending, setIsSending] = useState(false);
 ```
@@ -679,6 +726,7 @@ const [isSending, setIsSending] = useState(false);
 **Step 2: 替换 `handleSend` 逻辑**
 
 将 `MessageInput` 的 `onSend` prop 改为：
+
 ```tsx
 onSend={async (content) => {
   setIsSending(true);
@@ -696,38 +744,45 @@ disabled={isSending}
 **Step 3: 替换消息列表末尾的 loading 气泡**
 
 将现有的：
+
 ```tsx
-{sendMut.isPending && (
-  <div className="flex items-start gap-2.5">
-    ...三点动画...
-  </div>
-)}
+{
+  sendMut.isPending && <div className="flex items-start gap-2.5">...三点动画...</div>;
+}
 ```
+
 改为：
+
 ```tsx
-{streamingContent !== null && (
-  <div className="flex items-start gap-2.5">
-    <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
-      {convBot?.avatar_emoji ?? '🤖'}
+{
+  streamingContent !== null && (
+    <div className="flex items-start gap-2.5">
+      <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
+        {convBot?.avatar_emoji ?? "🤖"}
+      </div>
+      <div className="max-w-[75%]">
+        {streamingContent === "" ? (
+          // 流已开始但无内容：三点动画
+          <div className="bg-[#F1F5F9] rounded-[0_12px_12px_12px] px-3.5 py-2.5 flex gap-1.5 items-center">
+            {[0, 1, 2].map((i) => (
+              <span
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-bounce"
+                style={{ animationDelay: `${i * 0.15}s` }}
+              />
+            ))}
+          </div>
+        ) : (
+          // 有内容：打字机气泡 + 光标
+          <div className="bg-[#F0F7FF] border-l-[3px] border-[#2563EB] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap">
+            {streamingContent}
+            <span className="inline-block w-[2px] h-[14px] bg-[#2563EB] ml-0.5 animate-pulse align-middle" />
+          </div>
+        )}
+      </div>
     </div>
-    <div className="max-w-[75%]">
-      {streamingContent === '' ? (
-        // 流已开始但无内容：三点动画
-        <div className="bg-[#F1F5F9] rounded-[0_12px_12px_12px] px-3.5 py-2.5 flex gap-1.5 items-center">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
-          ))}
-        </div>
-      ) : (
-        // 有内容：打字机气泡 + 光标
-        <div className="bg-[#F0F7FF] border-l-[3px] border-[#2563EB] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap">
-          {streamingContent}
-          <span className="inline-block w-[2px] h-[14px] bg-[#2563EB] ml-0.5 animate-pulse align-middle" />
-        </div>
-      )}
-    </div>
-  </div>
-)}
+  );
+}
 ```
 
 **Step 4: 验证编译**
@@ -735,6 +790,7 @@ disabled={isSending}
 ```bash
 bun run build
 ```
+
 Expected: 无错误
 
 **Step 5: Commit**
@@ -749,6 +805,7 @@ git commit -m "feat: add streaming typewriter effect in PrivateChatPage"
 ## Task 8: GroupChatPage 接入流式输出
 
 **Files:**
+
 - Modify: `src/pages/Chat/GroupChatPage.tsx`
 
 与 Task 7 完全相同的改动模式，应用到 `GroupChatPage.tsx`。
@@ -783,6 +840,7 @@ bun run dev       # 终端 2
 ```
 
 手动验证点：
+
 - [ ] 发送消息后出现三点动画，随后逐字显示 Bot 回复
 - [ ] Bot 主动推送的消息（exec_finished/cron）以卡片形式显示
 - [ ] 关闭 Gateway 后等待约 1s 自动重连（查看 sidecar 日志）

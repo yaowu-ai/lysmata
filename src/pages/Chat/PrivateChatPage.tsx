@@ -1,14 +1,14 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
-import { useConversations, useDeleteConversation } from '../../shared/hooks/useConversations';
-import { useMessages, useSendMessageStream } from '../../shared/hooks/useMessages';
-import { useBots } from '../../shared/hooks/useBots';
-import { useChatStore } from '../../shared/store/chat-store';
-import { usePushStream } from '../../shared/hooks/usePushStream';
-import { ConversationSidebar } from './ConversationSidebar';
-import { BotMessage } from './BotMessage';
-import { MessageInput } from './MessageInput';
-import { NewConversationDialog } from './NewConversationDialog';
-import { isSameDay, formatDateLabel } from '../../shared/lib/utils';
+import { Fragment, useEffect, useRef, useState } from "react";
+import { useConversations, useDeleteConversation } from "../../shared/hooks/useConversations";
+import { useMessages, useSendMessageStream } from "../../shared/hooks/useMessages";
+import { useBots } from "../../shared/hooks/useBots";
+import { useChatStore } from "../../shared/store/chat-store";
+import { usePushStream } from "../../shared/hooks/usePushStream";
+import { ConversationSidebar } from "./ConversationSidebar";
+import { BotMessage } from "./BotMessage";
+import { MessageInput } from "./MessageInput";
+import { NewConversationDialog } from "./NewConversationDialog";
+import { isSameDay, formatDateLabel } from "../../shared/lib/utils";
 
 export function PrivateChatPage() {
   const { data: convs = [], isLoading: convLoading } = useConversations();
@@ -17,11 +17,11 @@ export function PrivateChatPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
 
-  const singleConvs = convs.filter((c) => c.type === 'single');
+  const singleConvs = convs.filter((c) => c.type === "single");
   const activeConv = singleConvs.find((c) => c.id === activeId) ?? null;
 
-  const { data: messages = [] } = useMessages(activeId ?? '');
-  const sendStream = useSendMessageStream(activeId ?? '');
+  const { data: messages = [] } = useMessages(activeId ?? "");
+  const sendStream = useSendMessageStream(activeId ?? "");
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
@@ -30,11 +30,15 @@ export function PrivateChatPage() {
 
   function handleDelete(id: string) {
     deleteMut.mutate(id, {
-      onSuccess: () => { if (activeId === id) setActiveConversationId(null); },
+      onSuccess: () => {
+        if (activeId === id) setActiveConversationId(null);
+      },
     });
   }
 
-  useEffect(() => { msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, streamingContent]);
+  useEffect(() => {
+    msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, streamingContent]);
 
   useEffect(() => {
     setStreamingContent(null);
@@ -63,11 +67,11 @@ export function PrivateChatPage() {
           {/* Header */}
           <div className="bg-white border-b border-[#E5E7EB] px-5 py-3 flex items-center gap-3 flex-shrink-0">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl">
-              {convBot?.avatar_emoji ?? '🤖'}
+              {convBot?.avatar_emoji ?? "🤖"}
             </div>
             <div>
               <div className="font-semibold text-[15px]">{activeConv.title}</div>
-              <div className="text-[12px] text-[#64748B]">{convBot?.name ?? ''}</div>
+              <div className="text-[12px] text-[#64748B]">{convBot?.name ?? ""}</div>
             </div>
           </div>
 
@@ -95,13 +99,17 @@ export function PrivateChatPage() {
             {streamingContent !== null && (
               <div className="flex items-start gap-2.5">
                 <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
-                  {convBot?.avatar_emoji ?? '🤖'}
+                  {convBot?.avatar_emoji ?? "🤖"}
                 </div>
                 <div className="max-w-[75%]">
-                  {streamingContent === '' ? (
+                  {streamingContent === "" ? (
                     <div className="bg-[#F1F5F9] rounded-[0_12px_12px_12px] px-3.5 py-2.5 flex gap-1.5 items-center">
                       {[0, 1, 2].map((i) => (
-                        <span key={i} className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                        <span
+                          key={i}
+                          className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-bounce"
+                          style={{ animationDelay: `${i * 0.15}s` }}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -116,7 +124,7 @@ export function PrivateChatPage() {
             {streamError !== null && (
               <div className="flex items-start gap-2.5">
                 <div className="w-[34px] h-[34px] rounded-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center text-xl flex-shrink-0 mt-0.5">
-                  {convBot?.avatar_emoji ?? '🤖'}
+                  {convBot?.avatar_emoji ?? "🤖"}
                 </div>
                 <div className="max-w-[75%] bg-[#FFF1F2] border-l-[3px] border-[#EF4444] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[13px] text-[#991B1B]">
                   发送失败，Bot 未能响应。请重试。
@@ -131,7 +139,7 @@ export function PrivateChatPage() {
             onSend={async (content) => {
               setIsSending(true);
               setStreamError(null);
-              setStreamingContent('');
+              setStreamingContent("");
               try {
                 const result = await sendStream(content, (chunk) => setStreamingContent(chunk));
                 if (result.error) setStreamError(result.error);

@@ -1,5 +1,5 @@
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -9,7 +9,11 @@ export function cn(...inputs: ClassValue[]) {
 export function formatMsgTime(isoString: string): string {
   const date = new Date(isoString);
   const now = new Date();
-  const hhmm = date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const hhmm = date.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
   const isToday =
     date.getFullYear() === now.getFullYear() &&
@@ -48,8 +52,8 @@ export function formatDateLabel(isoString: string): string {
     date.getMonth() === yesterday.getMonth() &&
     date.getDate() === yesterday.getDate();
 
-  if (isToday) return '今天';
-  if (isYesterday) return '昨天';
+  if (isToday) return "今天";
+  if (isYesterday) return "昨天";
   if (date.getFullYear() === now.getFullYear()) {
     return `${date.getMonth() + 1}月${date.getDate()}日`;
   }

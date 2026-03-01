@@ -74,11 +74,11 @@ The Hono sidecar is compiled to a native binary and bundled inside the Tauri app
 
 ## 📋 Prerequisites
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| [Rust](https://rustup.rs) | stable | Tauri desktop shell |
-| [Bun](https://bun.sh) | ≥ 1.1 | Frontend deps + sidecar runtime |
-| [Xcode CLI Tools](https://developer.apple.com/xcode/) | latest | macOS builds |
+| Tool                                                  | Version | Purpose                         |
+| ----------------------------------------------------- | ------- | ------------------------------- |
+| [Rust](https://rustup.rs)                             | stable  | Tauri desktop shell             |
+| [Bun](https://bun.sh)                                 | ≥ 1.1   | Frontend deps + sidecar runtime |
+| [Xcode CLI Tools](https://developer.apple.com/xcode/) | latest  | macOS builds                    |
 
 > Windows and Linux builds are theoretically supported by Tauri but have not been tested.
 
@@ -101,18 +101,18 @@ bun run tauri dev
 
 ## 🛠 Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `bun run dev` | Start Vite frontend only (port 1420) |
-| `bun run dev:api` | Start Hono sidecar only (port 2026, hot reload) |
-| `bun run dev:all` | Start frontend + sidecar simultaneously |
-| `bun run build` | TypeScript check + Vite production build |
-| `bun run build:sidecar` | Compile Hono sidecar to native binary |
-| `bun run build:dmg` | Build macOS `.dmg` installer (auto-compiles sidecar first) |
-| `bun run lint` | Run ESLint |
-| `bun run lint:fix` | Auto-fix ESLint issues |
-| `bun run format` | Prettier format all files |
-| `bun run format:check` | Check Prettier formatting |
+| Command                 | Description                                                |
+| ----------------------- | ---------------------------------------------------------- |
+| `bun run dev`           | Start Vite frontend only (port 1420)                       |
+| `bun run dev:api`       | Start Hono sidecar only (port 2026, hot reload)            |
+| `bun run dev:all`       | Start frontend + sidecar simultaneously                    |
+| `bun run build`         | TypeScript check + Vite production build                   |
+| `bun run build:sidecar` | Compile Hono sidecar to native binary                      |
+| `bun run build:dmg`     | Build macOS `.dmg` installer (auto-compiles sidecar first) |
+| `bun run lint`          | Run ESLint                                                 |
+| `bun run lint:fix`      | Auto-fix ESLint issues                                     |
+| `bun run format`        | Prettier format all files                                  |
+| `bun run format:check`  | Check Prettier formatting                                  |
 
 ## ⚙️ Configuration
 
@@ -143,18 +143,18 @@ Lysmata reads and writes this file for LLM provider settings. Example structure:
 
 ### App Data (`~/.lysmata/`)
 
-| Path | Description |
-|------|-------------|
+| Path                | Description                                     |
+| ------------------- | ----------------------------------------------- |
 | `~/.lysmata/app.db` | SQLite database (bots, conversations, messages) |
-| `~/.lysmata/logs/` | Sidecar and gateway logs |
+| `~/.lysmata/logs/`  | Sidecar and gateway logs                        |
 
 ### Ports (fixed)
 
-| Environment | Service | Port |
-|-------------|---------|------|
+| Environment | Service       | Port |
+| ----------- | ------------- | ---- |
 | Development | Vite frontend | 1420 |
-| Development | Hono sidecar | 2026 |
-| Production | Tauri sidecar | 2620 |
+| Development | Hono sidecar  | 2026 |
+| Production  | Tauri sidecar | 2620 |
 
 ## 🗂 Project Structure
 

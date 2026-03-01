@@ -1,12 +1,12 @@
-import { Database } from 'bun:sqlite';
-import { DB_PATH } from '../config';
+import { Database } from "bun:sqlite";
+import { DB_PATH } from "../config";
 
 let _db: Database | null = null;
 
 export function getDb(): Database {
   if (!_db) {
     _db = new Database(DB_PATH, { create: true });
-    _db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
+    _db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;");
     ensureSchema(_db);
   }
   return _db;
@@ -77,25 +77,25 @@ function ensureSchema(db: Database): void {
 
   // Migration 2: add openclaw_agent_id and llm_config column (idempotent via PRAGMA table_info)
   const cols = db
-    .query<{ name: string }, []>('PRAGMA table_info(bots)')
+    .query<{ name: string }, []>("PRAGMA table_info(bots)")
     .all()
     .map((r) => r.name);
-  if (!cols.includes('openclaw_agent_id')) {
+  if (!cols.includes("openclaw_agent_id")) {
     db.exec(`ALTER TABLE bots ADD COLUMN openclaw_agent_id TEXT NOT NULL DEFAULT 'main';`);
   }
-  if (!cols.includes('llm_config')) {
+  if (!cols.includes("llm_config")) {
     db.exec(`ALTER TABLE bots ADD COLUMN llm_config TEXT NOT NULL DEFAULT '{}';`);
   }
 
   // Migration 3: add message_type and metadata columns to messages table
   const msgCols = db
-    .query<{ name: string }, []>('PRAGMA table_info(messages)')
+    .query<{ name: string }, []>("PRAGMA table_info(messages)")
     .all()
     .map((r) => r.name);
-  if (!msgCols.includes('message_type')) {
+  if (!msgCols.includes("message_type")) {
     db.exec(`ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'text';`);
   }
-  if (!msgCols.includes('metadata')) {
+  if (!msgCols.includes("metadata")) {
     db.exec(`ALTER TABLE messages ADD COLUMN metadata TEXT;`);
   }
 }

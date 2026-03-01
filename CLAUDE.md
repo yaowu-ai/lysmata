@@ -1,5 +1,5 @@
 ---
-description: 
+description:
 alwaysApply: true
 ---
 
@@ -69,6 +69,7 @@ src-tauri/    # Tauri Rust 壳（负责启动 sidecar、窗口管理）
 **TanStack Query**（服务端状态）— bots、conversations、messages 的缓存与失效，hooks 在 `src/shared/hooks/`。
 
 **Zustand**（客户端实时状态）— 两个 store：
+
 - `app-store.ts`：sidecar 状态、每个 bot 的实时快照 `botStatuses: Record<string, BotStatusInfo>`（health、presence、heartbeat、pendingNodeRequests、isShutdown）
 - `chat-store.ts`：当前激活的 `activeConversationId`
 

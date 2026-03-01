@@ -1,6 +1,6 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '../api-client';
-import type { Bot, CreateBotInput, UpdateBotInput } from '../types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "../api-client";
+import type { Bot, CreateBotInput, UpdateBotInput } from "../types";
 
 export interface RemoteAgentConfig {
   agentId: string;
@@ -28,15 +28,15 @@ export interface RemoteConfigResult {
 }
 
 export const botKeys = {
-  all: ['bots'] as const,
-  detail: (id: string) => ['bots', id] as const,
-  remoteConfig: (id: string) => ['bots', id, 'remote-config'] as const,
+  all: ["bots"] as const,
+  detail: (id: string) => ["bots", id] as const,
+  remoteConfig: (id: string) => ["bots", id, "remote-config"] as const,
 };
 
 export function useBots() {
   return useQuery({
     queryKey: botKeys.all,
-    queryFn: () => apiClient.get<Bot[]>('/bots'),
+    queryFn: () => apiClient.get<Bot[]>("/bots"),
   });
 }
 
@@ -51,7 +51,7 @@ export function useBot(id: string) {
 export function useCreateBot() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: CreateBotInput) => apiClient.post<Bot>('/bots', data),
+    mutationFn: (data: CreateBotInput) => apiClient.post<Bot>("/bots", data),
     onSuccess: () => qc.invalidateQueries({ queryKey: botKeys.all }),
   });
 }

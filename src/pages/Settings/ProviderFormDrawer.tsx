@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
-import { X, Plus, Trash2 } from 'lucide-react';
-import type { ProviderConfig, ProviderModel } from '../../shared/types';
+import { useEffect, useState } from "react";
+import { X, Plus, Trash2 } from "lucide-react";
+import type { ProviderConfig, ProviderModel } from "../../shared/types";
 
 interface Props {
   open: boolean;
@@ -11,16 +11,22 @@ interface Props {
 }
 
 const emptyProvider = (): ProviderConfig => ({
-  baseUrl: '',
-  apiKey: '',
-  api: 'openai-completions',
+  baseUrl: "",
+  apiKey: "",
+  api: "openai-completions",
   models: [],
 });
 
-const emptyModel = (): ProviderModel => ({ id: '', name: '' });
+const emptyModel = (): ProviderModel => ({ id: "", name: "" });
 
-export default function ProviderFormDrawer({ open, providerKey, provider, onClose, onSave }: Props) {
-  const [key, setKey] = useState('');
+export default function ProviderFormDrawer({
+  open,
+  providerKey,
+  provider,
+  onClose,
+  onSave,
+}: Props) {
+  const [key, setKey] = useState("");
   const [form, setForm] = useState<ProviderConfig>(emptyProvider());
 
   useEffect(() => {
@@ -33,13 +39,17 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
-  function updateModel<K extends keyof ProviderModel>(index: number, field: K, value: ProviderModel[K]) {
+  function updateModel<K extends keyof ProviderModel>(
+    index: number,
+    field: K,
+    value: ProviderModel[K],
+  ) {
     setForm((prev) => {
       const models = [...prev.models];
       models[index] = { ...models[index], [field]: value };
@@ -68,13 +78,23 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-[480px] h-full bg-white border-l border-[#E5E7EB] flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
-          <h2 className="text-sm font-semibold text-[#0F172A]">{provider ? '编辑 Provider' : '添加 Provider'}</h2>
-          <button aria-label="关闭" onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A]"><X size={16} /></button>
+          <h2 className="text-sm font-semibold text-[#0F172A]">
+            {provider ? "编辑 Provider" : "添加 Provider"}
+          </h2>
+          <button
+            aria-label="关闭"
+            onClick={onClose}
+            className="text-[#94A3B8] hover:text-[#0F172A]"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4">
           <div>
-            <label htmlFor="provider-key" className="block text-xs text-[#64748B] mb-1">Provider Key（唯一标识）</label>
+            <label htmlFor="provider-key" className="block text-xs text-[#64748B] mb-1">
+              Provider Key（唯一标识）
+            </label>
             <input
               id="provider-key"
               className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 disabled:bg-[#F8FAFC] disabled:text-[#94A3B8]"
@@ -87,34 +107,40 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
           </div>
 
           <div>
-            <label htmlFor="provider-base-url" className="block text-xs text-[#64748B] mb-1">Base URL</label>
+            <label htmlFor="provider-base-url" className="block text-xs text-[#64748B] mb-1">
+              Base URL
+            </label>
             <input
               id="provider-base-url"
               className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-              value={form.baseUrl ?? ''}
+              value={form.baseUrl ?? ""}
               onChange={(e) => setForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
               placeholder="https://api.openai.com/v1"
             />
           </div>
 
           <div>
-            <label htmlFor="provider-api-key" className="block text-xs text-[#64748B] mb-1">API Key</label>
+            <label htmlFor="provider-api-key" className="block text-xs text-[#64748B] mb-1">
+              API Key
+            </label>
             <input
               id="provider-api-key"
               type="password"
               className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-              value={form.apiKey ?? ''}
+              value={form.apiKey ?? ""}
               onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
               placeholder="sk-..."
             />
           </div>
 
           <div>
-            <label htmlFor="provider-api-type" className="block text-xs text-[#64748B] mb-1">API 类型</label>
+            <label htmlFor="provider-api-type" className="block text-xs text-[#64748B] mb-1">
+              API 类型
+            </label>
             <select
               id="provider-api-type"
               className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-              value={form.api ?? 'openai-completions'}
+              value={form.api ?? "openai-completions"}
               onChange={(e) => setForm((prev) => ({ ...prev, api: e.target.value }))}
             >
               <option value="openai-completions">openai-completions</option>
@@ -126,7 +152,11 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs text-[#64748B]">模型列表</label>
-              <button type="button" onClick={addModel} className="flex items-center gap-1 text-xs text-[#2563EB] hover:text-blue-700">
+              <button
+                type="button"
+                onClick={addModel}
+                className="flex items-center gap-1 text-xs text-[#2563EB] hover:text-blue-700"
+              >
                 <Plus size={12} /> 添加模型
               </button>
             </div>
@@ -138,24 +168,31 @@ export default function ProviderFormDrawer({ open, providerKey, provider, onClos
                       aria-label={`模型 ${i + 1} ID`}
                       className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500"
                       value={m.id}
-                      onChange={(e) => updateModel(i, 'id', e.target.value)}
+                      onChange={(e) => updateModel(i, "id", e.target.value)}
                       placeholder="模型 ID (e.g. gpt-4o)"
                     />
                     <input
                       aria-label={`模型 ${i + 1} 显示名称`}
                       className="w-full rounded border border-[#E5E7EB] bg-white px-2 py-1 text-xs text-[#0F172A] focus:outline-none focus:border-blue-500"
                       value={m.name}
-                      onChange={(e) => updateModel(i, 'name', e.target.value)}
+                      onChange={(e) => updateModel(i, "name", e.target.value)}
                       placeholder="显示名称"
                     />
                   </div>
-                  <button type="button" title={`删除模型 ${i + 1}`} onClick={() => removeModel(i)} className="mt-1">
+                  <button
+                    type="button"
+                    title={`删除模型 ${i + 1}`}
+                    onClick={() => removeModel(i)}
+                    className="mt-1"
+                  >
                     <Trash2 size={13} className="text-[#94A3B8] hover:text-red-500" />
                   </button>
                 </div>
               ))}
               {form.models.length === 0 && (
-                <div className="text-xs text-[#94A3B8] py-2 text-center">暂无模型，点击「添加模型」</div>
+                <div className="text-xs text-[#94A3B8] py-2 text-center">
+                  暂无模型，点击「添加模型」
+                </div>
               )}
             </div>
           </div>

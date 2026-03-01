@@ -12,19 +12,19 @@
  *   core/gateway/http-adapter.ts    — OpenAIHttpAdapter
  */
 
-export type { PushEvent } from './gateway/types';
-import { GatewayWSAdapter, getOrCreateWSConnection } from './gateway/ws-adapter';
-import { OpenAIHttpAdapter } from './gateway/http-adapter';
-import { rpc } from './gateway/connection-pool';
+export type { PushEvent } from "./gateway/types";
+import { GatewayWSAdapter, getOrCreateWSConnection } from "./gateway/ws-adapter";
+import { OpenAIHttpAdapter } from "./gateway/http-adapter";
+import { rpc } from "./gateway/connection-pool";
 import {
   readOpenClawConfig,
   parseLlmConfig,
   updateOpenClawConfig,
   OPENCLAW_CONFIG_PATH,
-} from './openclaw-config-file';
+} from "./openclaw-config-file";
 
 function isWsUrl(url: string): boolean {
-  return url.startsWith('ws://') || url.startsWith('wss://');
+  return url.startsWith("ws://") || url.startsWith("wss://");
 }
 
 /** Agent configuration payload for agent.config.set RPC */
@@ -46,7 +46,7 @@ export interface AgentConfigPayload {
 /** Remote agent configuration returned by agent.config.get RPC */
 export interface RemoteAgentConfig {
   agentId: string;
-  llm?: AgentConfigPayload['llm'];
+  llm?: AgentConfigPayload["llm"];
   mcp?: Record<string, unknown>;
   skills?: Array<{ name: string; description: string }>;
 }
@@ -82,10 +82,7 @@ export const OpenClawProxy = {
    * Register a handler for bot-initiated (push) messages on a WS connection.
    * The handler is called once per complete push message when the run lifecycle ends.
    */
-  setPushHandler(
-    url: string,
-    handler: (event: import('./gateway/types').PushEvent) => void,
-  ): void {
+  setPushHandler(url: string, handler: (event: import("./gateway/types").PushEvent) => void): void {
     GatewayWSAdapter.setPushHandler(url, handler);
   },
 
@@ -96,12 +93,12 @@ export const OpenClawProxy = {
     approved: boolean,
   ): Promise<void> {
     const entry = await getOrCreateWSConnection(url, token);
-    const res = await rpc(entry, 'exec.approval.resolve', {
+    const res = await rpc(entry, "exec.approval.resolve", {
       id: approvalId,
       approved,
     });
     if (!res.ok) {
-      throw new Error(`approval resolve RPC failed: ${res.error?.message ?? 'unknown'}`);
+      throw new Error(`approval resolve RPC failed: ${res.error?.message ?? "unknown"}`);
     }
   },
 
@@ -125,9 +122,12 @@ export const OpenClawProxy = {
       // Verify connectivity first
       if (isWsUrl(url)) {
         const entry = await getOrCreateWSConnection(url, token);
-        const health = await rpc(entry, 'health', {});
+        const health = await rpc(entry, "health", {});
         if (!health.ok) {
-          return { success: false, message: `Gateway 连接验证失败: ${health.error?.message ?? 'unknown'}` };
+          return {
+            success: false,
+            message: `Gateway 连接验证失败: ${health.error?.message ?? "unknown"}`,
+          };
         }
       }
 
@@ -142,7 +142,7 @@ export const OpenClawProxy = {
 
       return {
         success: true,
-        message: 'LLM 配置已写入 OpenClaw 配置文件，重启 OpenClaw 后生效',
+        message: "LLM 配置已写入 OpenClaw 配置文件，重启 OpenClaw 后生效",
         configPath: OPENCLAW_CONFIG_PATH,
         needsRestart: true,
       };
@@ -171,14 +171,22 @@ export const OpenClawProxy = {
     url: string,
     token: string | undefined,
     agentId: string,
-  ): Promise<{ success: boolean; config?: RemoteAgentConfig; message: string; configPath?: string }> {
+  ): Promise<{
+    success: boolean;
+    config?: RemoteAgentConfig;
+    message: string;
+    configPath?: string;
+  }> {
     // Step 1 — verify connectivity
     try {
       if (isWsUrl(url)) {
         const entry = await getOrCreateWSConnection(url, token);
-        const health = await rpc(entry, 'health', {});
+        const health = await rpc(entry, "health", {});
         if (!health.ok) {
-          return { success: false, message: `Gateway health 失败: ${health.error?.message ?? 'unknown'}` };
+          return {
+            success: false,
+            message: `Gateway health 失败: ${health.error?.message ?? "unknown"}`,
+          };
         }
       }
       // For HTTP mode we skip the ping and go straight to the file

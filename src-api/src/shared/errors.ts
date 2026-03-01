@@ -4,9 +4,8 @@ export class ApiError extends Error {
     message: string,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
-export const notFound = (resource = 'Resource') =>
-  new ApiError(404, `${resource} not found`);
+export const notFound = (resource = "Resource") => new ApiError(404, `${resource} not found`);

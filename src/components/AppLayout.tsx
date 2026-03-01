@@ -1,6 +1,6 @@
-import { Outlet } from 'react-router-dom';
-import { LeftNav } from './LeftNav';
-import { useGlobalStream } from '../shared/hooks/useGlobalStream';
+import { Outlet } from "react-router-dom";
+import { LeftNav } from "./LeftNav";
+import { useGlobalStream } from "../shared/hooks/useGlobalStream";
 
 export function AppLayout() {
   useGlobalStream();

@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "workspaces": ["src-api"],
+  "workspaces": [
+    "src-api"
+  ],
   "scripts": {
     "dev": "vite",
     "dev:api": "bun run --hot src-api/src/index.ts",

@@ -1,18 +1,18 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AppLayout } from './components/AppLayout';
-import { BotManagementPage } from './pages/BotManagement/BotManagementPage';
-import { BotStatusPage } from './pages/BotManagement/BotStatusPage';
-import { PrivateChatPage } from './pages/Chat/PrivateChatPage';
-import { GroupChatPage } from './pages/Chat/GroupChatPage';
-import SettingsPage from './pages/SettingsPage';
+import React from "react";
+import ReactDOM from "react-dom/client";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AppLayout } from "./components/AppLayout";
+import { BotManagementPage } from "./pages/BotManagement/BotManagementPage";
+import { BotStatusPage } from "./pages/BotManagement/BotStatusPage";
+import { PrivateChatPage } from "./pages/Chat/PrivateChatPage";
+import { GroupChatPage } from "./pages/Chat/GroupChatPage";
+import SettingsPage from "./pages/SettingsPage";
 // import OpenClawInstallPage from './pages/OpenClawInstallPage';
-import { startSidecar } from './shared/tauri-bridge';
-import { WizardPage } from './pages/Onboarding/WizardPage';
-import { isOnboardingComplete } from './shared/store/wizard-store';
-import './index.css';
+import { startSidecar } from "./shared/tauri-bridge";
+import { WizardPage } from "./pages/Onboarding/WizardPage";
+import { isOnboardingComplete } from "./shared/store/wizard-store";
+import "./index.css";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,14 +27,14 @@ async function initSidecar() {
     try {
       await startSidecar();
     } catch (e) {
-      console.warn('[sidecar] start_sidecar failed (may already be running):', e);
+      console.warn("[sidecar] start_sidecar failed (may already be running):", e);
     }
   }
 }
 
 initSidecar();
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -42,9 +42,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
           <Route
             index
             element={
-              isOnboardingComplete()
-                ? <Navigate to="/bots" replace />
-                : <Navigate to="/onboarding" replace />
+              isOnboardingComplete() ? (
+                <Navigate to="/bots" replace />
+              ) : (
+                <Navigate to="/onboarding" replace />
+              )
             }
           />
           {/* Wizard — outside AppLayout */}

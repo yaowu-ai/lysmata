@@ -1,10 +1,10 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { API_BASE_URL } from '../../config';
-import { apiClient } from '../api-client';
-import type { Message, SendMessageInput } from '../types';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { API_BASE_URL } from "../../config";
+import { apiClient } from "../api-client";
+import type { Message, SendMessageInput } from "../types";
 
 export const msgKeys = {
-  list: (convId: string) => ['messages', convId] as const,
+  list: (convId: string) => ["messages", convId] as const,
 };
 
 export function useMessages(conversationId: string) {
@@ -30,7 +30,7 @@ export function useSendMessage(conversationId: string) {
       const optimisticMsg: Message = {
         id: `optimistic-${Date.now()}`,
         conversation_id: conversationId,
-        sender_type: 'user',
+        sender_type: "user",
         content: data.content,
         created_at: new Date().toISOString(),
       };
@@ -59,10 +59,13 @@ export function useResolveApproval(conversationId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { approvalId: string; botId: string; approved: boolean }) =>
-      apiClient.post<{ success: boolean }>(`/conversations/${conversationId}/messages/approvals/${data.approvalId}/resolve`, {
-        botId: data.botId,
-        approved: data.approved,
-      }),
+      apiClient.post<{ success: boolean }>(
+        `/conversations/${conversationId}/messages/approvals/${data.approvalId}/resolve`,
+        {
+          botId: data.botId,
+          approved: data.approved,
+        },
+      ),
     onSuccess: () => {
       // You might want to update the local state to mark this approval as resolved
       qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
@@ -84,10 +87,7 @@ export function useResolveApproval(conversationId: string) {
 export function useSendMessageStream(conversationId: string) {
   const qc = useQueryClient();
 
-  return async (
-    content: string,
-    onChunk: (text: string) => void,
-  ): Promise<{ error?: string }> => {
+  return async (content: string, onChunk: (text: string) => void): Promise<{ error?: string }> => {
     // Optimistically insert user message
     const optimisticId = `optimistic-${Date.now()}`;
     qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => [
@@ -95,7 +95,7 @@ export function useSendMessageStream(conversationId: string) {
       {
         id: optimisticId,
         conversation_id: conversationId,
-        sender_type: 'user',
+        sender_type: "user",
         content,
         created_at: new Date().toISOString(),
       } as Message,
@@ -112,20 +112,20 @@ export function useSendMessageStream(conversationId: string) {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       outer: while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         buffer += decoder.decode(value, { stream: true });
 
-        const lines = buffer.split('\n');
-        buffer = lines.pop() ?? '';
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
 
         for (const line of lines) {
-          if (!line.startsWith('data: ')) continue;
+          if (!line.startsWith("data: ")) continue;
           const raw = line.slice(6).trim();
-          if (raw === '[DONE]') break outer; // legacy sentinel kept for compat
+          if (raw === "[DONE]") break outer; // legacy sentinel kept for compat
           try {
             const parsed = JSON.parse(raw) as {
               chunk?: string;
@@ -144,7 +144,9 @@ export function useSendMessageStream(conversationId: string) {
               botMsg = parsed.botMsg;
               break outer;
             }
-          } catch { /* ignore malformed SSE JSON frames */ }
+          } catch {
+            /* ignore malformed SSE JSON frames */
+          }
         }
       }
     } catch (err) {
@@ -159,7 +161,7 @@ export function useSendMessageStream(conversationId: string) {
         const userMsg: Message = {
           id: optimisticId,
           conversation_id: conversationId,
-          sender_type: 'user',
+          sender_type: "user",
           content,
           created_at: new Date().toISOString(),
         } as Message;
@@ -168,9 +170,7 @@ export function useSendMessageStream(conversationId: string) {
           // Already have real bot message — write it directly.
           // Guard against duplicate if a concurrent invalidate already fetched it.
           const hasBotMsg = old.some((m) => m.id === botMsg!.id);
-          return hasBotMsg
-            ? old
-            : [...withoutOptimistic, userMsg, botMsg!];
+          return hasBotMsg ? old : [...withoutOptimistic, userMsg, botMsg!];
         }
         // No bot message yet (stream error or timeout) — keep user message so
         // the bubble doesn't disappear, and let refetch bring the real data.

@@ -74,11 +74,11 @@ Hono sidecar 被编译为原生二进制文件并打包进 Tauri 应用内，Tau
 
 ## 📋 环境要求
 
-| 工具 | 版本 | 用途 |
-|------|------|------|
-| [Rust](https://rustup.rs) | stable | Tauri 桌面壳 |
-| [Bun](https://bun.sh) | ≥ 1.1 | 前端依赖 + Sidecar 运行时 |
-| [Xcode CLI 工具](https://developer.apple.com/xcode/) | 最新版 | macOS 构建 |
+| 工具                                                 | 版本   | 用途                      |
+| ---------------------------------------------------- | ------ | ------------------------- |
+| [Rust](https://rustup.rs)                            | stable | Tauri 桌面壳              |
+| [Bun](https://bun.sh)                                | ≥ 1.1  | 前端依赖 + Sidecar 运行时 |
+| [Xcode CLI 工具](https://developer.apple.com/xcode/) | 最新版 | macOS 构建                |
 
 > Windows 和 Linux 构建理论上由 Tauri 支持，但尚未经过测试。
 
@@ -101,18 +101,18 @@ bun run tauri dev
 
 ## 🛠 开发命令
 
-| 命令 | 说明 |
-|------|------|
-| `bun run dev` | 仅启动 Vite 前端（端口 1420） |
-| `bun run dev:api` | 仅启动 Hono Sidecar（端口 2026，热重载） |
-| `bun run dev:all` | 同时启动前端 + Sidecar |
-| `bun run build` | TypeScript 检查 + Vite 生产构建 |
-| `bun run build:sidecar` | 将 Hono Sidecar 编译为原生二进制 |
-| `bun run build:dmg` | 构建 macOS `.dmg` 安装包（自动先编译 sidecar） |
-| `bun run lint` | 运行 ESLint |
-| `bun run lint:fix` | 自动修复 ESLint 问题 |
-| `bun run format` | Prettier 格式化所有文件 |
-| `bun run format:check` | 检查 Prettier 格式 |
+| 命令                    | 说明                                           |
+| ----------------------- | ---------------------------------------------- |
+| `bun run dev`           | 仅启动 Vite 前端（端口 1420）                  |
+| `bun run dev:api`       | 仅启动 Hono Sidecar（端口 2026，热重载）       |
+| `bun run dev:all`       | 同时启动前端 + Sidecar                         |
+| `bun run build`         | TypeScript 检查 + Vite 生产构建                |
+| `bun run build:sidecar` | 将 Hono Sidecar 编译为原生二进制               |
+| `bun run build:dmg`     | 构建 macOS `.dmg` 安装包（自动先编译 sidecar） |
+| `bun run lint`          | 运行 ESLint                                    |
+| `bun run lint:fix`      | 自动修复 ESLint 问题                           |
+| `bun run format`        | Prettier 格式化所有文件                        |
+| `bun run format:check`  | 检查 Prettier 格式                             |
 
 ## ⚙️ 配置说明
 
@@ -143,17 +143,17 @@ Lysmata 通过该文件读写 LLM 供应商配置，示例结构如下：
 
 ### 应用数据目录（`~/.lysmata/`）
 
-| 路径 | 说明 |
-|------|------|
+| 路径                | 说明                             |
+| ------------------- | -------------------------------- |
 | `~/.lysmata/app.db` | SQLite 数据库（Bot、对话、消息） |
-| `~/.lysmata/logs/` | Sidecar 及 Gateway 日志 |
+| `~/.lysmata/logs/`  | Sidecar 及 Gateway 日志          |
 
 ### 端口（固定）
 
-| 环境 | 服务 | 端口 |
-|------|------|------|
-| 开发环境 | Vite 前端 | 1420 |
-| 开发环境 | Hono Sidecar | 2026 |
+| 环境     | 服务          | 端口 |
+| -------- | ------------- | ---- |
+| 开发环境 | Vite 前端     | 1420 |
+| 开发环境 | Hono Sidecar  | 2026 |
 | 生产环境 | Tauri Sidecar | 2620 |
 
 ## 🗂 项目结构
@@ -204,4 +204,3 @@ lysmata/
 本项目基于 [MIT 许可证](LICENSE) 开放源代码。
 
 版权所有 © 2026 [yaowu-ai](https://github.com/yaowu-ai)
-

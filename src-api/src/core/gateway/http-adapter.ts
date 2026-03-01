@@ -1,7 +1,7 @@
 // ── OpenAI HTTP Adapter ─────────────────────────────────────────────────────
 
 function toHttpBase(url: string): string {
-  return url.replace(/\/+$/, '');
+  return url.replace(/\/+$/, "");
 }
 
 export const OpenAIHttpAdapter = {
@@ -15,18 +15,18 @@ export const OpenAIHttpAdapter = {
   ): Promise<void> {
     const endpoint = `${toHttpBase(baseUrl)}/v1/chat/completions`;
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-openclaw-agent-id': agentId,
+      "Content-Type": "application/json",
+      "x-openclaw-agent-id": agentId,
     };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
 
     const res = await fetch(endpoint, {
-      method: 'POST',
+      method: "POST",
       headers,
       body: JSON.stringify({
         model: `openclaw:${agentId}`,
         stream: true,
-        messages: [{ role: 'user', content }],
+        messages: [{ role: "user", content }],
       }),
     });
 
@@ -35,23 +35,23 @@ export const OpenAIHttpAdapter = {
       throw new Error(`OpenAI HTTP ${res.status}: ${text}`);
     }
 
-    if (!res.body) throw new Error('No response body');
+    if (!res.body) throw new Error("No response body");
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let buffer = '';
+    let buffer = "";
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? "";
       for (const line of lines) {
         const trimmed = line.trim();
-        if (!trimmed.startsWith('data:')) continue;
+        if (!trimmed.startsWith("data:")) continue;
         const data = trimmed.slice(5).trim();
-        if (data === '[DONE]') return;
+        if (data === "[DONE]") return;
         try {
           const chunk = JSON.parse(data) as {
             choices?: Array<{ delta?: { content?: string } }>;
@@ -71,9 +71,9 @@ export const OpenAIHttpAdapter = {
   ): Promise<{ success: boolean; message: string }> {
     try {
       const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`${toHttpBase(baseUrl)}/v1/models`, { headers });
-      if (res.ok) return { success: true, message: '连接成功（HTTP API）' };
+      if (res.ok) return { success: true, message: "连接成功（HTTP API）" };
       return { success: false, message: `HTTP ${res.status}: ${res.statusText}` };
     } catch (err) {
       return { success: false, message: String(err) };

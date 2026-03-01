@@ -19,9 +19,9 @@
  *   payload   full payload / params for easy inspection
  */
 
-import { appendFileSync, mkdirSync, existsSync } from 'fs';
-import { dirname } from 'path';
-import { GATEWAY_LOG_PATH } from '../config';
+import { appendFileSync, mkdirSync, existsSync } from "fs";
+import { dirname } from "path";
+import { GATEWAY_LOG_PATH } from "../config";
 
 // ── Initialise log directory ──────────────────────────────────────────────────
 
@@ -35,10 +35,16 @@ if (GATEWAY_LOG_PATH) {
     // Write a startup marker so the file always has a clear boundary
     appendFileSync(
       GATEWAY_LOG_PATH,
-      JSON.stringify({ ts: new Date().toISOString(), dir: 'SYS', type: 'startup', message: 'Gateway logger initialised', logFile: GATEWAY_LOG_PATH }) + '\n',
+      JSON.stringify({
+        ts: new Date().toISOString(),
+        dir: "SYS",
+        type: "startup",
+        message: "Gateway logger initialised",
+        logFile: GATEWAY_LOG_PATH,
+      }) + "\n",
     );
   } catch (err) {
-    console.warn('[gateway-logger] Could not open log file, logging disabled:', err);
+    console.warn("[gateway-logger] Could not open log file, logging disabled:", err);
   }
 }
 
@@ -47,7 +53,7 @@ if (GATEWAY_LOG_PATH) {
 function write(entry: Record<string, unknown>): void {
   if (!logEnabled) return;
   try {
-    appendFileSync(GATEWAY_LOG_PATH, JSON.stringify(entry) + '\n');
+    appendFileSync(GATEWAY_LOG_PATH, JSON.stringify(entry) + "\n");
   } catch {
     // Silently ignore write errors to avoid crashing the application
   }
@@ -62,16 +68,16 @@ export const GatewayLogger = {
       const frame = JSON.parse(raw);
       const entry: Record<string, unknown> = {
         ts: new Date().toISOString(),
-        dir: 'IN',
+        dir: "IN",
         url,
         type: frame.type,
       };
-      if (frame.type === 'event') {
+      if (frame.type === "event") {
         entry.event = frame.event;
         entry.seq = frame.seq;
         entry.stateVersion = frame.stateVersion;
         entry.payload = frame.payload;
-      } else if (frame.type === 'res') {
+      } else if (frame.type === "res") {
         entry.id = frame.id;
         entry.ok = frame.ok;
         entry.payload = frame.payload;
@@ -82,7 +88,7 @@ export const GatewayLogger = {
       write(entry);
     } catch {
       // Unparseable frame — log raw string
-      write({ ts: new Date().toISOString(), dir: 'IN', url, type: 'raw', data: raw });
+      write({ ts: new Date().toISOString(), dir: "IN", url, type: "raw", data: raw });
     }
   },
 
@@ -91,17 +97,21 @@ export const GatewayLogger = {
     const f = frame as Record<string, unknown>;
     const entry: Record<string, unknown> = {
       ts: new Date().toISOString(),
-      dir: 'OUT',
+      dir: "OUT",
       url,
       type: f.type,
     };
-    if (f.type === 'req') {
+    if (f.type === "req") {
       entry.id = f.id;
       entry.method = f.method;
       // Omit full params for agent calls to avoid flooding the log with message content
-      if (f.method === 'agent') {
+      if (f.method === "agent") {
         const p = f.params as Record<string, unknown> | undefined;
-        entry.params = { agentId: p?.agentId, sessionKey: p?.sessionKey, idempotencyKey: p?.idempotencyKey };
+        entry.params = {
+          agentId: p?.agentId,
+          sessionKey: p?.sessionKey,
+          idempotencyKey: p?.idempotencyKey,
+        };
       } else {
         entry.params = f.params;
       }
@@ -115,9 +125,9 @@ export const GatewayLogger = {
   logPushEvent(url: string, eventType: string, details: Record<string, unknown>): void {
     write({
       ts: new Date().toISOString(),
-      dir: 'IN',
+      dir: "IN",
       url,
-      type: 'push_event',
+      type: "push_event",
       event: eventType,
       ...details,
     });
@@ -138,9 +148,9 @@ export const GatewayLogger = {
   }): void {
     write({
       ts: new Date().toISOString(),
-      dir: 'OUT',
+      dir: "OUT",
       url: opts.url,
-      type: 'user_message',
+      type: "user_message",
       agentId: opts.agentId,
       sessionKey: opts.sessionKey,
       conversationId: opts.conversationId,
@@ -164,7 +174,7 @@ export const GatewayLogger = {
    *   "bubble_cleared" — done frame sent to frontend, streaming bubble will be cleared
    */
   logStreamEvent(opts: {
-    phase: 'waiting' | 'accepted' | 'chunk' | 'done' | 'error' | 'bubble_cleared';
+    phase: "waiting" | "accepted" | "chunk" | "done" | "error" | "bubble_cleared";
     url: string;
     conversationId: string;
     runId?: string;
@@ -176,9 +186,9 @@ export const GatewayLogger = {
   }): void {
     write({
       ts: new Date().toISOString(),
-      dir: 'SYS',
+      dir: "SYS",
       url: opts.url,
-      type: 'stream_event',
+      type: "stream_event",
       phase: opts.phase,
       conversationId: opts.conversationId,
       ...(opts.runId !== undefined && { runId: opts.runId }),
@@ -194,9 +204,9 @@ export const GatewayLogger = {
   logSystem(url: string, message: string, extra?: Record<string, unknown>): void {
     write({
       ts: new Date().toISOString(),
-      dir: 'SYS',
+      dir: "SYS",
       url,
-      type: 'lifecycle',
+      type: "lifecycle",
       message,
       ...extra,
     });

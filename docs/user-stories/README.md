@@ -8,16 +8,16 @@
 
 ## 目录结构
 
-| 文件 | 模块 | 优先级 |
-|------|------|--------|
-| [us-01-onboarding.md](./us-01-onboarding.md) | 安装向导 & 配置向导 | P0 |
-| [us-02-bot-management.md](./us-02-bot-management.md) | Bot 管理 | P0 |
-| [us-03-private-chat.md](./us-03-private-chat.md) | 私聊会话 | P0 |
-| [us-04-group-chat.md](./us-04-group-chat.md) | 群聊 | P1 |
-| [us-05-artifact.md](./us-05-artifact.md) | Artifact 预览 | P1 |
-| [us-06-skills.md](./us-06-skills.md) | 技能市场 | P1 |
-| [us-07-settings.md](./us-07-settings.md) | 配置中心 | P0 |
-| [us-08-system-tray.md](./us-08-system-tray.md) | 系统托盘 & 快捷入口 | P1 |
+| 文件                                                 | 模块                | 优先级 |
+| ---------------------------------------------------- | ------------------- | ------ |
+| [us-01-onboarding.md](./us-01-onboarding.md)         | 安装向导 & 配置向导 | P0     |
+| [us-02-bot-management.md](./us-02-bot-management.md) | Bot 管理            | P0     |
+| [us-03-private-chat.md](./us-03-private-chat.md)     | 私聊会话            | P0     |
+| [us-04-group-chat.md](./us-04-group-chat.md)         | 群聊                | P1     |
+| [us-05-artifact.md](./us-05-artifact.md)             | Artifact 预览       | P1     |
+| [us-06-skills.md](./us-06-skills.md)                 | 技能市场            | P1     |
+| [us-07-settings.md](./us-07-settings.md)             | 配置中心            | P0     |
+| [us-08-system-tray.md](./us-08-system-tray.md)       | 系统托盘 & 快捷入口 | P1     |
 
 ## 用户角色定义
 

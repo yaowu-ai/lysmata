@@ -11,11 +11,11 @@
  *        "anthropic/claude-3-5-sonnet-20241022"
  */
 
-import { homedir } from 'os';
-import { join } from 'path';
+import { homedir } from "os";
+import { join } from "path";
 
 export const OPENCLAW_CONFIG_PATH =
-  process.env.OPENCLAW_CONFIG_PATH ?? join(homedir(), '.openclaw', 'openclaw.json');
+  process.env.OPENCLAW_CONFIG_PATH ?? join(homedir(), ".openclaw", "openclaw.json");
 
 // ── OpenClaw config shape (partial) ─────────────────────────────────────────
 
@@ -102,9 +102,9 @@ export function parseLlmConfig(config: OpenClawConfig): ParsedLlmConfig | null {
   const primary = config.agents?.defaults?.model?.primary;
   if (!primary) return null;
 
-  const slashIdx = primary.indexOf('/');
+  const slashIdx = primary.indexOf("/");
   const provider = slashIdx > 0 ? primary.slice(0, slashIdx) : primary;
-  const model = slashIdx > 0 ? primary.slice(slashIdx + 1) : '';
+  const model = slashIdx > 0 ? primary.slice(slashIdx + 1) : "";
 
   // Resolve API key from auth profiles
   const profiles = config.auth?.profiles ?? {};
@@ -142,8 +142,8 @@ export async function updateOpenClawConfig(update: ConfigUpdatePayload): Promise
   const updated: OpenClawConfig = structuredClone(existing);
 
   if (update.provider || update.model) {
-    const provider = update.provider ?? parseLlmConfig(existing)?.provider ?? 'openrouter';
-    const model = update.model ?? parseLlmConfig(existing)?.model ?? '';
+    const provider = update.provider ?? parseLlmConfig(existing)?.provider ?? "openrouter";
+    const model = update.model ?? parseLlmConfig(existing)?.model ?? "";
     const primaryStr = model ? `${provider}/${model}` : provider;
 
     updated.agents ??= {};
@@ -160,8 +160,8 @@ export async function updateOpenClawConfig(update: ConfigUpdatePayload): Promise
     updated.auth.profiles[profileKey] = {
       ...existing_profile,
       provider: update.provider,
-      mode: 'api_key',
-      type: 'api_key',
+      mode: "api_key",
+      type: "api_key",
       key: update.apiKey,
     };
   }
@@ -201,7 +201,7 @@ export async function readLlmSettings(): Promise<LlmSettings> {
   return {
     providers: config?.models?.providers ?? {},
     defaultModel: {
-      primary: config?.agents?.defaults?.model?.primary ?? '',
+      primary: config?.agents?.defaults?.model?.primary ?? "",
       fallbacks: config?.agents?.defaults?.model?.fallbacks ?? [],
     },
   };
@@ -212,7 +212,7 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   const updated: OpenClawConfig = structuredClone(existing);
 
   // Write providers
-  updated.models ??= { mode: 'merge', providers: {} };
+  updated.models ??= { mode: "merge", providers: {} };
   updated.models.providers = settings.providers;
 
   // Write default model
@@ -232,5 +232,29 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   }
   updated.agents.defaults.models = aliasTable;
 
+  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+}
+
+export interface GatewayConfigUpdate {
+  port?: number;
+  bindAddress?: string;
+  authMode?: "none" | "token";
+  autostart?: boolean;
+}
+
+export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<void> {
+  const existing = (await readOpenClawConfig()) ?? {};
+  const updated: OpenClawConfig = structuredClone(existing);
+
+  updated.gateway ??= {};
+  if (update.port !== undefined) updated.gateway.port = update.port;
+  if (update.authMode !== undefined)
+    updated.gateway.auth = { ...updated.gateway.auth, mode: update.authMode };
+  if (update.bindAddress !== undefined)
+    (updated.gateway as Record<string, unknown>).bindAddress = update.bindAddress;
+  if (update.autostart !== undefined)
+    (updated.gateway as Record<string, unknown>).autostart = update.autostart;
+
+  updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
   await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
 }

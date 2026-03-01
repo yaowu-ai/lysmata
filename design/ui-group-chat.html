@@ -1,436 +1,1476 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>群聊 — OpenClaw</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    :root {
-      --bg:#F7F7F8; --surface:#fff; --border:#E5E7EB;
-      --text:#0F172A; --text-muted:#64748B;
-      --primary:#2563EB; --primary-hover:#1D4ED8;
-      --success:#16A34A; --warning:#D97706; --error:#DC2626;
-    }
-    * { font-family:'Inter',system-ui,sans-serif; box-sizing:border-box; }
-    body { background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; margin:0; }
-    ::-webkit-scrollbar { width:5px; }
-    ::-webkit-scrollbar-track { background:transparent; }
-    ::-webkit-scrollbar-thumb { background:#D1D5DB; border-radius:3px; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>群聊 — OpenClaw</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg: #f7f7f8;
+        --surface: #fff;
+        --border: #e5e7eb;
+        --text: #0f172a;
+        --text-muted: #64748b;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --success: #16a34a;
+        --warning: #d97706;
+        --error: #dc2626;
+      }
+      * {
+        font-family: "Inter", system-ui, sans-serif;
+        box-sizing: border-box;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        -webkit-font-smoothing: antialiased;
+        margin: 0;
+      }
+      ::-webkit-scrollbar {
+        width: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #d1d5db;
+        border-radius: 3px;
+      }
 
-    /* ── Nav ── */
-    #left-nav { width:64px; overflow:hidden; transition:width 0.26s cubic-bezier(0.4,0,0.2,1); }
-    #left-nav.expanded { width:220px; }
-    .nav-btn { display:flex;align-items:center;width:100%;border:none;background:transparent;cursor:pointer;border-radius:9px;padding:4px;transition:background 0.14s;text-align:left; }
-    .nav-btn:hover { background:#F1F5F9; }
-    .nav-btn.active { background:#EFF6FF; }
-    .nav-btn.active .nav-icon-wrap { color:#2563EB; }
-    .nav-btn.active .nav-label { color:#2563EB; }
-    .nav-icon-wrap { width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#94A3B8;border-radius:8px;transition:color 0.14s; }
-    .nav-btn:hover .nav-icon-wrap { color:#475569; }
-    .nav-label { opacity:0;max-width:0;overflow:hidden;white-space:nowrap;font-size:14px;font-weight:500;color:var(--text-muted);transition:opacity 0.18s ease,max-width 0.22s ease; }
-    #left-nav.expanded .nav-label { opacity:1;max-width:180px; }
+      /* ── Nav ── */
+      #left-nav {
+        width: 64px;
+        overflow: hidden;
+        transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #left-nav.expanded {
+        width: 220px;
+      }
+      .nav-btn {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 9px;
+        padding: 4px;
+        transition: background 0.14s;
+        text-align: left;
+      }
+      .nav-btn:hover {
+        background: #f1f5f9;
+      }
+      .nav-btn.active {
+        background: #eff6ff;
+      }
+      .nav-btn.active .nav-icon-wrap {
+        color: #2563eb;
+      }
+      .nav-btn.active .nav-label {
+        color: #2563eb;
+      }
+      .nav-icon-wrap {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        color: #94a3b8;
+        border-radius: 8px;
+        transition: color 0.14s;
+      }
+      .nav-btn:hover .nav-icon-wrap {
+        color: #475569;
+      }
+      .nav-label {
+        opacity: 0;
+        max-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-muted);
+        transition:
+          opacity 0.18s ease,
+          max-width 0.22s ease;
+      }
+      #left-nav.expanded .nav-label {
+        opacity: 1;
+        max-width: 180px;
+      }
 
-    /* ── Avatar gradients ── */
-    .av-blue   { background:linear-gradient(135deg,#DBEAFE,#BFDBFE); }
-    .av-green  { background:linear-gradient(135deg,#DCFCE7,#BBF7D0); }
-    .av-purple { background:linear-gradient(135deg,#EDE9FE,#DDD6FE); }
-    .av-amber  { background:linear-gradient(135deg,#FEF3C7,#FDE68A); }
-    .av-rose   { background:linear-gradient(135deg,#FFE4E6,#FECDD3); }
+      /* ── Avatar gradients ── */
+      .av-blue {
+        background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+      }
+      .av-green {
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+      }
+      .av-purple {
+        background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+      }
+      .av-amber {
+        background: linear-gradient(135deg, #fef3c7, #fde68a);
+      }
+      .av-rose {
+        background: linear-gradient(135deg, #ffe4e6, #fecdd3);
+      }
 
-    /* ── Status ── */
-    .dot { border-radius:50%;display:inline-block;flex-shrink:0; }
-    .dot-connected    { background:#10B981;box-shadow:0 0 0 2px rgba(16,185,129,0.2); }
-    .dot-disconnected { background:#94A3B8; }
-    .dot-error        { background:#EF4444;box-shadow:0 0 0 2px rgba(239,68,68,0.2); }
+      /* ── Status ── */
+      .dot {
+        border-radius: 50%;
+        display: inline-block;
+        flex-shrink: 0;
+      }
+      .dot-connected {
+        background: #10b981;
+        box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+      }
+      .dot-disconnected {
+        background: #94a3b8;
+      }
+      .dot-error {
+        background: #ef4444;
+        box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+      }
 
-    /* ── Crown badge ── */
-    .crown-badge { position:absolute;top:-4px;right:-4px;width:15px;height:15px;border-radius:50%;background:#FEF3C7;border:1.5px solid #FDE68A;display:flex;align-items:center;justify-content:center;font-size:8px;z-index:1; }
+      /* ── Crown badge ── */
+      .crown-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        width: 15px;
+        height: 15px;
+        border-radius: 50%;
+        background: #fef3c7;
+        border: 1.5px solid #fde68a;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 8px;
+        z-index: 1;
+      }
 
-    /* ── Conv item ── */
-    .conv-item { padding:10px 12px;border-radius:8px;cursor:pointer;transition:background 0.12s;display:flex;align-items:center;gap:10px; }
-    .conv-item:hover  { background:#F1F5F9; }
-    .conv-item.active { background:#EFF6FF; }
+      /* ── Conv item ── */
+      .conv-item {
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.12s;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .conv-item:hover {
+        background: #f1f5f9;
+      }
+      .conv-item.active {
+        background: #eff6ff;
+      }
 
-    /* ── Bubbles ── */
-    .bubble-user    { background:#2563EB;color:#fff;border-radius:12px 0 12px 12px;padding:11px 14px;font-size:14px;line-height:1.65;word-break:break-word; }
-    .bubble-bot     { background:#F1F5F9;color:var(--text);border-radius:0 12px 12px 12px;padding:11px 14px;font-size:14px;line-height:1.65;word-break:break-word; }
-    .bubble-primary { background:#F0F7FF;color:var(--text);border-radius:0 12px 12px 12px;padding:11px 14px;font-size:14px;line-height:1.65;border-left:3px solid #2563EB;word-break:break-word; }
-    .msg-code { background:#1E293B;color:#E2E8F0;font-family:'JetBrains Mono',monospace;font-size:12px;padding:10px 13px;border-radius:7px;margin-top:7px;overflow-x:auto;line-height:1.6;white-space:pre; }
-    .at-tag { color:#2563EB;font-weight:600;background:#EFF6FF;padding:1px 5px;border-radius:4px; }
+      /* ── Bubbles ── */
+      .bubble-user {
+        background: #2563eb;
+        color: #fff;
+        border-radius: 12px 0 12px 12px;
+        padding: 11px 14px;
+        font-size: 14px;
+        line-height: 1.65;
+        word-break: break-word;
+      }
+      .bubble-bot {
+        background: #f1f5f9;
+        color: var(--text);
+        border-radius: 0 12px 12px 12px;
+        padding: 11px 14px;
+        font-size: 14px;
+        line-height: 1.65;
+        word-break: break-word;
+      }
+      .bubble-primary {
+        background: #f0f7ff;
+        color: var(--text);
+        border-radius: 0 12px 12px 12px;
+        padding: 11px 14px;
+        font-size: 14px;
+        line-height: 1.65;
+        border-left: 3px solid #2563eb;
+        word-break: break-word;
+      }
+      .msg-code {
+        background: #1e293b;
+        color: #e2e8f0;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        padding: 10px 13px;
+        border-radius: 7px;
+        margin-top: 7px;
+        overflow-x: auto;
+        line-height: 1.6;
+        white-space: pre;
+      }
+      .at-tag {
+        color: #2563eb;
+        font-weight: 600;
+        background: #eff6ff;
+        padding: 1px 5px;
+        border-radius: 4px;
+      }
 
-    /* ── Route badge (on messages) ── */
-    .route-badge { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600; }
-    .rb-primary { background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE; }
-    .rb-mention { background:#DCFCE7;color:#15803D;border:1px solid #BBF7D0; }
-    .rb-chain   { background:#EDE9FE;color:#6D28D9;border:1px solid #DDD6FE; }
+      /* ── Route badge (on messages) ── */
+      .route-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .rb-primary {
+        background: #eff6ff;
+        color: #1d4ed8;
+        border: 1px solid #bfdbfe;
+      }
+      .rb-mention {
+        background: #dcfce7;
+        color: #15803d;
+        border: 1px solid #bbf7d0;
+      }
+      .rb-chain {
+        background: #ede9fe;
+        color: #6d28d9;
+        border: 1px solid #ddd6fe;
+      }
 
-    /* ── Route badge (above message, chain indicator) ── */
-    .route-from-badge { display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#7C3AED;background:#F5F3FF;border:1px solid #DDD6FE;padding:2px 8px;border-radius:20px;margin-bottom:6px; }
+      /* ── Route badge (above message, chain indicator) ── */
+      .route-from-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 11px;
+        color: #7c3aed;
+        background: #f5f3ff;
+        border: 1px solid #ddd6fe;
+        padding: 2px 8px;
+        border-radius: 20px;
+        margin-bottom: 6px;
+      }
 
-    /* ── @mention popup ── */
-    .mention-popup { position:absolute;bottom:calc(100% + 8px);left:0;width:280px;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:50;overflow:hidden;transform:translateY(4px) scale(0.98);opacity:0;pointer-events:none;transition:all 0.16s cubic-bezier(0.4,0,0.2,1); }
-    .mention-popup.show { transform:translateY(0) scale(1);opacity:1;pointer-events:all; }
-    .mention-item { display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background 0.1s;font-size:14px; }
-    .mention-item:hover,.mention-item.hi { background:#F8FAFC; }
-    .mention-item.hi { background:#EFF6FF; }
+      /* ── @mention popup ── */
+      .mention-popup {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        width: 280px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        z-index: 50;
+        overflow: hidden;
+        transform: translateY(4px) scale(0.98);
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .mention-popup.show {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+        pointer-events: all;
+      }
+      .mention-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        cursor: pointer;
+        transition: background 0.1s;
+        font-size: 14px;
+      }
+      .mention-item:hover,
+      .mention-item.hi {
+        background: #f8fafc;
+      }
+      .mention-item.hi {
+        background: #eff6ff;
+      }
 
-    /* ── Typing indicator ── */
-    .tdot { width:7px;height:7px;border-radius:50%;background:#94A3B8;animation:td 1.4s ease-in-out infinite; }
-    .tdot:nth-child(2){animation-delay:.2s} .tdot:nth-child(3){animation-delay:.4s}
-    @keyframes td { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+      /* ── Typing indicator ── */
+      .tdot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #94a3b8;
+        animation: td 1.4s ease-in-out infinite;
+      }
+      .tdot:nth-child(2) {
+        animation-delay: 0.2s;
+      }
+      .tdot:nth-child(3) {
+        animation-delay: 0.4s;
+      }
+      @keyframes td {
+        0%,
+        60%,
+        100% {
+          transform: translateY(0);
+        }
+        30% {
+          transform: translateY(-6px);
+        }
+      }
 
-    /* ── Cursor blink ── */
-    .cblink { display:inline-block;width:2px;height:14px;background:var(--text);border-radius:1px;animation:cb 1.1s step-end infinite;vertical-align:text-bottom;margin-left:2px; }
-    @keyframes cb { 0%,100%{opacity:1} 50%{opacity:0} }
+      /* ── Cursor blink ── */
+      .cblink {
+        display: inline-block;
+        width: 2px;
+        height: 14px;
+        background: var(--text);
+        border-radius: 1px;
+        animation: cb 1.1s step-end infinite;
+        vertical-align: text-bottom;
+        margin-left: 2px;
+      }
+      @keyframes cb {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0;
+        }
+      }
 
-    /* ── Msg fade in ── */
-    @keyframes mfade { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
-    .mrow { animation:mfade 0.2s ease; }
+      /* ── Msg fade in ── */
+      @keyframes mfade {
+        from {
+          opacity: 0;
+          transform: translateY(5px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .mrow {
+        animation: mfade 0.2s ease;
+      }
 
-    /* ── Buttons ── */
-    .btn-icon { width:28px;height:28px;border-radius:7px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94A3B8;transition:background 0.12s,color 0.12s; }
-    .btn-icon:hover { background:#F1F5F9;color:#475569; }
-    .btn-primary { background:#2563EB;color:#fff;border:none;padding:9px 18px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s;display:inline-flex;align-items:center;gap:6px; }
-    .btn-primary:hover { background:#1D4ED8; }
-    .btn-ghost { background:transparent;color:var(--text-muted);border:1px solid var(--border);padding:9px 18px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s; }
-    .btn-ghost:hover { background:#F8FAFC;color:var(--text); }
-    .send-btn { width:34px;height:34px;border-radius:8px;background:#2563EB;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background 0.14s,transform 0.1s;flex-shrink:0; }
-    .send-btn:hover { background:#1D4ED8; }
-    .send-btn:active { transform:scale(0.93); }
+      /* ── Buttons ── */
+      .btn-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 7px;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #94a3b8;
+        transition:
+          background 0.12s,
+          color 0.12s;
+      }
+      .btn-icon:hover {
+        background: #f1f5f9;
+        color: #475569;
+      }
+      .btn-primary {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn-primary:hover {
+        background: #1d4ed8;
+      }
+      .btn-ghost {
+        background: transparent;
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+        padding: 9px 18px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      .btn-ghost:hover {
+        background: #f8fafc;
+        color: var(--text);
+      }
+      .send-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: #2563eb;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+          background 0.14s,
+          transform 0.1s;
+        flex-shrink: 0;
+      }
+      .send-btn:hover {
+        background: #1d4ed8;
+      }
+      .send-btn:active {
+        transform: scale(0.93);
+      }
 
-    /* ── Toast ── */
-    .toast { position:fixed;bottom:24px;right:24px;padding:12px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.1);z-index:999;transform:translateY(16px);opacity:0;transition:all 0.22s ease;pointer-events:none; }
-    .toast.show { transform:translateY(0);opacity:1; }
-    .toast-success { background:#fff;color:#15803D;border-left:4px solid #16A34A; }
-    .toast-error   { background:#fff;color:#B91C1C;border-left:4px solid #DC2626; }
+      /* ── Toast ── */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 12px 18px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 500;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        z-index: 999;
+        transform: translateY(16px);
+        opacity: 0;
+        transition: all 0.22s ease;
+        pointer-events: none;
+      }
+      .toast.show {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      .toast-success {
+        background: #fff;
+        color: #15803d;
+        border-left: 4px solid #16a34a;
+      }
+      .toast-error {
+        background: #fff;
+        color: #b91c1c;
+        border-left: 4px solid #dc2626;
+      }
 
-    /* ── New conv dialog ── */
-    .dialog-overlay { position:fixed;inset:0;background:rgba(15,23,42,0.25);z-index:40;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.2s; }
-    .dialog-overlay.open { opacity:1;pointer-events:all; }
-    .dialog-box { background:#fff;border-radius:14px;width:480px;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.15);transform:translateY(8px) scale(0.98);transition:transform 0.22s cubic-bezier(0.4,0,0.2,1);padding:24px; }
-    .dialog-overlay.open .dialog-box { transform:translateY(0) scale(1); }
-    .bot-chip { display:flex;align-items:center;gap:7px;padding:8px 12px;border-radius:8px;border:1.5px solid var(--border);cursor:pointer;transition:all 0.14s;font-size:13px;font-weight:500; }
-    .bot-chip:hover { border-color:#93C5FD; }
-    .bot-chip.selected { border-color:#2563EB;background:#EFF6FF;color:#2563EB; }
+      /* ── New conv dialog ── */
+      .dialog-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.25);
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s;
+      }
+      .dialog-overlay.open {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .dialog-box {
+        background: #fff;
+        border-radius: 14px;
+        width: 480px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        transform: translateY(8px) scale(0.98);
+        transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+        padding: 24px;
+      }
+      .dialog-overlay.open .dialog-box {
+        transform: translateY(0) scale(1);
+      }
+      .bot-chip {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        border: 1.5px solid var(--border);
+        cursor: pointer;
+        transition: all 0.14s;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .bot-chip:hover {
+        border-color: #93c5fd;
+      }
+      .bot-chip.selected {
+        border-color: #2563eb;
+        background: #eff6ff;
+        color: #2563eb;
+      }
 
-    /* ── Right panel sections ── */
-    .hlabel { font-size:11px;font-weight:600;color:#94A3B8;letter-spacing:.06em;text-transform:uppercase;padding:10px 14px 5px; }
-    .member-card { display:flex;align-items:center;gap:10px;padding:9px 14px;border-radius:8px;transition:background 0.12s; }
-    .member-card:hover { background:#F8FAFC; }
-    .route-log-item { padding:10px 14px;border-bottom:1px solid #F8FAFC;font-size:12px;transition:background 0.1s; }
-    .route-log-item:hover { background:#FAFAFA; }
-    .route-log-item:last-child { border-bottom:none; }
+      /* ── Right panel sections ── */
+      .hlabel {
+        font-size: 11px;
+        font-weight: 600;
+        color: #94a3b8;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 10px 14px 5px;
+      }
+      .member-card {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 14px;
+        border-radius: 8px;
+        transition: background 0.12s;
+      }
+      .member-card:hover {
+        background: #f8fafc;
+      }
+      .route-log-item {
+        padding: 10px 14px;
+        border-bottom: 1px solid #f8fafc;
+        font-size: 12px;
+        transition: background 0.1s;
+      }
+      .route-log-item:hover {
+        background: #fafafa;
+      }
+      .route-log-item:last-child {
+        border-bottom: none;
+      }
 
-    /* ── Active bot indicator ── */
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-    .pulse-dot { animation:pulse 1.4s ease-in-out infinite; }
-  </style>
-</head>
-<body style="display:flex;height:100vh;overflow:hidden;">
-
-<!-- ══ LEFT NAV ══ -->
-<nav id="left-nav" style="background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px 0;flex-shrink:0;z-index:10;">
-  <div style="display:flex;align-items:center;padding:0 14px;margin-bottom:14px;height:36px;min-width:220px;">
-    <div style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#3B82F6,#2563EB);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"><path d="M12 2L4 7l8 5 8-5-8-5z"/><path d="M4 12l8 5 8-5"/><path d="M4 17l8 5 8-5"/></svg>
-    </div>
-    <span class="nav-label" style="font-size:15px;font-weight:700;color:#0F172A;margin-left:10px;letter-spacing:-0.3px;">OpenClaw</span>
-  </div>
-  <div style="padding:0 10px;display:flex;flex-direction:column;gap:2px;flex:1;min-width:220px;">
-    <button class="nav-btn" onclick="window.open('ui-bot-management.html','_blank')">
-      <div class="nav-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none"/></svg></div>
-      <span class="nav-label">Bot 管理</span>
-    </button>
-    <button class="nav-btn" onclick="window.open('ui-private-chat.html','_blank')">
-      <div class="nav-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
-      <span class="nav-label">私聊</span>
-    </button>
-    <button class="nav-btn active">
-      <div class="nav-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-      <span class="nav-label">群聊</span>
-    </button>
-    <button class="nav-btn" onclick="window.open('ui-artifact-demo.html','_blank')">
-      <div class="nav-icon-wrap"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M14 8h3"/><path d="M14 12h3"/><path d="M14 16h3"/></svg></div>
-      <span class="nav-label">Artifact 演示</span>
-    </button>
-  </div>
-  <div style="padding:0 10px;border-top:1px solid #F1F5F9;padding-top:8px;margin-top:4px;min-width:220px;display:flex;flex-direction:column;gap:2px;">
-    <button class="nav-btn">
-      <div class="nav-icon-wrap">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
+      /* ── Active bot indicator ── */
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+      .pulse-dot {
+        animation: pulse 1.4s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body style="display: flex; height: 100vh; overflow: hidden">
+    <!-- ══ LEFT NAV ══ -->
+    <nav
+      id="left-nav"
+      style="
+        background: #fff;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding: 12px 0;
+        flex-shrink: 0;
+        z-index: 10;
+      "
+    >
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          padding: 0 14px;
+          margin-bottom: 14px;
+          height: 36px;
+          min-width: 220px;
+        "
+      >
+        <div
+          style="
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+          "
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#fff"
+            stroke-width="2.2"
+            stroke-linecap="round"
+          >
+            <path d="M12 2L4 7l8 5 8-5-8-5z" />
+            <path d="M4 12l8 5 8-5" />
+            <path d="M4 17l8 5 8-5" />
+          </svg>
+        </div>
+        <span
+          class="nav-label"
+          style="
+            font-size: 15px;
+            font-weight: 700;
+            color: #0f172a;
+            margin-left: 10px;
+            letter-spacing: -0.3px;
+          "
+          >OpenClaw</span
+        >
       </div>
-      <span class="nav-label">设置</span>
-    </button>
-    <button class="nav-btn" onclick="toggleNav()">
-      <div class="nav-icon-wrap" id="nav-toggle-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg></div>
-      <span class="nav-label" id="nav-toggle-label">收起</span>
-    </button>
-  </div>
-</nav>
-
-<!-- ══ CONV SIDEBAR ══ -->
-<aside style="width:260px;background:#fff;border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;">
-  <div style="padding:16px 16px 12px;border-bottom:1px solid #F1F5F9;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-      <div>
-        <div style="font-size:15px;font-weight:600;">群聊</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-top:1px;">多 Bot 协作 · @mention 精准路由</div>
-      </div>
-      <button class="btn-icon" onclick="openNewConvDialog()" title="新建群聊" style="width:32px;height:32px;background:#EFF6FF;border-radius:8px;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-      </button>
-    </div>
-    <div style="position:relative;margin-top:8px;">
-      <svg style="position:absolute;left:9px;top:50%;transform:translateY(-50%);color:#CBD5E1;" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" placeholder="搜索群聊..." style="width:100%;padding:7px 10px 7px 28px;font-size:13px;border:1px solid var(--border);border-radius:7px;background:#FAFAFA;outline:none;color:var(--text);" oninput="filterConvs(this.value)" />
-    </div>
-  </div>
-  <div style="flex:1;overflow-y:auto;padding:8px;" id="conv-list"></div>
-</aside>
-
-<!-- ══ CHAT MAIN ══ -->
-<main style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;background:var(--bg);">
-  <!-- Chat header -->
-  <div id="chat-hdr" style="background:#fff;border-bottom:1px solid var(--border);padding:12px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0;min-height:60px;"></div>
-
-  <!-- Messages -->
-  <div id="msg-list" style="flex:1;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:18px;"></div>
-
-  <!-- Input -->
-  <div style="padding:12px 20px;background:#fff;border-top:1px solid var(--border);flex-shrink:0;">
-    <div style="position:relative;">
-      <div id="mention-popup" class="mention-popup">
-        <div style="padding:7px 12px 5px;border-bottom:1px solid #F1F5F9;font-size:11px;color:#94A3B8;font-weight:600;letter-spacing:.05em;">选择 Bot</div>
-        <div id="mention-list"></div>
-      </div>
-      <div id="iw" style="background:#F8FAFC;border:1.5px solid var(--border);border-radius:12px;padding:11px 14px;transition:border-color .15s,box-shadow .15s;">
-        <textarea id="chat-input" rows="1" placeholder="发送消息… 输入 @ 可提及特定 Bot" style="width:100%;border:none;outline:none;background:transparent;font-size:14px;line-height:1.6;resize:none;color:var(--text);font-family:'Inter',sans-serif;max-height:100px;overflow-y:auto;" oninput="handleInput(event)" onkeydown="handleKeydown(event)"></textarea>
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
-          <div style="display:flex;gap:6px;align-items:center;">
-            <button onclick="triggerMention()" style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:#64748B;background:#F1F5F9;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;transition:background 0.12s;" onmouseover="this.style.background='#E2E8F0'" onmouseout="this.style.background='#F1F5F9'">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-              @提及 Bot
-            </button>
-            <span id="routing-hint" style="font-size:12px;color:#94A3B8;"></span>
+      <div
+        style="
+          padding: 0 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          flex: 1;
+          min-width: 220px;
+        "
+      >
+        <button class="nav-btn" onclick="window.open('ui-bot-management.html', '_blank')">
+          <div class="nav-icon-wrap">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <rect x="3" y="11" width="18" height="10" rx="2" />
+              <circle cx="12" cy="5" r="2" />
+              <path d="M12 7v4" />
+              <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
+              <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
+            </svg>
           </div>
-          <button class="send-btn" onclick="sendMsg()">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          <span class="nav-label">Bot 管理</span>
+        </button>
+        <button class="nav-btn" onclick="window.open('ui-private-chat.html', '_blank')">
+          <div class="nav-icon-wrap">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </div>
+          <span class="nav-label">私聊</span>
+        </button>
+        <button class="nav-btn active">
+          <div class="nav-icon-wrap">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <span class="nav-label">群聊</span>
+        </button>
+        <button class="nav-btn" onclick="window.open('ui-artifact-demo.html', '_blank')">
+          <div class="nav-icon-wrap">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <path d="M9 3v18" />
+              <path d="M14 8h3" />
+              <path d="M14 12h3" />
+              <path d="M14 16h3" />
+            </svg>
+          </div>
+          <span class="nav-label">Artifact 演示</span>
+        </button>
+      </div>
+      <div
+        style="
+          padding: 0 10px;
+          border-top: 1px solid #f1f5f9;
+          padding-top: 8px;
+          margin-top: 4px;
+          min-width: 220px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        "
+      >
+        <button class="nav-btn">
+          <div class="nav-icon-wrap">
+            <svg
+              width="17"
+              height="17"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <circle cx="12" cy="12" r="3" />
+              <path
+                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+              />
+            </svg>
+          </div>
+          <span class="nav-label">设置</span>
+        </button>
+        <button class="nav-btn" onclick="toggleNav()">
+          <div class="nav-icon-wrap" id="nav-toggle-icon">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <polyline points="13 17 18 12 13 7" />
+              <polyline points="6 17 11 12 6 7" />
+            </svg>
+          </div>
+          <span class="nav-label" id="nav-toggle-label">收起</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- ══ CONV SIDEBAR ══ -->
+    <aside
+      style="
+        width: 260px;
+        background: #fff;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+      "
+    >
+      <div style="padding: 16px 16px 12px; border-bottom: 1px solid #f1f5f9">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+          "
+        >
+          <div>
+            <div style="font-size: 15px; font-weight: 600">群聊</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 1px">
+              多 Bot 协作 · @mention 精准路由
+            </div>
+          </div>
+          <button
+            class="btn-icon"
+            onclick="openNewConvDialog()"
+            title="新建群聊"
+            style="width: 32px; height: 32px; background: #eff6ff; border-radius: 8px"
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#2563EB"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+        </div>
+        <div style="position: relative; margin-top: 8px">
+          <svg
+            style="
+              position: absolute;
+              left: 9px;
+              top: 50%;
+              transform: translateY(-50%);
+              color: #cbd5e1;
+            "
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="搜索群聊..."
+            style="
+              width: 100%;
+              padding: 7px 10px 7px 28px;
+              font-size: 13px;
+              border: 1px solid var(--border);
+              border-radius: 7px;
+              background: #fafafa;
+              outline: none;
+              color: var(--text);
+            "
+            oninput="filterConvs(this.value)"
+          />
+        </div>
+      </div>
+      <div style="flex: 1; overflow-y: auto; padding: 8px" id="conv-list"></div>
+    </aside>
+
+    <!-- ══ CHAT MAIN ══ -->
+    <main
+      style="
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        min-width: 0;
+        background: var(--bg);
+      "
+    >
+      <!-- Chat header -->
+      <div
+        id="chat-hdr"
+        style="
+          background: #fff;
+          border-bottom: 1px solid var(--border);
+          padding: 12px 20px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+          min-height: 60px;
+        "
+      ></div>
+
+      <!-- Messages -->
+      <div
+        id="msg-list"
+        style="
+          flex: 1;
+          overflow-y: auto;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+        "
+      ></div>
+
+      <!-- Input -->
+      <div
+        style="
+          padding: 12px 20px;
+          background: #fff;
+          border-top: 1px solid var(--border);
+          flex-shrink: 0;
+        "
+      >
+        <div style="position: relative">
+          <div id="mention-popup" class="mention-popup">
+            <div
+              style="
+                padding: 7px 12px 5px;
+                border-bottom: 1px solid #f1f5f9;
+                font-size: 11px;
+                color: #94a3b8;
+                font-weight: 600;
+                letter-spacing: 0.05em;
+              "
+            >
+              选择 Bot
+            </div>
+            <div id="mention-list"></div>
+          </div>
+          <div
+            id="iw"
+            style="
+              background: #f8fafc;
+              border: 1.5px solid var(--border);
+              border-radius: 12px;
+              padding: 11px 14px;
+              transition:
+                border-color 0.15s,
+                box-shadow 0.15s;
+            "
+          >
+            <textarea
+              id="chat-input"
+              rows="1"
+              placeholder="发送消息… 输入 @ 可提及特定 Bot"
+              style="
+                width: 100%;
+                border: none;
+                outline: none;
+                background: transparent;
+                font-size: 14px;
+                line-height: 1.6;
+                resize: none;
+                color: var(--text);
+                font-family: &quot;Inter&quot;, sans-serif;
+                max-height: 100px;
+                overflow-y: auto;
+              "
+              oninput="handleInput(event)"
+              onkeydown="handleKeydown(event)"
+            ></textarea>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-top: 8px;
+              "
+            >
+              <div style="display: flex; gap: 6px; align-items: center">
+                <button
+                  onclick="triggerMention()"
+                  style="
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 5px;
+                    font-size: 12px;
+                    font-weight: 500;
+                    color: #64748b;
+                    background: #f1f5f9;
+                    border: none;
+                    padding: 5px 10px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    transition: background 0.12s;
+                  "
+                  onmouseover="this.style.background = '#E2E8F0'"
+                  onmouseout="this.style.background = '#F1F5F9'"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  >
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94" />
+                  </svg>
+                  @提及 Bot
+                </button>
+                <span id="routing-hint" style="font-size: 12px; color: #94a3b8"></span>
+              </div>
+              <button class="send-btn" onclick="sendMsg()">
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#fff"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <p style="font-size: 11px; color: #cbd5e1; text-align: center; margin: 7px 0 0">
+            Enter 发送 · Shift+Enter 换行 · @ 触发 Bot 提及
+          </p>
+        </div>
+      </div>
+    </main>
+
+    <!-- ══ GROUP INFO PANEL ══ -->
+    <aside
+      style="
+        width: 280px;
+        background: #fff;
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        overflow: hidden;
+      "
+    >
+      <div style="padding: 14px 16px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0">
+        <div style="font-size: 13px; font-weight: 600; margin-bottom: 2px">群组信息</div>
+        <div style="font-size: 12px; color: var(--text-muted)" id="group-desc-short">
+          选择一个群聊
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto">
+        <div class="hlabel">参与 Bot</div>
+        <div id="member-list" style="padding: 0 8px"></div>
+
+        <div
+          class="hlabel"
+          style="margin-top: 4px; border-top: 1px solid #f1f5f9; padding-top: 10px"
+        >
+          感知注入
+        </div>
+        <div style="padding: 0 12px 12px">
+          <div
+            id="context-preview"
+            style="
+              background: #fffbeb;
+              border: 1px solid #fde68a;
+              border-radius: 8px;
+              padding: 10px 12px;
+              font-size: 12px;
+              line-height: 1.6;
+              color: #78350f;
+            "
+          ></div>
+        </div>
+
+        <div
+          class="hlabel"
+          style="
+            border-top: 1px solid #f1f5f9;
+            padding-top: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          "
+        >
+          路由记录
+          <span
+            id="route-count"
+            style="
+              font-size: 10px;
+              font-weight: 600;
+              padding: 1px 6px;
+              border-radius: 20px;
+              background: #f1f5f9;
+              color: #64748b;
+            "
+          ></span>
+        </div>
+        <div id="routing-log" style="padding: 0 4px 8px"></div>
+      </div>
+    </aside>
+
+    <!-- ══ NEW GROUP DIALOG ══ -->
+    <div id="new-conv-dialog" class="dialog-overlay" onclick="closeNewConvDialog(event)">
+      <div class="dialog-box">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+          "
+        >
+          <div>
+            <h2 style="font-size: 17px; font-weight: 600; margin: 0">新建群聊</h2>
+            <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0">
+              选择多个 Bot 开始协作对话
+            </p>
+          </div>
+          <button class="btn-icon" onclick="closeNewConvDialog()" style="width: 30px; height: 30px">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            >
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <label style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 8px"
+          >选择参与 Bot
+          <span style="color: #94a3b8; font-weight: 400">（可多选，至少 2 个）</span></label
+        >
+        <div
+          id="bot-chips"
+          style="display: flex; flex-direction: column; gap: 7px; margin-bottom: 18px"
+        ></div>
+
+        <div id="primary-bot-row" style="display: none; margin-bottom: 18px">
+          <label style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 8px"
+            >设置主 Bot
+            <span style="color: #94a3b8; font-weight: 400">（接收用户消息，统筹协作）</span></label
+          >
+          <select
+            id="primary-bot-select"
+            style="
+              width: 100%;
+              padding: 8px 12px;
+              font-size: 14px;
+              border: 1px solid var(--border);
+              border-radius: 8px;
+              background: #fff;
+              outline: none;
+            "
+          ></select>
+        </div>
+
+        <label style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 8px"
+          >群聊名称</label
+        >
+        <input
+          id="conv-name-input"
+          type="text"
+          style="
+            width: 100%;
+            padding: 9px 12px;
+            font-size: 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: #fff;
+            outline: none;
+            margin-bottom: 20px;
+          "
+          placeholder="留空自动生成（Bot 名称组合）"
+        />
+
+        <div style="display: flex; gap: 8px; justify-content: flex-end">
+          <button class="btn-ghost" onclick="closeNewConvDialog()">取消</button>
+          <button class="btn-primary" onclick="createConversation()">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            创建群聊
           </button>
         </div>
       </div>
-      <p style="font-size:11px;color:#CBD5E1;text-align:center;margin:7px 0 0;">Enter 发送 · Shift+Enter 换行 · @ 触发 Bot 提及</p>
-    </div>
-  </div>
-</main>
-
-<!-- ══ GROUP INFO PANEL ══ -->
-<aside style="width:280px;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;">
-  <div style="padding:14px 16px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
-    <div style="font-size:13px;font-weight:600;margin-bottom:2px;">群组信息</div>
-    <div style="font-size:12px;color:var(--text-muted);" id="group-desc-short">选择一个群聊</div>
-  </div>
-
-  <div style="flex:1;overflow-y:auto;">
-    <div class="hlabel">参与 Bot</div>
-    <div id="member-list" style="padding:0 8px;"></div>
-
-    <div class="hlabel" style="margin-top:4px;border-top:1px solid #F1F5F9;padding-top:10px;">感知注入</div>
-    <div style="padding:0 12px 12px;">
-      <div id="context-preview" style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.6;color:#78350F;"></div>
     </div>
 
-    <div class="hlabel" style="border-top:1px solid #F1F5F9;padding-top:10px;display:flex;align-items:center;gap:6px;">
-      路由记录
-      <span id="route-count" style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:20px;background:#F1F5F9;color:#64748B;"></span>
-    </div>
-    <div id="routing-log" style="padding:0 4px 8px;"></div>
-  </div>
-</aside>
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
 
-<!-- ══ NEW GROUP DIALOG ══ -->
-<div id="new-conv-dialog" class="dialog-overlay" onclick="closeNewConvDialog(event)">
-  <div class="dialog-box">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
-      <div>
-        <h2 style="font-size:17px;font-weight:600;margin:0;">新建群聊</h2>
-        <p style="font-size:13px;color:var(--text-muted);margin:4px 0 0;">选择多个 Bot 开始协作对话</p>
-      </div>
-      <button class="btn-icon" onclick="closeNewConvDialog()" style="width:30px;height:30px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
+    <script>
+      // ══════════════════════════════════════════
+      // DATA
+      // ══════════════════════════════════════════
+      const BOTS = {
+        cm: {
+          id: "cm",
+          name: "CodeMaster",
+          emoji: "🤖",
+          avClass: "av-blue",
+          status: "connected",
+          skills: ["代码架构", "TypeScript", "代码审查"],
+        },
+        rs: {
+          id: "rs",
+          name: "Researcher",
+          emoji: "🔬",
+          avClass: "av-green",
+          status: "connected",
+          skills: ["文献检索", "学术分析", "知识图谱"],
+        },
+        dv: {
+          id: "dv",
+          name: "DataViz",
+          emoji: "📊",
+          avClass: "av-purple",
+          status: "connected",
+          skills: ["数据分析", "可视化", "ECharts"],
+        },
+        ui: {
+          id: "ui",
+          name: "UIDesign",
+          emoji: "🎨",
+          avClass: "av-amber",
+          status: "disconnected",
+          skills: ["UI/UX", "组件设计", "Tailwind"],
+        },
+        sec: {
+          id: "sec",
+          name: "SecGuard",
+          emoji: "🛡️",
+          avClass: "av-rose",
+          status: "connected",
+          skills: ["安全审查", "漏洞检测", "代码扫描"],
+        },
+      };
 
-    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">选择参与 Bot <span style="color:#94A3B8;font-weight:400;">（可多选，至少 2 个）</span></label>
-    <div id="bot-chips" style="display:flex;flex-direction:column;gap:7px;margin-bottom:18px;"></div>
+      const CONVS = [
+        {
+          id: "g1",
+          title: "研发协作群",
+          bots: ["cm", "rs", "dv"],
+          primary: "cm",
+          messages: [
+            {
+              id: "m1",
+              sender: "user",
+              content: "我需要分析2024年LLM代码生成领域的技术进展，生成一份综合报告。",
+            },
+            {
+              id: "m2",
+              sender: "bot",
+              botId: "cm",
+              isPrimary: true,
+              route: "primary",
+              routeNote: "无@提及，默认路由主Bot",
+              content:
+                '收到！这个任务非常适合多Bot协作。我来统筹协调，分工如下：\n\n<span class="at-tag">@Researcher</span> 负责文献检索和技术梳理\n<span class="at-tag">@DataViz</span> 负责数据整理和趋势可视化\n我负责最终代码质量评估和报告整合\n\n<span class="at-tag">@Researcher</span> 请先检索2024年代码生成领域的重要论文和模型发布。',
+            },
+            {
+              id: "m3",
+              sender: "bot",
+              botId: "rs",
+              mentionedBy: "cm",
+              route: "chain",
+              routeNote: "主Bot在回复中@Researcher触发链式响应",
+              content:
+                '收到！正在检索 Semantic Scholar + arXiv...\n\n找到 <strong>186篇</strong> 相关文献，关键进展摘要：\n\n• <strong>DeepSeek-V3</strong>（2024.12）— 代码生成SOTA，HumanEval 90.2%\n• <strong>Qwen2.5-Coder-32B</strong>（2024.11）— 开源最强代码模型\n• <strong>Claude 3.5 Sonnet</strong>（2024.10）— Artifacts功能革新\n• <strong>GPT-4o</strong>（2024.05）— 多模态代码理解突破\n\n<span class="at-tag">@DataViz</span> 已整理年度引用数据，请生成趋势可视化。',
+            },
+            {
+              id: "m4",
+              sender: "bot",
+              botId: "dv",
+              mentionedBy: "rs",
+              route: "chain",
+              routeNote: "Researcher在回复中@DataViz触发链式响应",
+              content:
+                "收到数据！正在生成可视化分析...\n\n<strong>模型能力趋势</strong>（HumanEval Pass@1）：\n\n2022年：CodeX 67% → 2023年：GPT-4 85% → 2024年：DeepSeek 90%+\n\n<strong>开源 vs 闭源对比</strong>：开源模型差距从15%缩小至&lt;3%\n\n可视化报告已生成。",
+            },
+            {
+              id: "m5",
+              sender: "user",
+              content:
+                '<span class="at-tag">@Researcher</span> 这些论文里有关于TypeScript类型推断的专项研究吗？',
+            },
+            {
+              id: "m6",
+              sender: "bot",
+              botId: "rs",
+              route: "mention",
+              routeNote: "用户直接@Researcher，其他Bot静默",
+              content:
+                "有！专门检索TypeScript相关论文，找到 <strong>8篇</strong>：\n\n1. <em>TypeScript Type Inference with LLMs</em> (ICSE 2024)\n2. <em>Gradual Type Migration for JavaScript</em> (PLDI 2024)\n\n主要结论：GPT-4o 在 TypeScript 类型推断准确率高达 <strong>92%</strong>。",
+            },
+          ],
+        },
+        {
+          id: "g2",
+          title: "全栈开发群",
+          bots: ["ui", "cm", "dv"],
+          primary: "cm",
+          messages: [
+            {
+              id: "n1",
+              sender: "user",
+              content: "帮我实现一个用户数据分析仪表盘，要有图表和数据表格。",
+            },
+            {
+              id: "n2",
+              sender: "bot",
+              botId: "cm",
+              isPrimary: true,
+              route: "primary",
+              routeNote: "无@提及，默认路由主Bot",
+              content:
+                '明白！这个需要先设计原型再开发实现。\n\n<span class="at-tag">@UIDesign</span> 请先设计仪表盘的布局和视觉稿，我来负责 React 组件实现。\n<span class="at-tag">@DataViz</span> 准备好示例数据和图表配置。',
+            },
+            {
+              id: "n3",
+              sender: "bot",
+              botId: "ui",
+              mentionedBy: "cm",
+              route: "chain",
+              routeNote: "主Bot在回复中@UIDesign触发链式响应",
+              content: "⚠️ 连接失败：UIDesign Bot 当前离线，请在 Bot 管理中检查连接状态。",
+            },
+          ],
+        },
+        {
+          id: "g3",
+          title: "代码审查群",
+          bots: ["cm", "sec"],
+          primary: "cm",
+          messages: [
+            {
+              id: "p1",
+              sender: "user",
+              content:
+                '请审查这段 Node.js API 代码，重点检查安全和性能问题。\n\n```js\napp.get("/user/:id", async (req, res) => {\n  const user = await db.query(\n    `SELECT * FROM users WHERE id=${req.params.id}`\n  );\n  res.json(user);\n})```',
+            },
+            {
+              id: "p2",
+              sender: "bot",
+              botId: "cm",
+              isPrimary: true,
+              route: "primary",
+              routeNote: "无@提及，主Bot处理",
+              content:
+                '发现了严重问题！让我和 <span class="at-tag">@SecGuard</span> 分工审查：\n\n<strong>代码质量问题（我负责）</strong>：\n• 缺少错误处理（try/catch）\n• 无请求参数验证\n• `SELECT *` 性能问题\n\n<span class="at-tag">@SecGuard</span> 请检查安全漏洞，这里有明显的 SQL 注入风险。',
+            },
+            {
+              id: "p3",
+              sender: "bot",
+              botId: "sec",
+              mentionedBy: "cm",
+              route: "chain",
+              routeNote: "主Bot在回复中@SecGuard触发链式审查",
+              content:
+                '⚠️ <strong>高危安全漏洞已确认</strong>：\n\n🔴 <strong>SQL 注入</strong>：`${req.params.id}` 直接拼入 SQL，攻击者可执行任意查询\n🔴 <strong>无身份验证</strong>：任意用户可访问他人数据\n\n<strong>修复方案</strong>：\n```js\napp.get("/user/:id", authMiddleware, async (req, res) => {\n  if (!/^\\d+$/.test(req.params.id)) return res.status(400).send();\n  const user = await db.query("SELECT id,name FROM users WHERE id=?", [req.params.id]);\n  res.json(user);\n})```',
+            },
+          ],
+        },
+      ];
 
-    <div id="primary-bot-row" style="display:none;margin-bottom:18px;">
-      <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">设置主 Bot <span style="color:#94A3B8;font-weight:400;">（接收用户消息，统筹协作）</span></label>
-      <select id="primary-bot-select" style="width:100%;padding:8px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:#fff;outline:none;"></select>
-    </div>
+      // ══════════════════════════════════════════
+      // STATE
+      // ══════════════════════════════════════════
+      let activeConvId = "g1";
+      let navExpanded = false;
+      let mentionActive = false;
+      let mentionFilter = "";
+      let mentionFocusIdx = 0;
+      let isStreaming = false;
+      let newConvSelected = [];
 
-    <label style="font-size:13px;font-weight:500;display:block;margin-bottom:8px;">群聊名称</label>
-    <input id="conv-name-input" type="text" style="width:100%;padding:9px 12px;font-size:14px;border:1px solid var(--border);border-radius:8px;background:#fff;outline:none;margin-bottom:20px;" placeholder="留空自动生成（Bot 名称组合）" />
+      // ══════════════════════════════════════════
+      // NAV
+      // ══════════════════════════════════════════
+      function toggleNav() {
+        navExpanded = !navExpanded;
+        document.getElementById("left-nav").classList.toggle("expanded", navExpanded);
+        const icon = document.getElementById("nav-toggle-icon");
+        const label = document.getElementById("nav-toggle-label");
+        icon.innerHTML = navExpanded
+          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>'
+          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
+        label.textContent = navExpanded ? "收起" : "展开";
+      }
 
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button class="btn-ghost" onclick="closeNewConvDialog()">取消</button>
-      <button class="btn-primary" onclick="createConversation()">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-        创建群聊
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- Toast -->
-<div id="toast" class="toast"></div>
-
-<script>
-// ══════════════════════════════════════════
-// DATA
-// ══════════════════════════════════════════
-const BOTS = {
-  cm:  { id:'cm',  name:'CodeMaster', emoji:'🤖', avClass:'av-blue',   status:'connected',    skills:['代码架构','TypeScript','代码审查'] },
-  rs:  { id:'rs',  name:'Researcher', emoji:'🔬', avClass:'av-green',  status:'connected',    skills:['文献检索','学术分析','知识图谱'] },
-  dv:  { id:'dv',  name:'DataViz',    emoji:'📊', avClass:'av-purple', status:'connected',    skills:['数据分析','可视化','ECharts'] },
-  ui:  { id:'ui',  name:'UIDesign',   emoji:'🎨', avClass:'av-amber',  status:'disconnected', skills:['UI/UX','组件设计','Tailwind'] },
-  sec: { id:'sec', name:'SecGuard',   emoji:'🛡️', avClass:'av-rose',   status:'connected',    skills:['安全审查','漏洞检测','代码扫描'] },
-};
-
-const CONVS = [
-  {
-    id:'g1', title:'研发协作群',
-    bots:['cm','rs','dv'], primary:'cm',
-    messages:[
-      { id:'m1', sender:'user', content:'我需要分析2024年LLM代码生成领域的技术进展，生成一份综合报告。' },
-      { id:'m2', sender:'bot', botId:'cm', isPrimary:true, route:'primary', routeNote:'无@提及，默认路由主Bot',
-        content:'收到！这个任务非常适合多Bot协作。我来统筹协调，分工如下：\n\n<span class="at-tag">@Researcher</span> 负责文献检索和技术梳理\n<span class="at-tag">@DataViz</span> 负责数据整理和趋势可视化\n我负责最终代码质量评估和报告整合\n\n<span class="at-tag">@Researcher</span> 请先检索2024年代码生成领域的重要论文和模型发布。' },
-      { id:'m3', sender:'bot', botId:'rs', mentionedBy:'cm', route:'chain', routeNote:'主Bot在回复中@Researcher触发链式响应',
-        content:'收到！正在检索 Semantic Scholar + arXiv...\n\n找到 <strong>186篇</strong> 相关文献，关键进展摘要：\n\n• <strong>DeepSeek-V3</strong>（2024.12）— 代码生成SOTA，HumanEval 90.2%\n• <strong>Qwen2.5-Coder-32B</strong>（2024.11）— 开源最强代码模型\n• <strong>Claude 3.5 Sonnet</strong>（2024.10）— Artifacts功能革新\n• <strong>GPT-4o</strong>（2024.05）— 多模态代码理解突破\n\n<span class="at-tag">@DataViz</span> 已整理年度引用数据，请生成趋势可视化。' },
-      { id:'m4', sender:'bot', botId:'dv', mentionedBy:'rs', route:'chain', routeNote:'Researcher在回复中@DataViz触发链式响应',
-        content:'收到数据！正在生成可视化分析...\n\n<strong>模型能力趋势</strong>（HumanEval Pass@1）：\n\n2022年：CodeX 67% → 2023年：GPT-4 85% → 2024年：DeepSeek 90%+\n\n<strong>开源 vs 闭源对比</strong>：开源模型差距从15%缩小至&lt;3%\n\n可视化报告已生成。' },
-      { id:'m5', sender:'user', content:'<span class="at-tag">@Researcher</span> 这些论文里有关于TypeScript类型推断的专项研究吗？' },
-      { id:'m6', sender:'bot', botId:'rs', route:'mention', routeNote:'用户直接@Researcher，其他Bot静默',
-        content:'有！专门检索TypeScript相关论文，找到 <strong>8篇</strong>：\n\n1. <em>TypeScript Type Inference with LLMs</em> (ICSE 2024)\n2. <em>Gradual Type Migration for JavaScript</em> (PLDI 2024)\n\n主要结论：GPT-4o 在 TypeScript 类型推断准确率高达 <strong>92%</strong>。' },
-    ]
-  },
-  {
-    id:'g2', title:'全栈开发群',
-    bots:['ui','cm','dv'], primary:'cm',
-    messages:[
-      { id:'n1', sender:'user', content:'帮我实现一个用户数据分析仪表盘，要有图表和数据表格。' },
-      { id:'n2', sender:'bot', botId:'cm', isPrimary:true, route:'primary', routeNote:'无@提及，默认路由主Bot',
-        content:'明白！这个需要先设计原型再开发实现。\n\n<span class="at-tag">@UIDesign</span> 请先设计仪表盘的布局和视觉稿，我来负责 React 组件实现。\n<span class="at-tag">@DataViz</span> 准备好示例数据和图表配置。' },
-      { id:'n3', sender:'bot', botId:'ui', mentionedBy:'cm', route:'chain', routeNote:'主Bot在回复中@UIDesign触发链式响应',
-        content:'⚠️ 连接失败：UIDesign Bot 当前离线，请在 Bot 管理中检查连接状态。' },
-    ]
-  },
-  {
-    id:'g3', title:'代码审查群',
-    bots:['cm','sec'], primary:'cm',
-    messages:[
-      { id:'p1', sender:'user', content:'请审查这段 Node.js API 代码，重点检查安全和性能问题。\n\n```js\napp.get("/user/:id", async (req, res) => {\n  const user = await db.query(\n    `SELECT * FROM users WHERE id=${req.params.id}`\n  );\n  res.json(user);\n})```' },
-      { id:'p2', sender:'bot', botId:'cm', isPrimary:true, route:'primary', routeNote:'无@提及，主Bot处理',
-        content:'发现了严重问题！让我和 <span class="at-tag">@SecGuard</span> 分工审查：\n\n<strong>代码质量问题（我负责）</strong>：\n• 缺少错误处理（try/catch）\n• 无请求参数验证\n• `SELECT *` 性能问题\n\n<span class="at-tag">@SecGuard</span> 请检查安全漏洞，这里有明显的 SQL 注入风险。' },
-      { id:'p3', sender:'bot', botId:'sec', mentionedBy:'cm', route:'chain', routeNote:'主Bot在回复中@SecGuard触发链式审查',
-        content:'⚠️ <strong>高危安全漏洞已确认</strong>：\n\n🔴 <strong>SQL 注入</strong>：`${req.params.id}` 直接拼入 SQL，攻击者可执行任意查询\n🔴 <strong>无身份验证</strong>：任意用户可访问他人数据\n\n<strong>修复方案</strong>：\n```js\napp.get("/user/:id", authMiddleware, async (req, res) => {\n  if (!/^\\d+$/.test(req.params.id)) return res.status(400).send();\n  const user = await db.query("SELECT id,name FROM users WHERE id=?", [req.params.id]);\n  res.json(user);\n})```' },
-    ]
-  }
-];
-
-// ══════════════════════════════════════════
-// STATE
-// ══════════════════════════════════════════
-let activeConvId    = 'g1';
-let navExpanded     = false;
-let mentionActive   = false;
-let mentionFilter   = '';
-let mentionFocusIdx = 0;
-let isStreaming     = false;
-let newConvSelected = [];
-
-// ══════════════════════════════════════════
-// NAV
-// ══════════════════════════════════════════
-function toggleNav() {
-  navExpanded = !navExpanded;
-  document.getElementById('left-nav').classList.toggle('expanded', navExpanded);
-  const icon  = document.getElementById('nav-toggle-icon');
-  const label = document.getElementById('nav-toggle-label');
-  icon.innerHTML = navExpanded
-    ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>'
-    : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
-  label.textContent = navExpanded ? '收起' : '展开';
-}
-
-// ══════════════════════════════════════════
-// CONV LIST
-// ══════════════════════════════════════════
-function renderConvList(filter='') {
-  const q = filter.toLowerCase();
-  const list = CONVS.filter(c => !q || c.title.toLowerCase().includes(q));
-  document.getElementById('conv-list').innerHTML = list.map(c => {
-    const bots = c.bots.map(id => BOTS[id]).filter(Boolean);
-    const isActive = c.id === activeConvId;
-    const lastMsg  = c.messages[c.messages.length - 1];
-    const preview  = lastMsg
-      ? lastMsg.content.replace(/<[^>]+>/g,'').replace(/```[\s\S]*?```/g,'[代码]').slice(0,36) + '…'
-      : '开始群聊';
-    return `<div class="conv-item${isActive?' active':''}" onclick="selectConv('${c.id}')">
+      // ══════════════════════════════════════════
+      // CONV LIST
+      // ══════════════════════════════════════════
+      function renderConvList(filter = "") {
+        const q = filter.toLowerCase();
+        const list = CONVS.filter((c) => !q || c.title.toLowerCase().includes(q));
+        document.getElementById("conv-list").innerHTML = list
+          .map((c) => {
+            const bots = c.bots.map((id) => BOTS[id]).filter(Boolean);
+            const isActive = c.id === activeConvId;
+            const lastMsg = c.messages[c.messages.length - 1];
+            const preview = lastMsg
+              ? lastMsg.content
+                  .replace(/<[^>]+>/g, "")
+                  .replace(/```[\s\S]*?```/g, "[代码]")
+                  .slice(0, 36) + "…"
+              : "开始群聊";
+            return `<div class="conv-item${isActive ? " active" : ""}" onclick="selectConv('${c.id}')">
       <div style="position:relative;flex-shrink:0;">
         <div style="display:flex;position:relative;width:40px;height:40px;">
-          ${bots.slice(0,3).map((b,i) => `
-            <div style="position:absolute;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;border:1.5px solid ${isActive?'#EFF6FF':'#fff'};${i===0?'top:0;left:0':i===1?'top:0;right:0':'bottom:0;left:8px'}" class="${b.avClass}">${b.emoji}</div>
-          `).join('')}
+          ${bots
+            .slice(0, 3)
+            .map(
+              (b, i) => `
+            <div style="position:absolute;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;border:1.5px solid ${isActive ? "#EFF6FF" : "#fff"};${i === 0 ? "top:0;left:0" : i === 1 ? "top:0;right:0" : "bottom:0;left:8px"}" class="${b.avClass}">${b.emoji}</div>
+          `,
+            )
+            .join("")}
         </div>
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-          <span style="font-size:13px;font-weight:${isActive?'600':'500'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.title}</span>
+          <span style="font-size:13px;font-weight:${isActive ? "600" : "500"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.title}</span>
           <span style="font-size:10px;color:#CBD5E1;flex-shrink:0;margin-left:4px;">${c.bots.length} Bot</span>
         </div>
         <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
       </div>
     </div>`;
-  }).join('');
-}
+          })
+          .join("");
+      }
 
-function filterConvs(q) { renderConvList(q); }
+      function filterConvs(q) {
+        renderConvList(q);
+      }
 
-// ══════════════════════════════════════════
-// SELECT CONV
-// ══════════════════════════════════════════
-function selectConv(id) {
-  activeConvId = id;
-  renderConvList();
-  const conv = CONVS.find(c => c.id === id);
-  renderHeader(conv);
-  renderMessages(conv);
-  renderMemberList(conv);
-  renderContextPreview(conv);
-  renderRoutingLog(conv.messages);
-  updateRoutingHint(document.getElementById('chat-input').value);
-  document.getElementById('chat-input').focus();
-}
+      // ══════════════════════════════════════════
+      // SELECT CONV
+      // ══════════════════════════════════════════
+      function selectConv(id) {
+        activeConvId = id;
+        renderConvList();
+        const conv = CONVS.find((c) => c.id === id);
+        renderHeader(conv);
+        renderMessages(conv);
+        renderMemberList(conv);
+        renderContextPreview(conv);
+        renderRoutingLog(conv.messages);
+        updateRoutingHint(document.getElementById("chat-input").value);
+        document.getElementById("chat-input").focus();
+      }
 
-// ══════════════════════════════════════════
-// RENDER HEADER
-// ══════════════════════════════════════════
-function renderHeader(conv) {
-  const bots    = conv.bots.map(id => BOTS[id]).filter(Boolean);
-  const primary = BOTS[conv.primary];
-  const avHtml  = bots.map((b,i) => `
-    <div style="position:relative;display:inline-block;${i>0?'margin-left:-8px;':''}">
+      // ══════════════════════════════════════════
+      // RENDER HEADER
+      // ══════════════════════════════════════════
+      function renderHeader(conv) {
+        const bots = conv.bots.map((id) => BOTS[id]).filter(Boolean);
+        const primary = BOTS[conv.primary];
+        const avHtml = bots
+          .map(
+            (b, i) => `
+    <div style="position:relative;display:inline-block;${i > 0 ? "margin-left:-8px;" : ""}">
       <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;border:2px solid #fff;" class="${b.avClass}">${b.emoji}</div>
-      ${b.id===conv.primary?'<div class="crown-badge">👑</div>':''}
-    </div>`).join('');
+      ${b.id === conv.primary ? '<div class="crown-badge">👑</div>' : ""}
+    </div>`,
+          )
+          .join("");
 
-  document.getElementById('chat-hdr').innerHTML = `
+        document.getElementById("chat-hdr").innerHTML = `
     <div style="display:flex;">${avHtml}</div>
     <div style="margin-left:8px;min-width:0;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -451,83 +1491,95 @@ function renderHeader(conv) {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>`;
-}
+      }
 
-// ══════════════════════════════════════════
-// RENDER MESSAGES
-// ══════════════════════════════════════════
-function renderMessages(conv) {
-  const list = document.getElementById('msg-list');
-  list.innerHTML = '';
-  conv.messages.forEach(m => list.appendChild(buildMsg(m, conv)));
-  list.scrollTop = list.scrollHeight;
-}
+      // ══════════════════════════════════════════
+      // RENDER MESSAGES
+      // ══════════════════════════════════════════
+      function renderMessages(conv) {
+        const list = document.getElementById("msg-list");
+        list.innerHTML = "";
+        conv.messages.forEach((m) => list.appendChild(buildMsg(m, conv)));
+        list.scrollTop = list.scrollHeight;
+      }
 
-function buildMsg(m, conv) {
-  const div = document.createElement('div');
-  div.id = 'msg-' + m.id;
-  div.className = 'mrow';
+      function buildMsg(m, conv) {
+        const div = document.createElement("div");
+        div.id = "msg-" + m.id;
+        div.className = "mrow";
 
-  if (m.sender === 'user') {
-    div.style.cssText = 'display:flex;justify-content:flex-end;';
-    div.innerHTML = `<div>
+        if (m.sender === "user") {
+          div.style.cssText = "display:flex;justify-content:flex-end;";
+          div.innerHTML = `<div>
       <div class="bubble-user">${m.content}</div>
       <div style="font-size:11px;color:#CBD5E1;text-align:right;margin-top:5px;">刚刚</div>
     </div>`;
-  } else {
-    const b = BOTS[m.botId];
-    if (!b) return div;
-    const mentioner  = m.mentionedBy ? BOTS[m.mentionedBy] : null;
-    const bubbleCls  = m.isPrimary ? 'bubble-primary' : 'bubble-bot';
-    const routeLabel = m.route === 'primary' ? '主Bot响应' : m.route === 'mention' ? '被@提及' : '链式响应';
-    const routeCls   = m.route === 'primary' ? 'rb-primary' : m.route === 'mention' ? 'rb-mention' : 'rb-chain';
+        } else {
+          const b = BOTS[m.botId];
+          if (!b) return div;
+          const mentioner = m.mentionedBy ? BOTS[m.mentionedBy] : null;
+          const bubbleCls = m.isPrimary ? "bubble-primary" : "bubble-bot";
+          const routeLabel =
+            m.route === "primary" ? "主Bot响应" : m.route === "mention" ? "被@提及" : "链式响应";
+          const routeCls =
+            m.route === "primary"
+              ? "rb-primary"
+              : m.route === "mention"
+                ? "rb-mention"
+                : "rb-chain";
 
-    div.style.cssText = 'display:flex;align-items:flex-start;gap:10px;';
-    div.innerHTML = `
-      <div style="position:relative;flex-shrink:0;margin-top:${mentioner?'20px':'2px'};">
+          div.style.cssText = "display:flex;align-items:flex-start;gap:10px;";
+          div.innerHTML = `
+      <div style="position:relative;flex-shrink:0;margin-top:${mentioner ? "20px" : "2px"};">
         <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;" class="${b.avClass}">${b.emoji}</div>
-        ${m.isPrimary?'<div class="crown-badge">👑</div>':''}
+        ${m.isPrimary ? '<div class="crown-badge">👑</div>' : ""}
       </div>
       <div style="max-width:75%;min-width:0;">
-        ${mentioner ? `<div class="route-from-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>${mentioner.emoji} ${mentioner.name} 指派响应</div>` : ''}
+        ${mentioner ? `<div class="route-from-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>${mentioner.emoji} ${mentioner.name} 指派响应</div>` : ""}
         <div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;flex-wrap:wrap;">
           <span style="font-size:13px;font-weight:600;">${b.name}</span>
-          ${m.route ? `<span class="route-badge ${routeCls}">${routeLabel}</span>` : ''}
-          ${m.isPrimary ? '<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:#FEF3C7;color:#92400E;font-weight:600;border:1px solid #FDE68A;">👑 主Bot</span>' : ''}
+          ${m.route ? `<span class="route-badge ${routeCls}">${routeLabel}</span>` : ""}
+          ${m.isPrimary ? '<span style="font-size:10px;padding:1px 7px;border-radius:20px;background:#FEF3C7;color:#92400E;font-weight:600;border:1px solid #FDE68A;">👑 主Bot</span>' : ""}
         </div>
-        <div class="${bubbleCls}">${renderContent(m.content)}${m.streaming?'<span class="cblink"></span>':''}</div>
+        <div class="${bubbleCls}">${renderContent(m.content)}${m.streaming ? '<span class="cblink"></span>' : ""}</div>
         <div style="font-size:11px;color:#CBD5E1;margin-top:5px;">刚刚</div>
       </div>`;
-  }
-  return div;
-}
+        }
+        return div;
+      }
 
-function renderContent(c) {
-  return c
-    .replace(/```(\w*)\n?([\s\S]*?)```/g,'<pre class="msg-code">$2</pre>')
-    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\n/g,'<br>');
-}
+      function renderContent(c) {
+        return c
+          .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre class="msg-code">$2</pre>')
+          .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+          .replace(/\n/g, "<br>");
+      }
 
-// ══════════════════════════════════════════
-// RENDER RIGHT PANEL
-// ══════════════════════════════════════════
-function renderMemberList(conv) {
-  const sc = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
-  const sl = { connected:'已连接', disconnected:'未连接', error:'连接错误' };
-  document.getElementById('group-desc-short').textContent = `${conv.bots.length} 个 Bot · 主Bot：${BOTS[conv.primary]?.name}`;
-  document.getElementById('member-list').innerHTML = conv.bots.map(id => {
-    const b = BOTS[id];
-    const isPrimary = id === conv.primary;
-    return `<div class="member-card">
+      // ══════════════════════════════════════════
+      // RENDER RIGHT PANEL
+      // ══════════════════════════════════════════
+      function renderMemberList(conv) {
+        const sc = {
+          connected: "dot-connected",
+          disconnected: "dot-disconnected",
+          error: "dot-error",
+        };
+        const sl = { connected: "已连接", disconnected: "未连接", error: "连接错误" };
+        document.getElementById("group-desc-short").textContent =
+          `${conv.bots.length} 个 Bot · 主Bot：${BOTS[conv.primary]?.name}`;
+        document.getElementById("member-list").innerHTML = conv.bots
+          .map((id) => {
+            const b = BOTS[id];
+            const isPrimary = id === conv.primary;
+            return `<div class="member-card">
       <div style="position:relative;flex-shrink:0;">
         <div style="width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;" class="${b.avClass}">${b.emoji}</div>
-        ${isPrimary?'<div class="crown-badge" style="font-size:7px;">👑</div>':''}
+        ${isPrimary ? '<div class="crown-badge" style="font-size:7px;">👑</div>' : ""}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
           <span style="font-size:13px;font-weight:600;">${b.name}</span>
-          <span style="font-size:10px;padding:1px 6px;border-radius:20px;font-weight:600;${isPrimary?'background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;':'background:#F1F5F9;color:#64748B;border:1px solid #E5E7EB;'}">${isPrimary?'👑 主Bot':'辅助'}</span>
+          <span style="font-size:10px;padding:1px 6px;border-radius:20px;font-weight:600;${isPrimary ? "background:#FEF3C7;color:#92400E;border:1px solid #FDE68A;" : "background:#F1F5F9;color:#64748B;border:1px solid #E5E7EB;"}">${isPrimary ? "👑 主Bot" : "辅助"}</span>
         </div>
         <div style="font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:4px;">
           <span class="dot ${sc[b.status]}" style="width:6px;height:6px;"></span>
@@ -537,36 +1589,42 @@ function renderMemberList(conv) {
         </div>
       </div>
     </div>`;
-  }).join('');
-}
+          })
+          .join("");
+      }
 
-function renderContextPreview(conv) {
-  const others = conv.bots.filter(id => id !== conv.primary);
-  const lines = others.map(id => {
-    const b = BOTS[id];
-    return `• <strong>@${b.name}</strong>：${b.skills.slice(0,2).join('、')}`;
-  }).join('<br>');
-  document.getElementById('context-preview').innerHTML =
-    `<strong>[群聊上下文]</strong> 当前群聊中还有以下 Bot 可协作：<br><br>${lines}<br><br>如需协作，在回复中使用 @BotName。`;
-}
+      function renderContextPreview(conv) {
+        const others = conv.bots.filter((id) => id !== conv.primary);
+        const lines = others
+          .map((id) => {
+            const b = BOTS[id];
+            return `• <strong>@${b.name}</strong>：${b.skills.slice(0, 2).join("、")}`;
+          })
+          .join("<br>");
+        document.getElementById("context-preview").innerHTML =
+          `<strong>[群聊上下文]</strong> 当前群聊中还有以下 Bot 可协作：<br><br>${lines}<br><br>如需协作，在回复中使用 @BotName。`;
+      }
 
-function renderRoutingLog(messages) {
-  const botMsgs = messages.filter(m => m.sender === 'bot' && m.route);
-  const countEl = document.getElementById('route-count');
-  if (countEl) countEl.textContent = botMsgs.length;
+      function renderRoutingLog(messages) {
+        const botMsgs = messages.filter((m) => m.sender === "bot" && m.route);
+        const countEl = document.getElementById("route-count");
+        if (countEl) countEl.textContent = botMsgs.length;
 
-  const routeColors = { primary:'#1D4ED8', mention:'#15803D', chain:'#6D28D9' };
-  const routeBg     = { primary:'#EFF6FF', mention:'#DCFCE7', chain:'#EDE9FE' };
-  const routeLabels = { primary:'主Bot响应', mention:'被@提及', chain:'链式响应' };
-  const routeIcons  = { primary:'👑', mention:'@', chain:'⛓' };
+        const routeColors = { primary: "#1D4ED8", mention: "#15803D", chain: "#6D28D9" };
+        const routeBg = { primary: "#EFF6FF", mention: "#DCFCE7", chain: "#EDE9FE" };
+        const routeLabels = { primary: "主Bot响应", mention: "被@提及", chain: "链式响应" };
+        const routeIcons = { primary: "👑", mention: "@", chain: "⛓" };
 
-  document.getElementById('routing-log').innerHTML = botMsgs.slice().reverse().map((m, idx) => {
-    const b     = BOTS[m.botId];
-    const color = routeColors[m.route] || '#64748B';
-    const bg    = routeBg[m.route]    || '#F1F5F9';
-    const icon  = routeIcons[m.route] || '•';
-    const isLatest = idx === 0;
-    return `<div class="route-log-item" style="${isLatest?'border-left:3px solid '+color+';padding-left:11px;background:'+bg+'18;':''}">
+        document.getElementById("routing-log").innerHTML = botMsgs
+          .slice()
+          .reverse()
+          .map((m, idx) => {
+            const b = BOTS[m.botId];
+            const color = routeColors[m.route] || "#64748B";
+            const bg = routeBg[m.route] || "#F1F5F9";
+            const icon = routeIcons[m.route] || "•";
+            const isLatest = idx === 0;
+            return `<div class="route-log-item" style="${isLatest ? "border-left:3px solid " + color + ";padding-left:11px;background:" + bg + "18;" : ""}">
       <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
         <div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;" class="${b?.avClass}">${b?.emoji}</div>
         <span style="font-weight:600;font-size:12px;">${b?.name}</span>
@@ -574,56 +1632,63 @@ function renderRoutingLog(messages) {
       </div>
       <div style="font-size:11px;color:var(--text-muted);padding-left:29px;line-height:1.4;">${m.routeNote}</div>
     </div>`;
-  }).join('');
-}
+          })
+          .join("");
+      }
 
-// ══════════════════════════════════════════
-// SEND MESSAGE
-// ══════════════════════════════════════════
-function sendMsg() {
-  const inp = document.getElementById('chat-input');
-  const text = inp.value.trim();
-  if (!text || isStreaming) return;
-  hideMentionPopup();
+      // ══════════════════════════════════════════
+      // SEND MESSAGE
+      // ══════════════════════════════════════════
+      function sendMsg() {
+        const inp = document.getElementById("chat-input");
+        const text = inp.value.trim();
+        if (!text || isStreaming) return;
+        hideMentionPopup();
 
-  const conv = CONVS.find(c => c.id === activeConvId);
-  const userMsg = { id:'u-'+Date.now(), sender:'user', content:text };
-  const list = document.getElementById('msg-list');
-  list.appendChild(buildMsg(userMsg, conv));
-  conv.messages.push(userMsg);
-  list.scrollTop = list.scrollHeight;
-  inp.value = ''; inp.style.height = 'auto';
-  updateRoutingHint('');
+        const conv = CONVS.find((c) => c.id === activeConvId);
+        const userMsg = { id: "u-" + Date.now(), sender: "user", content: text };
+        const list = document.getElementById("msg-list");
+        list.appendChild(buildMsg(userMsg, conv));
+        conv.messages.push(userMsg);
+        list.scrollTop = list.scrollHeight;
+        inp.value = "";
+        inp.style.height = "auto";
+        updateRoutingHint("");
 
-  const mentionMatch = text.match(/@(\w+)/);
-  let respondBotId, route, routeNote;
-  if (mentionMatch) {
-    const found = conv.bots.find(id => BOTS[id]?.name.toLowerCase() === mentionMatch[1].toLowerCase());
-    respondBotId = found || conv.primary;
-    route     = found ? 'mention' : 'primary';
-    routeNote = found ? `用户直接@${BOTS[respondBotId].name}，其他Bot静默` : '未匹配到Bot名称，路由主Bot';
-  } else {
-    respondBotId = conv.primary;
-    route     = 'primary';
-    routeNote = '无@提及，默认路由主Bot响应';
-  }
+        const mentionMatch = text.match(/@(\w+)/);
+        let respondBotId, route, routeNote;
+        if (mentionMatch) {
+          const found = conv.bots.find(
+            (id) => BOTS[id]?.name.toLowerCase() === mentionMatch[1].toLowerCase(),
+          );
+          respondBotId = found || conv.primary;
+          route = found ? "mention" : "primary";
+          routeNote = found
+            ? `用户直接@${BOTS[respondBotId].name}，其他Bot静默`
+            : "未匹配到Bot名称，路由主Bot";
+        } else {
+          respondBotId = conv.primary;
+          route = "primary";
+          routeNote = "无@提及，默认路由主Bot响应";
+        }
 
-  const respondBot = BOTS[respondBotId];
+        const respondBot = BOTS[respondBotId];
 
-  // Show active indicator
-  const actInd  = document.getElementById('active-bot-indicator');
-  const actName = document.getElementById('active-bot-name');
-  if (actInd && actName) {
-    actName.textContent = respondBot.name + ' 响应中';
-    actInd.style.display = 'flex';
-  }
+        // Show active indicator
+        const actInd = document.getElementById("active-bot-indicator");
+        const actName = document.getElementById("active-bot-name");
+        if (actInd && actName) {
+          actName.textContent = respondBot.name + " 响应中";
+          actInd.style.display = "flex";
+        }
 
-  isStreaming = true;
-  setTimeout(() => {
-    const trow = document.createElement('div');
-    trow.className = 'mrow'; trow.id = 'typing-ind';
-    trow.style.cssText = 'display:flex;align-items:flex-start;gap:10px;';
-    trow.innerHTML = `
+        isStreaming = true;
+        setTimeout(() => {
+          const trow = document.createElement("div");
+          trow.className = "mrow";
+          trow.id = "typing-ind";
+          trow.style.cssText = "display:flex;align-items:flex-start;gap:10px;";
+          trow.innerHTML = `
       <div style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;" class="${respondBot.avClass}">${respondBot.emoji}</div>
       <div>
         <div style="font-size:13px;font-weight:600;margin-bottom:5px;">${respondBot.name}</div>
@@ -631,162 +1696,208 @@ function sendMsg() {
           <span class="tdot"></span><span class="tdot"></span><span class="tdot"></span>
         </div>
       </div>`;
-    list.appendChild(trow);
-    list.scrollTop = list.scrollHeight;
-  }, 300);
+          list.appendChild(trow);
+          list.scrollTop = list.scrollHeight;
+        }, 300);
 
-  const responses = [
-    '好的，我来处理这个问题。根据当前群聊上下文，我会综合所有可用信息给出最佳方案。\n\n请稍等，正在分析相关信息...',
-    '收到！这是我的分析：基于你的描述，建议采用分步骤解决方案，先确认需求边界，再逐步实现。',
-    '明白！这个任务我可以处理。根据现有上下文，这里有几个关键点需要考虑：\n\n1. **需求边界**要明确\n2. **协作分工**要合理\n3. **结果质量**要验证'
-  ];
-  const resp = responses[Math.floor(Math.random() * responses.length)];
+        const responses = [
+          "好的，我来处理这个问题。根据当前群聊上下文，我会综合所有可用信息给出最佳方案。\n\n请稍等，正在分析相关信息...",
+          "收到！这是我的分析：基于你的描述，建议采用分步骤解决方案，先确认需求边界，再逐步实现。",
+          "明白！这个任务我可以处理。根据现有上下文，这里有几个关键点需要考虑：\n\n1. **需求边界**要明确\n2. **协作分工**要合理\n3. **结果质量**要验证",
+        ];
+        const resp = responses[Math.floor(Math.random() * responses.length)];
 
-  setTimeout(() => {
-    document.getElementById('typing-ind')?.remove();
-    const botMsg = {
-      id: 'r-'+Date.now(), sender:'bot', botId:respondBotId,
-      isPrimary: respondBotId === conv.primary,
-      route, routeNote, content:'', streaming:true
-    };
-    const row = buildMsg(botMsg, conv);
-    list.appendChild(row);
-    list.scrollTop = list.scrollHeight;
-    const bubble = row.querySelector('.bubble-primary,.bubble-bot');
-    let i = 0;
-    const timer = setInterval(() => {
-      botMsg.content = resp.slice(0, i += Math.floor(Math.random()*5)+2);
-      if (bubble) bubble.innerHTML = renderContent(botMsg.content) + '<span class="cblink"></span>';
-      list.scrollTop = list.scrollHeight;
-      if (i >= resp.length) {
-        clearInterval(timer);
-        botMsg.content = resp; botMsg.streaming = false;
-        if (bubble) bubble.innerHTML = renderContent(resp);
-        conv.messages.push(botMsg);
-        isStreaming = false;
-        if (actInd) actInd.style.display = 'none';
-        renderConvList();
-        renderRoutingLog(conv.messages);
+        setTimeout(() => {
+          document.getElementById("typing-ind")?.remove();
+          const botMsg = {
+            id: "r-" + Date.now(),
+            sender: "bot",
+            botId: respondBotId,
+            isPrimary: respondBotId === conv.primary,
+            route,
+            routeNote,
+            content: "",
+            streaming: true,
+          };
+          const row = buildMsg(botMsg, conv);
+          list.appendChild(row);
+          list.scrollTop = list.scrollHeight;
+          const bubble = row.querySelector(".bubble-primary,.bubble-bot");
+          let i = 0;
+          const timer = setInterval(() => {
+            botMsg.content = resp.slice(0, (i += Math.floor(Math.random() * 5) + 2));
+            if (bubble)
+              bubble.innerHTML = renderContent(botMsg.content) + '<span class="cblink"></span>';
+            list.scrollTop = list.scrollHeight;
+            if (i >= resp.length) {
+              clearInterval(timer);
+              botMsg.content = resp;
+              botMsg.streaming = false;
+              if (bubble) bubble.innerHTML = renderContent(resp);
+              conv.messages.push(botMsg);
+              isStreaming = false;
+              if (actInd) actInd.style.display = "none";
+              renderConvList();
+              renderRoutingLog(conv.messages);
+            }
+          }, 40);
+        }, 1300);
       }
-    }, 40);
-  }, 1300);
-}
 
-// ══════════════════════════════════════════
-// @MENTION
-// ══════════════════════════════════════════
-function handleInput(e) {
-  const inp = e.target;
-  inp.style.height = 'auto';
-  inp.style.height = Math.min(inp.scrollHeight, 100) + 'px';
-  const before = inp.value.slice(0, inp.selectionStart);
-  const m = before.match(/@(\w*)$/);
-  if (m) { mentionFilter = m[1].toLowerCase(); mentionActive = true; renderMentionPopup(); }
-  else hideMentionPopup();
-  updateRoutingHint(inp.value);
-}
+      // ══════════════════════════════════════════
+      // @MENTION
+      // ══════════════════════════════════════════
+      function handleInput(e) {
+        const inp = e.target;
+        inp.style.height = "auto";
+        inp.style.height = Math.min(inp.scrollHeight, 100) + "px";
+        const before = inp.value.slice(0, inp.selectionStart);
+        const m = before.match(/@(\w*)$/);
+        if (m) {
+          mentionFilter = m[1].toLowerCase();
+          mentionActive = true;
+          renderMentionPopup();
+        } else hideMentionPopup();
+        updateRoutingHint(inp.value);
+      }
 
-function handleKeydown(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); mentionActive ? selectFocused() : sendMsg(); return; }
-  if (mentionActive) {
-    const list = getFilteredBots();
-    if (e.key === 'ArrowDown') { e.preventDefault(); mentionFocusIdx = Math.min(mentionFocusIdx+1, list.length-1); renderMentionPopup(); }
-    if (e.key === 'ArrowUp')   { e.preventDefault(); mentionFocusIdx = Math.max(mentionFocusIdx-1, 0); renderMentionPopup(); }
-    if (e.key === 'Escape') hideMentionPopup();
-  }
-}
+      function handleKeydown(e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          mentionActive ? selectFocused() : sendMsg();
+          return;
+        }
+        if (mentionActive) {
+          const list = getFilteredBots();
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            mentionFocusIdx = Math.min(mentionFocusIdx + 1, list.length - 1);
+            renderMentionPopup();
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            mentionFocusIdx = Math.max(mentionFocusIdx - 1, 0);
+            renderMentionPopup();
+          }
+          if (e.key === "Escape") hideMentionPopup();
+        }
+      }
 
-function getFilteredBots() {
-  const conv = CONVS.find(c => c.id === activeConvId);
-  return (conv?.bots || []).map(id => BOTS[id]).filter(b => b && b.name.toLowerCase().includes(mentionFilter));
-}
+      function getFilteredBots() {
+        const conv = CONVS.find((c) => c.id === activeConvId);
+        return (conv?.bots || [])
+          .map((id) => BOTS[id])
+          .filter((b) => b && b.name.toLowerCase().includes(mentionFilter));
+      }
 
-function renderMentionPopup() {
-  const list = getFilteredBots();
-  if (!list.length) { hideMentionPopup(); return; }
-  const conv = CONVS.find(c => c.id === activeConvId);
-  const sc   = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
-  document.getElementById('mention-list').innerHTML = list.map((b,i) => `
-    <div class="mention-item${i===mentionFocusIdx?' hi':''}" onclick="selectMention('${b.name}')">
+      function renderMentionPopup() {
+        const list = getFilteredBots();
+        if (!list.length) {
+          hideMentionPopup();
+          return;
+        }
+        const conv = CONVS.find((c) => c.id === activeConvId);
+        const sc = {
+          connected: "dot-connected",
+          disconnected: "dot-disconnected",
+          error: "dot-error",
+        };
+        document.getElementById("mention-list").innerHTML = list
+          .map(
+            (b, i) => `
+    <div class="mention-item${i === mentionFocusIdx ? " hi" : ""}" onclick="selectMention('${b.name}')">
       <div style="width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;position:relative;" class="${b.avClass}">${b.emoji}
-        ${b.id===conv?.primary?'<div style="position:absolute;top:-3px;right:-3px;font-size:8px;">👑</div>':''}
+        ${b.id === conv?.primary ? '<div style="position:absolute;top:-3px;right:-3px;font-size:8px;">👑</div>' : ""}
       </div>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;display:flex;align-items:center;gap:5px;">@${b.name}
-          ${b.id===conv?.primary?'<span style="font-size:10px;padding:1px 6px;border-radius:20px;background:#FEF3C7;color:#B45309;font-weight:600;">主Bot</span>':''}
+          ${b.id === conv?.primary ? '<span style="font-size:10px;padding:1px 6px;border-radius:20px;background:#FEF3C7;color:#B45309;font-weight:600;">主Bot</span>' : ""}
         </div>
         <div style="font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:4px;margin-top:1px;">
           <span class="dot ${sc[b.status]}" style="width:5px;height:5px;"></span>
-          <span>${b.skills.slice(0,2).join(' · ')}</span>
+          <span>${b.skills.slice(0, 2).join(" · ")}</span>
         </div>
       </div>
-    </div>`).join('');
-  document.getElementById('mention-popup').classList.add('show');
-}
+    </div>`,
+          )
+          .join("");
+        document.getElementById("mention-popup").classList.add("show");
+      }
 
-function selectFocused() {
-  const list = getFilteredBots();
-  if (list[mentionFocusIdx]) selectMention(list[mentionFocusIdx].name);
-}
+      function selectFocused() {
+        const list = getFilteredBots();
+        if (list[mentionFocusIdx]) selectMention(list[mentionFocusIdx].name);
+      }
 
-function selectMention(name) {
-  const inp = document.getElementById('chat-input');
-  const cursor = inp.selectionStart;
-  const before = inp.value.slice(0, cursor).replace(/@\w*$/, '@'+name+' ');
-  inp.value = before + inp.value.slice(cursor);
-  inp.selectionStart = inp.selectionEnd = before.length;
-  inp.focus(); hideMentionPopup(); updateRoutingHint(inp.value);
-}
+      function selectMention(name) {
+        const inp = document.getElementById("chat-input");
+        const cursor = inp.selectionStart;
+        const before = inp.value.slice(0, cursor).replace(/@\w*$/, "@" + name + " ");
+        inp.value = before + inp.value.slice(cursor);
+        inp.selectionStart = inp.selectionEnd = before.length;
+        inp.focus();
+        hideMentionPopup();
+        updateRoutingHint(inp.value);
+      }
 
-function hideMentionPopup() {
-  document.getElementById('mention-popup').classList.remove('show');
-  mentionActive = false; mentionFocusIdx = 0;
-}
+      function hideMentionPopup() {
+        document.getElementById("mention-popup").classList.remove("show");
+        mentionActive = false;
+        mentionFocusIdx = 0;
+      }
 
-function triggerMention() {
-  const inp = document.getElementById('chat-input');
-  inp.value += '@'; inp.focus();
-  handleInput({ target: inp });
-}
+      function triggerMention() {
+        const inp = document.getElementById("chat-input");
+        inp.value += "@";
+        inp.focus();
+        handleInput({ target: inp });
+      }
 
-function updateRoutingHint(text) {
-  const hint = document.getElementById('routing-hint');
-  if (!hint) return;
-  const conv = CONVS.find(c => c.id === activeConvId);
-  const m = text.match(/@(\w+)/);
-  if (m) {
-    const found = conv?.bots.find(id => BOTS[id]?.name.toLowerCase() === m[1].toLowerCase());
-    hint.textContent = found ? `→ 将路由至 @${BOTS[found].name}` : `→ 将路由至主Bot`;
-    hint.style.color = found ? '#16A34A' : '#94A3B8';
-  } else {
-    const primary = conv ? BOTS[conv.primary] : null;
-    hint.textContent = primary ? `→ 默认路由至主Bot（${primary.name}）` : '';
-    hint.style.color = '#94A3B8';
-  }
-}
+      function updateRoutingHint(text) {
+        const hint = document.getElementById("routing-hint");
+        if (!hint) return;
+        const conv = CONVS.find((c) => c.id === activeConvId);
+        const m = text.match(/@(\w+)/);
+        if (m) {
+          const found = conv?.bots.find(
+            (id) => BOTS[id]?.name.toLowerCase() === m[1].toLowerCase(),
+          );
+          hint.textContent = found ? `→ 将路由至 @${BOTS[found].name}` : `→ 将路由至主Bot`;
+          hint.style.color = found ? "#16A34A" : "#94A3B8";
+        } else {
+          const primary = conv ? BOTS[conv.primary] : null;
+          hint.textContent = primary ? `→ 默认路由至主Bot（${primary.name}）` : "";
+          hint.style.color = "#94A3B8";
+        }
+      }
 
-// ══════════════════════════════════════════
-// NEW GROUP DIALOG
-// ══════════════════════════════════════════
-function openNewConvDialog() {
-  newConvSelected = [];
-  document.getElementById('new-conv-dialog').classList.add('open');
-  document.getElementById('conv-name-input').value = '';
-  document.getElementById('primary-bot-row').style.display = 'none';
-  renderBotChips();
-}
+      // ══════════════════════════════════════════
+      // NEW GROUP DIALOG
+      // ══════════════════════════════════════════
+      function openNewConvDialog() {
+        newConvSelected = [];
+        document.getElementById("new-conv-dialog").classList.add("open");
+        document.getElementById("conv-name-input").value = "";
+        document.getElementById("primary-bot-row").style.display = "none";
+        renderBotChips();
+      }
 
-function closeNewConvDialog(e) {
-  if (e && e.target !== document.getElementById('new-conv-dialog')) return;
-  document.getElementById('new-conv-dialog').classList.remove('open');
-}
+      function closeNewConvDialog(e) {
+        if (e && e.target !== document.getElementById("new-conv-dialog")) return;
+        document.getElementById("new-conv-dialog").classList.remove("open");
+      }
 
-function renderBotChips() {
-  const sc = { connected:'dot-connected', disconnected:'dot-disconnected', error:'dot-error' };
-  const sl = { connected:'已连接', disconnected:'未连接', error:'连接错误' };
-  document.getElementById('bot-chips').innerHTML = Object.values(BOTS).map(b => {
-    const selected = newConvSelected.includes(b.id);
-    return `<div class="bot-chip${selected?' selected':''}" onclick="toggleBotChip('${b.id}')">
+      function renderBotChips() {
+        const sc = {
+          connected: "dot-connected",
+          disconnected: "dot-disconnected",
+          error: "dot-error",
+        };
+        const sl = { connected: "已连接", disconnected: "未连接", error: "连接错误" };
+        document.getElementById("bot-chips").innerHTML = Object.values(BOTS)
+          .map((b) => {
+            const selected = newConvSelected.includes(b.id);
+            return `<div class="bot-chip${selected ? " selected" : ""}" onclick="toggleBotChip('${b.id}')">
       <div style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;" class="${b.avClass}">${b.emoji}</div>
       <div style="flex:1;min-width:0;">
         <div style="font-size:13px;font-weight:600;">${b.name}</div>
@@ -795,74 +1906,88 @@ function renderBotChips() {
           <span>${sl[b.status]} · ${b.skills[0]}</span>
         </div>
       </div>
-      ${selected ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+      ${selected ? '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>' : ""}
     </div>`;
-  }).join('');
+          })
+          .join("");
 
-  const primaryRow = document.getElementById('primary-bot-row');
-  primaryRow.style.display = newConvSelected.length >= 2 ? 'block' : 'none';
-  document.getElementById('primary-bot-select').innerHTML = newConvSelected.map(id => {
-    const b = BOTS[id];
-    return `<option value="${id}">${b.emoji} ${b.name}</option>`;
-  }).join('');
-}
+        const primaryRow = document.getElementById("primary-bot-row");
+        primaryRow.style.display = newConvSelected.length >= 2 ? "block" : "none";
+        document.getElementById("primary-bot-select").innerHTML = newConvSelected
+          .map((id) => {
+            const b = BOTS[id];
+            return `<option value="${id}">${b.emoji} ${b.name}</option>`;
+          })
+          .join("");
+      }
 
-function toggleBotChip(id) {
-  const idx = newConvSelected.indexOf(id);
-  idx >= 0 ? newConvSelected.splice(idx, 1) : newConvSelected.push(id);
-  renderBotChips();
-}
+      function toggleBotChip(id) {
+        const idx = newConvSelected.indexOf(id);
+        idx >= 0 ? newConvSelected.splice(idx, 1) : newConvSelected.push(id);
+        renderBotChips();
+      }
 
-function createConversation() {
-  if (newConvSelected.length < 2) { showToast('请至少选择 2 个 Bot', 'error'); return; }
-  const primary = document.getElementById('primary-bot-select').value || newConvSelected[0];
-  const bots    = newConvSelected.map(id => BOTS[id]);
-  const name    = document.getElementById('conv-name-input').value.trim()
-    || bots.map(b => b.name).join('·') + ' 群';
-  const c = {
-    id: 'g-'+Date.now(), title: name,
-    bots: newConvSelected, primary,
-    messages: [{
-      id: 'w-'+Date.now(), sender:'bot', botId:newConvSelected[0],
-      isPrimary: newConvSelected[0] === primary, route:'primary',
-      routeNote: '群聊创建，主Bot发出欢迎消息',
-      content: `👋 群聊已创建！共 ${bots.length} 个 Bot，${bots.find(b=>b.id===primary)?.name} 担任主Bot。有什么需要协作处理的？`
-    }]
-  };
-  CONVS.unshift(c);
-  document.getElementById('new-conv-dialog').classList.remove('open');
-  activeConvId = c.id;
-  renderConvList();
-  selectConv(c.id);
-}
+      function createConversation() {
+        if (newConvSelected.length < 2) {
+          showToast("请至少选择 2 个 Bot", "error");
+          return;
+        }
+        const primary = document.getElementById("primary-bot-select").value || newConvSelected[0];
+        const bots = newConvSelected.map((id) => BOTS[id]);
+        const name =
+          document.getElementById("conv-name-input").value.trim() ||
+          bots.map((b) => b.name).join("·") + " 群";
+        const c = {
+          id: "g-" + Date.now(),
+          title: name,
+          bots: newConvSelected,
+          primary,
+          messages: [
+            {
+              id: "w-" + Date.now(),
+              sender: "bot",
+              botId: newConvSelected[0],
+              isPrimary: newConvSelected[0] === primary,
+              route: "primary",
+              routeNote: "群聊创建，主Bot发出欢迎消息",
+              content: `👋 群聊已创建！共 ${bots.length} 个 Bot，${bots.find((b) => b.id === primary)?.name} 担任主Bot。有什么需要协作处理的？`,
+            },
+          ],
+        };
+        CONVS.unshift(c);
+        document.getElementById("new-conv-dialog").classList.remove("open");
+        activeConvId = c.id;
+        renderConvList();
+        selectConv(c.id);
+      }
 
-// ══════════════════════════════════════════
-// TOAST
-// ══════════════════════════════════════════
-let toastTimer;
-function showToast(msg, type='success') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = `toast toast-${type} show`;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2800);
-}
+      // ══════════════════════════════════════════
+      // TOAST
+      // ══════════════════════════════════════════
+      let toastTimer;
+      function showToast(msg, type = "success") {
+        const el = document.getElementById("toast");
+        el.textContent = msg;
+        el.className = `toast toast-${type} show`;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => el.classList.remove("show"), 2800);
+      }
 
-// Input focus
-document.getElementById('chat-input').addEventListener('focus', () => {
-  document.getElementById('iw').style.borderColor = '#93C5FD';
-  document.getElementById('iw').style.boxShadow = '0 0 0 3px rgba(147,197,253,0.2)';
-});
-document.getElementById('chat-input').addEventListener('blur', () => {
-  document.getElementById('iw').style.borderColor = 'var(--border)';
-  document.getElementById('iw').style.boxShadow = 'none';
-});
+      // Input focus
+      document.getElementById("chat-input").addEventListener("focus", () => {
+        document.getElementById("iw").style.borderColor = "#93C5FD";
+        document.getElementById("iw").style.boxShadow = "0 0 0 3px rgba(147,197,253,0.2)";
+      });
+      document.getElementById("chat-input").addEventListener("blur", () => {
+        document.getElementById("iw").style.borderColor = "var(--border)";
+        document.getElementById("iw").style.boxShadow = "none";
+      });
 
-// ══════════════════════════════════════════
-// INIT
-// ══════════════════════════════════════════
-renderConvList();
-selectConv('g1');
-</script>
-</body>
+      // ══════════════════════════════════════════
+      // INIT
+      // ══════════════════════════════════════════
+      renderConvList();
+      selectConv("g1");
+    </script>
+  </body>
 </html>

@@ -1,4 +1,4 @@
-import { WIZARD_FLOW } from '../../../shared/store/wizard-store';
+import { WIZARD_FLOW } from "../../../shared/store/wizard-store";
 
 interface Props {
   skippedSteps: Record<string, boolean>;
@@ -7,12 +7,14 @@ interface Props {
 }
 
 export function ReviewView({ skippedSteps, onRegisterSubmit, onDone }: Props) {
-  const skippedNames = WIZARD_FLOW
-    .filter((s) => s.type === 'config' && skippedSteps[s.id])
-    .map((s) => s.title);
+  const skippedNames = WIZARD_FLOW.filter((s) => s.type === "config" && skippedSteps[s.id]).map(
+    (s) => s.title,
+  );
 
   // Register submit handler synchronously so parent always holds the latest closure.
-  onRegisterSubmit(async () => { onDone(); });
+  onRegisterSubmit(async () => {
+    onDone();
+  });
 
   return (
     <div>
@@ -32,7 +34,7 @@ export function ReviewView({ skippedSteps, onRegisterSubmit, onDone }: Props) {
 
       {skippedNames.length > 0 && (
         <div className="px-3.5 py-2.5 bg-[#FFFBEB] border border-[#FDE68A] rounded-lg text-[13px] text-[#92400E] mb-3">
-          <strong>提示：</strong>以下步骤已跳过，可在「设置」中随时配置：{skippedNames.join('、')}
+          <strong>提示：</strong>以下步骤已跳过，可在「设置」中随时配置：{skippedNames.join("、")}
         </div>
       )}
 

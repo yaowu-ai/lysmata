@@ -9,12 +9,24 @@ export function IntroView({ onStartInstall, onSkipToConfig }: Props) {
     <div className="flex flex-col items-center justify-center h-full text-center pb-2">
       <div
         className="w-[72px] h-[72px] rounded-[18px] flex items-center justify-center mb-6"
-        style={{ background: 'linear-gradient(135deg, #3B82F6, #2563EB)', boxShadow: '0 4px 20px rgba(37,99,235,0.3)' }}
+        style={{
+          background: "linear-gradient(135deg, #3B82F6, #2563EB)",
+          boxShadow: "0 4px 20px rgba(37,99,235,0.3)",
+        }}
       >
-        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L4 7l8 5 8-5-8-5z"/>
-          <path d="M4 12l8 5 8-5"/>
-          <path d="M4 17l8 5 8-5"/>
+        <svg
+          width="36"
+          height="36"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#fff"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 2L4 7l8 5 8-5-8-5z" />
+          <path d="M4 12l8 5 8-5" />
+          <path d="M4 17l8 5 8-5" />
         </svg>
       </div>
       <h1 className="text-[26px] font-bold m-0 mb-3">欢迎使用 OpenClaw</h1>
@@ -26,8 +38,17 @@ export function IntroView({ onStartInstall, onSkipToConfig }: Props) {
           onClick={onStartInstall}
           className="w-full bg-[#2563EB] text-white border-none px-[18px] py-[11px] rounded-lg text-[15px] font-medium cursor-pointer hover:bg-[#1D4ED8] flex items-center justify-center gap-1.5"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M5 12h14M12 5l7 7-7 7"/>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>
           开始安装 OpenClaw
         </button>

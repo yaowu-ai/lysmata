@@ -32,6 +32,7 @@
 - `intentional = false`：网络中断、WS error，启动指数退避重连
 
 重连策略：
+
 - 起步延迟 1s，每次翻倍，上限 30s
 - 最多重试 10 次，超过后放弃
 - 重连成功后自动从 `pushHandlerRegistry` 恢复 `onPushEvent` 回调
@@ -86,29 +87,32 @@ GET /conversations/:conversationId/messages/:msgId
 `message_type === 'system_event'` 时，通过 `metadata` 字段区分三种子类型：
 
 **exec_finished**（metadata 含 `result` 字段）：
+
 - 绿色标题"✅ 命令执行完成"
 - 显示命令名和输出内容（超长可折叠）
 
 **exec_denied**（metadata 含 `reason` 字段）：
+
 - 红色标题"🚫 命令执行被拒绝"
 - 显示拒绝原因
 
 **cron**（metadata 含 `summary` 字段）：
+
 - 蓝灰色标题"🕐 定时任务完成"
 - 显示任务摘要和相对时间
 
 ## 改动文件清单
 
-| 文件 | 类型 | 说明 |
-|------|------|------|
+| 文件                                          | 类型 | 说明                                          |
+| --------------------------------------------- | ---- | --------------------------------------------- |
 | `src-api/src/core/gateway/connection-pool.ts` | 修改 | teardown intentional 参数 + scheduleReconnect |
-| `src-api/src/app/api/messages.ts` | 修改 | 新增 GET /:msgId 端点 |
-| `src/shared/hooks/useGlobalStream.ts` | 修改 | useRef 稳定化，依赖数组简化 |
-| `src/shared/hooks/usePushStream.ts` | 修改 | 增量 setQueryData 替代 invalidateQueries |
-| `src/shared/hooks/useMessages.ts` | 修改 | 新增 useSendMessageStream hook |
-| `src/pages/Chat/BotMessage.tsx` | 修改 | system_event 三种子类型渲染 |
-| `src/pages/Chat/PrivateChatPage.tsx` | 修改 | 接入流式，管理 streamingContent |
-| `src/pages/Chat/GroupChatPage.tsx` | 修改 | 同 PrivateChatPage |
+| `src-api/src/app/api/messages.ts`             | 修改 | 新增 GET /:msgId 端点                         |
+| `src/shared/hooks/useGlobalStream.ts`         | 修改 | useRef 稳定化，依赖数组简化                   |
+| `src/shared/hooks/usePushStream.ts`           | 修改 | 增量 setQueryData 替代 invalidateQueries      |
+| `src/shared/hooks/useMessages.ts`             | 修改 | 新增 useSendMessageStream hook                |
+| `src/pages/Chat/BotMessage.tsx`               | 修改 | system_event 三种子类型渲染                   |
+| `src/pages/Chat/PrivateChatPage.tsx`          | 修改 | 接入流式，管理 streamingContent               |
+| `src/pages/Chat/GroupChatPage.tsx`            | 修改 | 同 PrivateChatPage                            |
 
 ## 实现顺序
 

@@ -1,4 +1,4 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
 // ── Payload shapes mirroring src-api/src/core/gateway/types.ts ───────────────
 // (duplicated here to avoid a cross-package import; keep in sync with server types)
@@ -31,7 +31,7 @@ export interface NodePairRequestedPayload {
 
 export interface NodePairResolvedPayload {
   nodeId?: string;
-  status?: 'approved' | 'rejected';
+  status?: "approved" | "rejected";
   [key: string]: unknown;
 }
 
@@ -82,7 +82,7 @@ interface AppStore {
   // Global node pairing fallbacks (no botId context)
   pendingNodeRequests: NodePairRequestedPayload[];
   addNodeRequest: (req: NodePairRequestedPayload) => void;
-  resolveNodeRequest: (nodeId: string, status: 'approved' | 'rejected') => void;
+  resolveNodeRequest: (nodeId: string, status: "approved" | "rejected") => void;
 
   // ── Per-bot realtime status snapshots ──────────────────────────────────────
   botStatuses: Record<string, BotStatusInfo>;
@@ -111,8 +111,7 @@ export const useAppStore = create<AppStore>((set) => ({
   setShutdown: (v) => set({ isShutdown: v }),
 
   pendingNodeRequests: [],
-  addNodeRequest: (req) =>
-    set((s) => ({ pendingNodeRequests: [...s.pendingNodeRequests, req] })),
+  addNodeRequest: (req) => set((s) => ({ pendingNodeRequests: [...s.pendingNodeRequests, req] })),
   resolveNodeRequest: (nodeId, _status) =>
     set((s) => ({
       pendingNodeRequests: s.pendingNodeRequests.filter((r) => r.nodeId !== nodeId),

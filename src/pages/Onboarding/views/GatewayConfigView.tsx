@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { apiClient } from '../../../shared/api-client';
+import { useState } from "react";
+import { apiClient } from "../../../shared/api-client";
 
 interface Props {
   onRegisterSubmit: (fn: () => Promise<void>) => void;
@@ -7,14 +7,17 @@ interface Props {
 }
 
 export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
-  const [port,      setPort]      = useState(18789);
-  const [bindAddr,  setBindAddr]  = useState('127.0.0.1');
-  const [authMode,  setAuthMode]  = useState<'none' | 'token'>('none');
+  const [port, setPort] = useState(18789);
+  const [bindAddr, setBindAddr] = useState("127.0.0.1");
+  const [authMode, setAuthMode] = useState<"none" | "token">("none");
   const [autostart, setAutostart] = useState(true);
 
   async function handleSave() {
-    await apiClient.post('/openclaw/gateway-config', {
-      port, bindAddress: bindAddr, authMode, autostart,
+    await apiClient.post("/openclaw/gateway-config", {
+      port,
+      bindAddress: bindAddr,
+      authMode,
+      autostart,
     });
     onDone();
   }
@@ -34,22 +37,35 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
       <div className="flex gap-4 mb-[18px]">
         <div className="flex-1">
           <label className="block text-[13px] font-medium mb-1.5">绑定地址</label>
-          <input type="text" value={bindAddr} onChange={(e) => setBindAddr(e.target.value)}
-            className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]" />
-          <p className="text-xs text-[#64748B] mt-1">本地使用保持 127.0.0.1；局域网共享可设为 0.0.0.0</p>
+          <input
+            type="text"
+            value={bindAddr}
+            onChange={(e) => setBindAddr(e.target.value)}
+            className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]"
+          />
+          <p className="text-xs text-[#64748B] mt-1">
+            本地使用保持 127.0.0.1；局域网共享可设为 0.0.0.0
+          </p>
         </div>
         <div className="flex-1">
           <label className="block text-[13px] font-medium mb-1.5">监听端口</label>
-          <input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))}
-            className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]" />
+          <input
+            type="number"
+            value={port}
+            onChange={(e) => setPort(Number(e.target.value))}
+            className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]"
+          />
           <p className="text-xs text-[#64748B] mt-1">默认 18789，若有冲突请修改</p>
         </div>
       </div>
 
       <div className="mb-[18px]">
         <label className="block text-[13px] font-medium mb-1.5">认证模式</label>
-        <select value={authMode} onChange={(e) => setAuthMode(e.target.value as 'none' | 'token')}
-          className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#93C5FD] appearance-none">
+        <select
+          value={authMode}
+          onChange={(e) => setAuthMode(e.target.value as "none" | "token")}
+          className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#93C5FD] appearance-none"
+        >
           <option value="none">None（本地无感，推荐）</option>
           <option value="token">Token（需鉴权）</option>
         </select>
@@ -62,8 +78,12 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
           <div className="text-xs text-[#64748B] mt-0.5">让 Gateway 作为后台服务随系统启动</div>
         </div>
         <div className="cursor-pointer" onClick={() => setAutostart((v) => !v)}>
-          <div className={`relative w-9 h-5 rounded-[10px] transition-colors ${autostart ? 'bg-[#2563EB]' : 'bg-[#CBD5E1]'}`}>
-            <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autostart ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+          <div
+            className={`relative w-9 h-5 rounded-[10px] transition-colors ${autostart ? "bg-[#2563EB]" : "bg-[#CBD5E1]"}`}
+          >
+            <div
+              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autostart ? "translate-x-[18px]" : "translate-x-0.5"}`}
+            />
           </div>
         </div>
       </div>

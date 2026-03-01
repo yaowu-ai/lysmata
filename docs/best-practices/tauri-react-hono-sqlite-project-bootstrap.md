@@ -49,12 +49,12 @@ my-app/
 
 ## 2. 计划（实施阶段）
 
-1. 初始化 Monorepo 与基础依赖  
-2. 搭建 React + Vite 前端  
-3. 搭建 Hono API 子包（`src-api`）  
-4. 初始化 Tauri 并接入 SQLite 插件  
-5. 打通开发链路（`dev:api` + `dev:app`）  
-6. 增加最小业务闭环（health + session/task 落库）  
+1. 初始化 Monorepo 与基础依赖
+2. 搭建 React + Vite 前端
+3. 搭建 Hono API 子包（`src-api`）
+4. 初始化 Tauri 并接入 SQLite 插件
+5. 打通开发链路（`dev:api` + `dev:app`）
+6. 增加最小业务闭环（health + session/task 落库）
 7. 进行测试与验收
 
 ---

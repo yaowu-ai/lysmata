@@ -1,46 +1,97 @@
 // src/pages/Onboarding/WizardPage.tsx
-import { useNavigate } from 'react-router-dom';
-import { useWizardStore, markOnboardingComplete } from '../../shared/store/wizard-store';
-import { WizardStepper } from './WizardStepper';
-import { WizardFooter } from './WizardFooter';
-import { IntroView }          from './views/IntroView';
-import { EnvCheckView }       from './views/EnvCheckView';
-import { InstallingView }     from './views/InstallingView';
-import { InstallSuccessView } from './views/InstallSuccessView';
+import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useWizardStore, markOnboardingComplete } from "../../shared/store/wizard-store";
+import { WizardStepper } from "./WizardStepper";
+import { WizardFooter } from "./WizardFooter";
+import { IntroView } from "./views/IntroView";
+import { EnvCheckView } from "./views/EnvCheckView";
+import { InstallingView } from "./views/InstallingView";
+import { InstallSuccessView } from "./views/InstallSuccessView";
+import { GatewayConfigView } from "./views/GatewayConfigView";
+import { ProviderConfigView } from "./views/ProviderConfigView";
+import { ChannelConfigView } from "./views/ChannelConfigView";
+import { SkillsConfigView } from "./views/SkillsConfigView";
+import { HooksConfigView } from "./views/HooksConfigView";
+import { ReviewView } from "./views/ReviewView";
+import { DoneView } from "./views/DoneView";
 
 export function WizardPage() {
   const navigate = useNavigate();
-  const { currentStep, skippedSteps, goNext, goPrev, skipCurrentStep, goToStep } =
-    useWizardStore();
+  const { currentStep, skippedSteps, goNext, goPrev, skipCurrentStep, goToStep } = useWizardStore();
   const step = currentStep();
 
-  const isConfigStep = step.type === 'config';
+  const submitRef = useRef<(() => Promise<void>) | null>(null);
+
+  const isConfigStep = step.type === "config";
 
   function handleExitWizard() {
     markOnboardingComplete();
-    navigate('/bots');
+    navigate("/bots");
+  }
+
+  async function handleNext() {
+    if ((step.type === "config" || step.id === "step6") && submitRef.current) {
+      try {
+        await submitRef.current();
+      } catch {
+        /* validation error shown in view */
+      }
+      return;
+    }
+    goNext();
   }
 
   const getFooterProps = () => {
-    if (step.id === 'intro') {
-      return { nextLabel: '开始安装', showPrev: false, showSkip: false, showCancel: true, onCancel: handleExitWizard };
+    if (step.id === "intro") {
+      return {
+        nextLabel: "开始安装",
+        showPrev: false,
+        showSkip: false,
+        showCancel: true,
+        onCancel: handleExitWizard,
+      };
     }
-    if (step.id === 'env') {
-      return { nextLabel: '一键安装', showPrev: true, showSkip: false, showCancel: true, onCancel: handleExitWizard };
+    if (step.id === "env") {
+      return {
+        nextLabel: "一键安装",
+        showPrev: true,
+        showSkip: false,
+        showCancel: true,
+        onCancel: handleExitWizard,
+      };
     }
-    if (step.id === 'installing') {
-      return { nextLabel: '安装中...', nextDisabled: true, showPrev: false, showSkip: false, showCancel: false };
+    if (step.id === "installing") {
+      return {
+        nextLabel: "安装中...",
+        nextDisabled: true,
+        showPrev: false,
+        showSkip: false,
+        showCancel: false,
+      };
     }
-    if (step.id === 'install-success') {
-      return { nextLabel: '立即配置 →', showPrev: false, showSkip: false, showCancel: false };
+    if (step.id === "install-success") {
+      return { nextLabel: "立即配置 →", showPrev: false, showSkip: false, showCancel: false };
     }
     if (isConfigStep) {
-      if (step.id === 'step6') {
-        return { nextLabel: '应用配置', showPrev: true, showSkip: false, showCancel: true, onCancel: handleExitWizard };
+      if (step.id === "step6") {
+        return {
+          nextLabel: "应用配置",
+          showPrev: true,
+          showSkip: false,
+          showCancel: true,
+          onCancel: handleExitWizard,
+        };
       }
-      return { nextLabel: '下一步', showPrev: true, showSkip: !!step.skippable, showCancel: true, onCancel: handleExitWizard };
+      return {
+        nextLabel: "下一步",
+        showPrev: true,
+        showSkip: !!step.skippable,
+        showCancel: true,
+        onCancel: handleExitWizard,
+      };
     }
-    return { nextLabel: '下一步', showPrev: false, showSkip: false, showCancel: false };
+    return { nextLabel: "下一步", showPrev: false, showSkip: false, showCancel: false };
   };
 
   const footerProps = getFooterProps();
@@ -48,12 +99,13 @@ export function WizardPage() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#F7F7F8]">
       <div className="w-[900px] h-[640px] bg-white rounded-[14px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] flex flex-col overflow-hidden">
-
         {/* Header — only for config steps */}
         {isConfigStep && (
           <div className="px-8 py-5 pb-4 border-b border-[#E5E7EB] flex-shrink-0 flex items-start justify-between">
             <div className="flex-1">
-              <div className="text-[16px] font-semibold mb-3.5 text-[#0F172A]">OpenClaw 配置向导</div>
+              <div className="text-[16px] font-semibold mb-3.5 text-[#0F172A]">
+                OpenClaw 配置向导
+              </div>
               <WizardStepper currentStep={step} skippedSteps={skippedSteps} />
             </div>
             <button
@@ -61,8 +113,18 @@ export function WizardPage() {
               className="w-[28px] h-[28px] rounded-[7px] bg-transparent border-none text-[#94A3B8] cursor-pointer flex items-center justify-center hover:bg-[#F1F5F9] hover:text-[#0F172A] ml-4 mt-0.5 flex-shrink-0"
               title="退出向导"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           </div>
@@ -70,33 +132,56 @@ export function WizardPage() {
 
         {/* Content */}
         <div className="flex-1 px-8 py-7 overflow-y-auto">
-          {step.id === 'intro' && (
-            <IntroView
-              onStartInstall={goNext}
-              onSkipToConfig={() => goToStep('step1')}
-            />
+          {step.id === "intro" && (
+            <IntroView onStartInstall={goNext} onSkipToConfig={() => goToStep("step1")} />
           )}
-          {step.id === 'env' && <EnvCheckView />}
-          {step.id === 'installing' && <InstallingView onSuccess={goNext} />}
-          {step.id === 'install-success' && (
+          {step.id === "env" && <EnvCheckView />}
+          {step.id === "installing" && <InstallingView onSuccess={goNext} />}
+          {step.id === "install-success" && (
             <InstallSuccessView
-              onConfigNow={() => goToStep('step1')}
-              onDefer={() => { markOnboardingComplete(); navigate('/bots'); }}
+              onConfigNow={() => goToStep("step1")}
+              onDefer={() => {
+                markOnboardingComplete();
+                navigate("/bots");
+              }}
             />
           )}
-          {step.type === 'config' && (
-            <p className="text-[#64748B] text-sm">配置步骤：{step.id}（后续 Task 实现）</p>
+          {step.id === "step1" && (
+            <GatewayConfigView
+              onRegisterSubmit={(fn) => {
+                submitRef.current = fn;
+              }}
+              onDone={goNext}
+            />
           )}
-          {step.id === 'done' && (
-            <p className="text-[#64748B] text-sm">完成页（后续 Task 实现）</p>
+          {step.id === "step2" && (
+            <ProviderConfigView
+              onRegisterSubmit={(fn) => {
+                submitRef.current = fn;
+              }}
+              onDone={goNext}
+            />
           )}
+          {step.id === "step3" && <ChannelConfigView />}
+          {step.id === "step4" && <SkillsConfigView />}
+          {step.id === "step5" && <HooksConfigView />}
+          {step.id === "step6" && (
+            <ReviewView
+              skippedSteps={skippedSteps}
+              onRegisterSubmit={(fn) => {
+                submitRef.current = fn;
+              }}
+              onDone={goNext}
+            />
+          )}
+          {step.id === "done" && <DoneView />}
         </div>
 
         {/* Footer — hidden on done view */}
-        {step.id !== 'done' && (
+        {step.id !== "done" && (
           <WizardFooter
             {...footerProps}
-            onNext={goNext}
+            onNext={handleNext}
             onPrev={goPrev}
             onSkip={skipCurrentStep}
           />

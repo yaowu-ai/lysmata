@@ -11,6 +11,7 @@ Lysmata manages local OpenClaw bots that share a single `~/.openclaw/openclaw.js
 ## Goal
 
 A dedicated Settings page in Lysmata that lets users manage:
+
 1. Custom LLM providers (`models.providers`) — add, edit, delete providers with baseUrl, apiKey, and model list
 2. Default model selection (`agents.defaults.model`) — choose primary model and fallbacks from configured providers
 
@@ -65,6 +66,7 @@ Core
 ### PUT /settings/llm
 
 Accepts the same shape. Performs a full replacement of:
+
 - `models.providers`
 - `agents.defaults.model`
 - `agents.defaults.models` (auto-synced alias table from providers)

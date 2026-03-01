@@ -1,14 +1,13 @@
 // src/pages/Onboarding/views/InstallingView.tsx
-import { useEffect } from 'react';
-import { useOnboardingInstall } from '../../../shared/hooks/useOnboardingInstall';
+import { useEffect } from "react";
+import { useOnboardingInstall } from "../../../shared/hooks/useOnboardingInstall";
 
 interface Props {
   onSuccess: () => void;
 }
 
 export function InstallingView({ onSuccess }: Props) {
-  const { logs, progress, statusLabel, isDone, isError, errorMsg } =
-    useOnboardingInstall(true);
+  const { logs, progress, statusLabel, isDone, isError, errorMsg } = useOnboardingInstall(true);
 
   useEffect(() => {
     if (isDone) {
@@ -39,13 +38,15 @@ export function InstallingView({ onSuccess }: Props) {
         className="bg-[#1E293B] rounded-lg p-4 overflow-y-auto font-mono text-[12px] leading-[1.65] text-[#94A3B8]"
         style={{ height: 220 }}
       >
-        {logs.length === 0 && (
-          <div className="text-[#475569]">等待安装开始...</div>
-        )}
+        {logs.length === 0 && <div className="text-[#475569]">等待安装开始...</div>}
         {logs.map((line, i) => (
           <div
             key={i}
-            className={line.includes('失败') || line.includes('错误') || line.includes('error') ? 'text-[#F87171]' : ''}
+            className={
+              line.includes("失败") || line.includes("错误") || line.includes("error")
+                ? "text-[#F87171]"
+                : ""
+            }
           >
             {line}
           </div>

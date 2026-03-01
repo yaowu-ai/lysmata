@@ -1,25 +1,29 @@
-import { useState } from 'react';
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { useLlmSettings, useUpdateLlmSettings } from '../shared/hooks/useLlmSettings';
-import type { LlmSettings, ProviderConfig } from '../shared/types';
-import ProviderFormDrawer from './Settings/ProviderFormDrawer';
-import { OpenClawInstallSection } from './Settings/OpenClawInstallSection';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { useLlmSettings, useUpdateLlmSettings } from "../shared/hooks/useLlmSettings";
+import type { LlmSettings, ProviderConfig } from "../shared/types";
+import ProviderFormDrawer from "./Settings/ProviderFormDrawer";
+import { OpenClawInstallSection } from "./Settings/OpenClawInstallSection";
+import { ONBOARDING_KEY } from "../shared/store/wizard-store";
 
 export default function SettingsPage() {
   const { data: settings, isLoading } = useLlmSettings();
   const { mutate: saveSettings } = useUpdateLlmSettings();
-  const [editingProvider, setEditingProvider] = useState<{ key: string; provider: ProviderConfig } | null>(null);
+  const [editingProvider, setEditingProvider] = useState<{
+    key: string;
+    provider: ProviderConfig;
+  } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const navigate = useNavigate();
 
   function handleDeleteProvider(key: string) {
     if (!settings) return;
     if (!window.confirm(`确认删除 Provider "${key}"？`)) return;
     const updated: LlmSettings = {
       ...settings,
-      providers: Object.fromEntries(
-        Object.entries(settings.providers).filter(([k]) => k !== key)
-      ),
+      providers: Object.fromEntries(Object.entries(settings.providers).filter(([k]) => k !== key)),
     };
     saveSettings(updated);
   }
@@ -36,10 +40,15 @@ export default function SettingsPage() {
     saveSettings({ ...settings, defaultModel: { ...settings.defaultModel, primary } });
   }
 
+  function handleReenterWizard() {
+    localStorage.removeItem(ONBOARDING_KEY);
+    navigate("/onboarding");
+  }
+
   if (isLoading || !settings) return <div className="p-6 text-sm text-[#64748B]">加载中...</div>;
 
   const allModels = Object.entries(settings.providers).flatMap(([providerKey, provider]) =>
-    provider.models.map((m) => ({ value: `${providerKey}/${m.id}`, label: m.name || m.id }))
+    provider.models.map((m) => ({ value: `${providerKey}/${m.id}`, label: m.name || m.id })),
   );
 
   return (
@@ -47,7 +56,12 @@ export default function SettingsPage() {
       <h1 className="text-lg font-semibold text-[#0F172A] mb-6">设置</h1>
 
       <section className="mb-8">
-        <label htmlFor="default-model" className="block text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3">默认模型</label>
+        <label
+          htmlFor="default-model"
+          className="block text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3"
+        >
+          默认模型
+        </label>
         <select
           id="default-model"
           aria-label="默认模型"
@@ -57,16 +71,23 @@ export default function SettingsPage() {
         >
           <option value="">— 未设置 —</option>
           {allModels.map((m) => (
-            <option key={m.value} value={m.value}>{m.label} ({m.value})</option>
+            <option key={m.value} value={m.value}>
+              {m.label} ({m.value})
+            </option>
           ))}
         </select>
       </section>
 
       <section>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-medium text-[#64748B] uppercase tracking-wide">LLM Providers</h2>
+          <h2 className="text-xs font-medium text-[#64748B] uppercase tracking-wide">
+            LLM Providers
+          </h2>
           <button
-            onClick={() => { setEditingProvider(null); setDrawerOpen(true); }}
+            onClick={() => {
+              setEditingProvider(null);
+              setDrawerOpen(true);
+            }}
             className="flex items-center gap-1 text-sm text-[#2563EB] hover:text-blue-700"
           >
             <Plus size={14} /> 添加
@@ -91,7 +112,13 @@ export default function SettingsPage() {
                     <span className="text-xs text-[#94A3B8]">{provider.models.length} 个模型</span>
                   </button>
                   <div className="flex gap-2">
-                    <button title={`编辑 ${key}`} onClick={() => { setEditingProvider({ key, provider }); setDrawerOpen(true); }}>
+                    <button
+                      title={`编辑 ${key}`}
+                      onClick={() => {
+                        setEditingProvider({ key, provider });
+                        setDrawerOpen(true);
+                      }}
+                    >
                       <Pencil size={14} className="text-[#94A3B8] hover:text-[#0F172A]" />
                     </button>
                     <button title={`删除 ${key}`} onClick={() => handleDeleteProvider(key)}>
@@ -123,11 +150,26 @@ export default function SettingsPage() {
 
       <ProviderFormDrawer
         open={drawerOpen}
-        providerKey={editingProvider?.key ?? ''}
+        providerKey={editingProvider?.key ?? ""}
         provider={editingProvider?.provider ?? null}
-        onClose={() => { setDrawerOpen(false); setEditingProvider(null); }}
+        onClose={() => {
+          setDrawerOpen(false);
+          setEditingProvider(null);
+        }}
         onSave={handleSaveProvider}
       />
+
+      <section className="mt-8 pt-8 border-t border-[#E5E7EB]">
+        <h2 className="text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3">
+          配置向导
+        </h2>
+        <button
+          onClick={handleReenterWizard}
+          className="flex items-center gap-1.5 text-sm text-[#2563EB] hover:text-blue-700"
+        >
+          重新运行配置向导 →
+        </button>
+      </section>
     </div>
   );
 }
