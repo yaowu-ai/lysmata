@@ -1,6 +1,11 @@
 import { randomUUID } from "crypto";
 import { getDb } from "../shared/db";
 
+function normalizeAgentId(value: string | undefined): string {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || "main";
+}
+
 export interface Bot {
   id: string;
   name: string;
@@ -59,7 +64,7 @@ export const BotService = {
         JSON.stringify(input.llm_config ?? {}),
         input.openclaw_ws_url,
         input.openclaw_ws_token || null,
-        input.openclaw_agent_id || "main",
+        normalizeAgentId(input.openclaw_agent_id),
         input.is_active !== false ? 1 : 0,
         now,
         now,
@@ -73,7 +78,7 @@ export const BotService = {
     if (!existing) return null;
     const now = new Date().toISOString();
     const fields: string[] = [];
-    const values: unknown[] = [];
+    const values: Array<string | number | null> = [];
 
     if (input.name !== undefined) {
       fields.push("name = ?");
@@ -109,7 +114,7 @@ export const BotService = {
     }
     if (input.openclaw_agent_id !== undefined) {
       fields.push("openclaw_agent_id = ?");
-      values.push(input.openclaw_agent_id || "main");
+      values.push(normalizeAgentId(input.openclaw_agent_id));
     }
     if (input.is_active !== undefined) {
       fields.push("is_active = ?");

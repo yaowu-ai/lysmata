@@ -99,11 +99,14 @@ export const MessageRouter = {
     }
 
     // Forward to OpenClaw and collect reply
+    const normalizedAgentId = (targetBot.openclaw_agent_id ?? "main").trim().toLowerCase() || "main";
+    // Gateway expects sessionKey in `agent:{agentId}:{sessionId}` shape for agent binding.
+    const gatewaySessionKey = `agent:${normalizedAgentId}:${conversationId}`;
     let replyContent = "";
     await OpenClawProxy.sendMessage(
       targetBot.openclaw_ws_url,
       targetBot.openclaw_ws_token ?? undefined,
-      targetBot.openclaw_agent_id ?? "main",
+      normalizedAgentId,
       enrichedContent,
       (chunk) => {
         // Gateway pushes accumulated text (not deltas), so each chunk is the
@@ -112,7 +115,7 @@ export const MessageRouter = {
         replyContent = chunk;
         onChunk(chunk, targetBot!.id);
       },
-      conversationId, // isolate each conversation's memory in the Gateway
+      gatewaySessionKey, // explicit gateway session key keeps agent binding consistent
       signal,
     );
 

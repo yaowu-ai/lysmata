@@ -152,6 +152,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
     } catch {
       parsedMcp = {};
     }
+    const normalizedAgentId = agentId.trim().toLowerCase() || "main";
 
     const payload = {
       name,
@@ -160,7 +161,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       skills_config: skills,
       mcp_config: typeof parsedMcp === "string" ? parsedMcp : JSON.stringify(parsedMcp),
       openclaw_ws_url: gatewayUrl,
-      openclaw_agent_id: agentId || "main",
+      openclaw_agent_id: normalizedAgentId,
       openclaw_ws_token: wsToken || undefined,
       is_active: isActive,
     };
@@ -469,7 +470,10 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
               />
             </Field>
 
-            <Field label="Agent ID" hint="目标 OpenClaw Agent 名称，留空使用默认 main">
+            <Field
+              label="Agent ID"
+              hint="目标 OpenClaw Agent 名称，区分大小写，保存时会自动转为小写；留空使用默认 main"
+            >
               <input
                 value={agentId}
                 onChange={(e) => setAgentId(e.target.value)}

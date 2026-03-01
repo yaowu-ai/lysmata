@@ -10,6 +10,11 @@ import { PushRelay } from "../../core/push-relay";
 
 const bots = new Hono();
 
+function normalizeAgentId(value: string | null | undefined): string {
+  const normalized = value?.trim().toLowerCase();
+  return normalized || "main";
+}
+
 const llmConfigSchema = z
   .object({
     provider: z.enum(["openai", "anthropic", "google", "openrouter", "custom"]).optional(),
@@ -31,7 +36,7 @@ const createSchema = z.object({
   llm_config: llmConfigSchema,
   openclaw_ws_url: z.string().min(1),
   openclaw_ws_token: z.string().optional(),
-  openclaw_agent_id: z.string().optional(),
+  openclaw_agent_id: z.string().min(1).optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -94,7 +99,7 @@ bots.get("/:id/remote-config", async (c) => {
   const result = await OpenClawProxy.getConfig(
     bot.openclaw_ws_url,
     bot.openclaw_ws_token ?? undefined,
-    bot.openclaw_agent_id || "main",
+    normalizeAgentId(bot.openclaw_agent_id),
   );
   return c.json(result);
 });
@@ -126,7 +131,7 @@ bots.post("/:id/apply-config", async (c) => {
     bot.openclaw_ws_url,
     bot.openclaw_ws_token ?? undefined,
     {
-      agentId: bot.openclaw_agent_id || "main",
+      agentId: normalizeAgentId(bot.openclaw_agent_id),
       ...(llm ? { llm } : {}),
     },
   );
