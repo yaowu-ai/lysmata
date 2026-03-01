@@ -9,7 +9,7 @@ const BUILTIN_PROVIDERS = [
     icon: "🚀",
     defaultModel: "gpt-4o",
     baseUrl: "https://api.openai.com/v1",
-    api: "openai",
+    api: "openai-completions",
   },
   {
     id: "anthropic",
@@ -17,7 +17,7 @@ const BUILTIN_PROVIDERS = [
     icon: "🧠",
     defaultModel: "claude-opus-4-6",
     baseUrl: "https://api.anthropic.com",
-    api: "anthropic",
+    api: "anthropic-messages",
   },
   {
     id: "groq",
@@ -25,7 +25,7 @@ const BUILTIN_PROVIDERS = [
     icon: "⚡",
     defaultModel: "llama-3.1-70b",
     baseUrl: "https://api.groq.com/openai/v1",
-    api: "openai",
+    api: "openai-completions",
   },
   {
     id: "moonshot",
@@ -33,7 +33,7 @@ const BUILTIN_PROVIDERS = [
     icon: "🌙",
     defaultModel: "moonshot-v1-8k",
     baseUrl: "https://api.moonshot.cn/v1",
-    api: "openai",
+    api: "openai-completions",
   },
 ] as const;
 
@@ -63,7 +63,8 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   const [cUrl, setCUrl] = useState("");
   const [cModel, setCModel] = useState("");
   const [cName, setCName] = useState("");
-  const [cApi, setCApi] = useState<"openai" | "anthropic">("openai");
+  const [cApiKey, setCApiKey] = useState("");
+  const [cApi, setCApi] = useState<"openai-completions" | "anthropic-messages">("openai-completions");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [initialized, setInitialized] = useState(false);
 
@@ -91,7 +92,8 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
             setActiveTab("custom");
             setCId(provider);
             setCUrl(providerConfig.baseUrl ?? "");
-            setCApi((providerConfig.api as "openai" | "anthropic") ?? "openai");
+            setCApi((providerConfig.api as "openai-completions" | "anthropic-messages") ?? "openai-completions");
+            if (providerConfig.apiKey) setCApiKey(MASKED_PLACEHOLDER);
             const firstModel = providerConfig.models?.[0];
             if (firstModel) {
               setCModel(firstModel.id);
@@ -114,9 +116,15 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
         setErrors(errs);
         throw new Error("请填写必填字段");
       }
+      const customKeyToSave = cApiKey === MASKED_PLACEHOLDER ? undefined : cApiKey || undefined;
       await apiClient.put("/settings/llm", {
         providers: {
-          [cId]: { baseUrl: cUrl, api: cApi, models: [{ id: cModel, name: cName || cModel }] },
+          [cId]: {
+            baseUrl: cUrl,
+            api: cApi,
+            ...(customKeyToSave !== undefined && { apiKey: customKeyToSave }),
+            models: [{ id: cModel, name: cName || cModel }],
+          },
         },
         defaultModel: { primary: `${cId}/${cModel}` },
       });
@@ -293,6 +301,20 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
               className={`w-full px-3 py-[9px] text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cUrl ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
             />
           </div>
+          <div className="mb-[18px]">
+            <label className="block text-[13px] font-medium mb-1.5">API Key</label>
+            <input
+              type="password"
+              value={cApiKey}
+              onChange={(e) => setCApiKey(e.target.value)}
+              onFocus={() => { if (cApiKey === MASKED_PLACEHOLDER) setCApiKey(""); }}
+              placeholder="sk-... 或留空（本地无鉴权服务）"
+              className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]"
+            />
+            <p className="text-xs text-[#64748B] mt-1">
+              支持环境变量引用，如 <span className="font-mono">${"{MY_API_KEY}"}</span>；本地服务可留空
+            </p>
+          </div>
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-[13px] font-medium mb-1.5">
@@ -309,11 +331,11 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
               <label className="block text-[13px] font-medium mb-1.5">API 类型</label>
               <select
                 value={cApi}
-                onChange={(e) => setCApi(e.target.value as "openai" | "anthropic")}
+                onChange={(e) => setCApi(e.target.value as "openai-completions" | "anthropic-messages")}
                 className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none"
               >
-                <option value="openai">OpenAI Compatible</option>
-                <option value="anthropic">Anthropic Compatible</option>
+                <option value="openai-completions">OpenAI Compatible</option>
+                <option value="anthropic-messages">Anthropic Compatible</option>
               </select>
             </div>
           </div>

@@ -11,20 +11,18 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
   const { data: existing, isLoading } = useGatewaySettings();
 
   const [port, setPort] = useState(18789);
-  const [bindAddr, setBindAddr] = useState("127.0.0.1");
+  const [bind, setBind] = useState<"loopback" | "lan">("loopback");
   const [authMode, setAuthMode] = useState<"none" | "token">("none");
   const [authToken, setAuthToken] = useState("");
-  const [autostart, setAutostart] = useState(true);
   const [initialized, setInitialized] = useState(false);
 
   // Prefill from backend on first load
   useEffect(() => {
     if (existing && !initialized) {
       setPort(existing.port);
-      setBindAddr(existing.bindAddress);
+      setBind(existing.bind);
       setAuthMode(existing.authMode);
       if (existing.authToken) setAuthToken(existing.authToken);
-      setAutostart(existing.autostart);
       setInitialized(true);
     }
   }, [existing, initialized]);
@@ -32,10 +30,9 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
   async function handleSave() {
     await apiClient.post("/openclaw/gateway-config", {
       port,
-      bindAddress: bindAddr,
+      bind,
       authMode,
       authToken: authMode === "token" ? authToken : undefined,
-      autostart,
     });
     onDone();
   }
@@ -84,14 +81,16 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
       <div className="flex gap-4 mb-[18px]">
         <div className="flex-1">
           <label className="block text-[13px] font-medium mb-1.5">绑定地址</label>
-          <input
-            type="text"
-            value={bindAddr}
-            onChange={(e) => setBindAddr(e.target.value)}
-            className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]"
-          />
+          <select
+            value={bind}
+            onChange={(e) => setBind(e.target.value as "loopback" | "lan")}
+            className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#93C5FD] appearance-none"
+          >
+            <option value="loopback">loopback（仅本地 127.0.0.1）</option>
+            <option value="lan">lan（局域网共享 0.0.0.0）</option>
+          </select>
           <p className="text-xs text-[#64748B] mt-1">
-            本地使用保持 127.0.0.1；局域网共享可设为 0.0.0.0
+            本地使用选 loopback；局域网共享选 lan
           </p>
         </div>
         <div className="flex-1">
@@ -135,21 +134,6 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
         </div>
       )}
 
-      <div className="flex items-center justify-between px-4 py-3.5 bg-[#FAFAFA] border border-[#E5E7EB] rounded-[10px]">
-        <div>
-          <div className="text-sm font-medium">开机自启 (Daemon)</div>
-          <div className="text-xs text-[#64748B] mt-0.5">让 Gateway 作为后台服务随系统启动</div>
-        </div>
-        <div className="cursor-pointer" onClick={() => setAutostart((v) => !v)}>
-          <div
-            className={`relative w-9 h-5 rounded-[10px] transition-colors ${autostart ? "bg-[#2563EB]" : "bg-[#CBD5E1]"}`}
-          >
-            <div
-              className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autostart ? "translate-x-[18px]" : "translate-x-0.5"}`}
-            />
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

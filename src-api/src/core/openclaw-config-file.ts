@@ -51,7 +51,9 @@ export interface OpenClawConfig {
   gateway?: {
     port?: number;
     mode?: string;
+    bind?: "loopback" | "lan" | "auto" | "custom" | "tailnet";
     auth?: { mode?: string; token?: string };
+    tailscale?: Record<string, unknown>;
   };
   tools?: Record<string, unknown>;
   channels?: Record<string, unknown>;
@@ -237,31 +239,30 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
 
 export interface GatewaySettings {
   port: number;
-  bindAddress: string;
+  /** "loopback" = 127.0.0.1（仅本地）；"lan" = 0.0.0.0（局域网共享） */
+  bind: "loopback" | "lan";
   authMode: "none" | "token";
   /** Auth token value; only present when authMode === "token" */
   authToken?: string;
-  autostart: boolean;
 }
 
 export interface GatewayConfigUpdate {
   port?: number;
-  bindAddress?: string;
+  bind?: "loopback" | "lan";
   authMode?: "none" | "token";
   authToken?: string;
-  autostart?: boolean;
 }
 
 export async function readGatewaySettings(): Promise<GatewaySettings> {
   const config = await readOpenClawConfig();
   const gw = config?.gateway as Record<string, unknown> | undefined;
   const auth = gw?.auth as { mode?: string; token?: string } | undefined;
+  const rawBind = gw?.bind;
   return {
     port: typeof gw?.port === "number" ? gw.port : 18789,
-    bindAddress: typeof gw?.bindAddress === "string" ? gw.bindAddress : "127.0.0.1",
+    bind: rawBind === "lan" ? "lan" : "loopback",
     authMode: auth?.mode === "token" ? "token" : "none",
     authToken: typeof auth?.token === "string" ? auth.token : undefined,
-    autostart: typeof gw?.autostart === "boolean" ? gw.autostart : true,
   };
 }
 
@@ -270,7 +271,14 @@ export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<
   const updated: OpenClawConfig = structuredClone(existing);
 
   updated.gateway ??= {};
+
+  // 清理 openclaw 已不再支持的旧字段
+  const gw = updated.gateway as Record<string, unknown>;
+  delete gw.bindAddress;
+  delete gw.autostart;
+
   if (update.port !== undefined) updated.gateway.port = update.port;
+  if (update.bind !== undefined) updated.gateway.bind = update.bind;
   if (update.authMode !== undefined || update.authToken !== undefined) {
     updated.gateway.auth = {
       ...updated.gateway.auth,
@@ -278,10 +286,6 @@ export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<
       ...(update.authToken !== undefined && { token: update.authToken }),
     };
   }
-  if (update.bindAddress !== undefined)
-    (updated.gateway as Record<string, unknown>).bindAddress = update.bindAddress;
-  if (update.autostart !== undefined)
-    (updated.gateway as Record<string, unknown>).autostart = update.autostart;
 
   updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
   await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));

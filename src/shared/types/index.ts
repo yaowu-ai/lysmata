@@ -88,11 +88,11 @@ export interface SendMessageInput {
 // ── Gateway Settings ─────────────────────────────────────────────
 export interface GatewaySettings {
   port: number;
-  bindAddress: string;
+  /** "loopback" = 127.0.0.1（仅本地）；"lan" = 0.0.0.0（局域网共享） */
+  bind: "loopback" | "lan";
   authMode: "none" | "token";
   /** Auth token value; only present when authMode === "token" */
   authToken?: string;
-  autostart: boolean;
 }
 
 // ── LLM Settings ────────────────────────────────────────────────

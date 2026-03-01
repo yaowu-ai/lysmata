@@ -275,9 +275,9 @@ app.post("/install", async (c) => {
 app.post("/gateway-config", async (c) => {
   const body = await c.req.json<{
     port?: number;
-    bindAddress?: string;
+    bind?: "loopback" | "all";
     authMode?: "none" | "token";
-    autostart?: boolean;
+    authToken?: string;
   }>();
   await updateGatewayConfig(body);
   return c.json({ ok: true });

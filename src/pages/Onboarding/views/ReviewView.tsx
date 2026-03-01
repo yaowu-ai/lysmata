@@ -33,9 +33,8 @@ export function ReviewView({ skippedSteps, onRegisterSubmit, onDone }: Props) {
   const diffLines: { key: string; value: string }[] = [];
   if (gatewaySettings) {
     diffLines.push({ key: "gateway.port", value: String(gatewaySettings.port) });
-    diffLines.push({ key: "gateway.bindAddress", value: gatewaySettings.bindAddress });
+    diffLines.push({ key: "gateway.bind", value: gatewaySettings.bind });
     diffLines.push({ key: "gateway.auth.mode", value: gatewaySettings.authMode });
-    diffLines.push({ key: "gateway.autostart", value: String(gatewaySettings.autostart) });
   }
   if (llmSettings?.defaultModel.primary) {
     diffLines.push({ key: "agents.defaults.model.primary", value: llmSettings.defaultModel.primary });
