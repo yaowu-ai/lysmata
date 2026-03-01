@@ -16,7 +16,7 @@
 
 - AC1：每张卡片显示：Bot 名称、Emoji 头像、能力描述、连接状态徽章；卡片中部以 mono 字体展示 Gateway URL；卡片底部信息条展示 LLM provider/model（Cpu 图标）、MCP server 数量（Puzzle 图标）、Skills 前 3 条名称（Zap 图标）；当存在挂起节点请求时，Activity 按钮右上角显示红色数字角标
 - AC2：连接状态以四态指示（connected 绿 / disconnected 灰 / connecting 黄脉冲动画 / error 红）
-- AC3：【未实现 · Backlog】列表支持搜索过滤，按名称/描述实时筛选
+- AC3：列表支持搜索过滤，按名称/描述实时筛选（输入框聚焦时自动展宽，无结果时显示提示和"清除搜索"按钮）
 
 ---
 
@@ -62,8 +62,8 @@
 **优先级**：P0
 **验收标准（AC）**：
 
-- AC1：【未实现】点击删除时弹出二次确认对话框
-- AC2：【未实现】若 Bot 有活跃会话，确认框额外提示"该 Bot 存在进行中的对话，删除后相关数据将保留"
+- AC1：点击删除时弹出二次确认对话框（模态遮罩，含 Bot 名称和不可撤销提示）
+- AC2：若 Bot 有活跃会话（查询 `GET /bots/:id/conversations-count`），确认框展示橙色警告横幅："该 Bot 存在进行中的对话，删除后相关对话记录将保留，但 Bot 将无法继续响应"
 - AC3：确认删除后从列表移除（`DELETE /bots/:id` 级联删除 conversation_bots）
 
 ---
@@ -79,7 +79,7 @@
 
 - AC1：Bot 卡片上有 Wifi 图标测试按钮；编辑抽屉连接 Tab 内有"测试连接"文字按钮
 - AC2：点击后卡片按钮 disabled + 半透明；抽屉内按钮文字变为"测试中…"；同时 Bot connection_status 切换为 connecting（脉冲动画）
-- AC3：连接成功时抽屉内显示绿色结果框（成功消息）；【未实现 RTT】当前不显示 RTT 延迟，计划后续添加
+- AC3：连接成功时抽屉内显示绿色结果框，包含成功消息和 RTT 延迟（如 `· 42 ms`，以 mono 字体展示）
 - AC4：连接失败时显示红色结果框和具体错误消息
 
 ---
@@ -95,7 +95,7 @@
 
 - AC1：AppLayout 挂载时通过 `useGlobalStream` hook 订阅 `GET /bots/global-stream` SSE 端点，接收 Gateway 推送的 presence、health、heartbeat、shutdown、node_pair_requested/resolved、cron 等事件
 - AC2：事件按 botId 精确路由写入 Zustand `app-store`（`botStatuses` 字段），卡片状态指示灯无感刷新；connecting 状态以 `animate-pulse` 脉冲动画标识
-- AC3：【未实现】Bot 异常断线时系统托盘图标变化并发送桌面通知
+- AC3：Bot Gateway 关闭（shutdown 事件）时触发浏览器桌面通知（`window.Notification`），首次使用时自动申请权限；通知标题"Bot 已断线"，正文含 Bot 名称与 Emoji
 
 ---
 

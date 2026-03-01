@@ -74,7 +74,11 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
   const [agentId, setAgentId] = useState("main");
   const [wsToken, setWsToken] = useState("");
 
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    rttMs?: number;
+  } | null>(null);
   const [applyResult, setApplyResult] = useState<RemoteConfigResult | null>(null);
 
   // Track whether we already merged remote config for this open session (avoid re-merging on re-renders)
@@ -508,7 +512,14 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
                       )}
                     >
                       {testResult.success ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                      {testResult.message}
+                      <span>
+                        {testResult.message}
+                        {testResult.success && testResult.rttMs !== undefined && (
+                          <span className="ml-1.5 font-mono text-[12px] opacity-75">
+                            · {testResult.rttMs} ms
+                          </span>
+                        )}
+                      </span>
                     </div>
                   )}
                 </div>

@@ -68,12 +68,14 @@ export const OpenAIHttpAdapter = {
   async testConnection(
     baseUrl: string,
     token?: string,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; rttMs?: number }> {
+    const start = Date.now();
     try {
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
       const res = await fetch(`${toHttpBase(baseUrl)}/v1/models`, { headers });
-      if (res.ok) return { success: true, message: "连接成功（HTTP API）" };
+      const rttMs = Date.now() - start;
+      if (res.ok) return { success: true, message: "连接成功（HTTP API）", rttMs };
       return { success: false, message: `HTTP ${res.status}: ${res.statusText}` };
     } catch (err) {
       return { success: false, message: String(err) };

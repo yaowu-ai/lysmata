@@ -75,7 +75,10 @@ export function useDeleteBot() {
 export function useTestBotConnection() {
   return useMutation({
     mutationFn: (id: string) =>
-      apiClient.post<{ success: boolean; message: string }>(`/bots/${id}/test-connection`, {}),
+      apiClient.post<{ success: boolean; message: string; rttMs?: number }>(
+        `/bots/${id}/test-connection`,
+        {},
+      ),
   });
 }
 
@@ -85,6 +88,20 @@ export function useApplyBotConfig() {
     mutationFn: (id: string) =>
       apiClient.post<{ success: boolean; message: string }>(`/bots/${id}/apply-config`, {}),
     onSuccess: () => qc.invalidateQueries({ queryKey: botKeys.all }),
+  });
+}
+
+/**
+ * Returns the number of conversations this bot is participating in.
+ * Used to show a warning when the user attempts to delete a bot with active conversations.
+ */
+export function useBotConversationsCount(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["bots", id, "conversations-count"] as const,
+    queryFn: () => apiClient.get<{ count: number }>(`/bots/${id}/conversations-count`),
+    enabled: enabled && !!id,
+    retry: false,
+    staleTime: 0,
   });
 }
 

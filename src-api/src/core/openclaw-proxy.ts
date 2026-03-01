@@ -237,7 +237,7 @@ export const OpenClawProxy = {
   async testConnection(
     url: string,
     token?: string,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; rttMs?: number }> {
     if (isWsUrl(url)) return GatewayWSAdapter.testConnection(url, token);
     return OpenAIHttpAdapter.testConnection(url, token);
   },

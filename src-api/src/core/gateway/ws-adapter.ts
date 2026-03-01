@@ -436,12 +436,14 @@ export const GatewayWSAdapter = {
   async testConnection(
     url: string,
     token?: string,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<{ success: boolean; message: string; rttMs?: number }> {
+    const start = Date.now();
     try {
       const entry = await connectWS(url, token);
+      const rttMs = Date.now() - start;
       teardown(url, entry, new Error("test complete"), true);
       entry.ws.close();
-      return { success: true, message: "连接成功（握手完成）" };
+      return { success: true, message: "连接成功（握手完成）", rttMs };
     } catch (err) {
       return { success: false, message: String(err) };
     }

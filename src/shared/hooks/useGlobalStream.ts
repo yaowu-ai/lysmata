@@ -3,10 +3,34 @@ import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../../config";
 import { useAppStore } from "../store/app-store";
 import { botKeys } from "./useBots";
+import type { Bot } from "../types";
+
+/** Request notification permission once and return whether it was granted. */
+async function requestNotificationPermission(): Promise<boolean> {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission === "granted") return true;
+  if (Notification.permission === "denied") return false;
+  const result = await Notification.requestPermission();
+  return result === "granted";
+}
+
+function showDesktopNotification(title: string, body: string) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  new Notification(title, {
+    body,
+    icon: "/icons/128x128.png",
+    tag: `bot-status-${Date.now()}`,
+  });
+}
 
 export function useGlobalStream() {
   const qc = useQueryClient();
   const storeRef = useRef(useAppStore.getState);
+
+  // Request notification permission on mount (non-blocking)
+  useEffect(() => {
+    void requestNotificationPermission();
+  }, []);
 
   useEffect(() => {
     const url = `${API_BASE_URL}/bots/global-stream`;
@@ -82,8 +106,16 @@ export function useGlobalStream() {
         case "shutdown":
           if (botId) {
             setBotStatus(botId, { isShutdown: true });
+            // Desktop notification for bot-specific shutdown
+            const cachedBots = qc.getQueryData<Bot[]>(botKeys.all);
+            const shutdownBot = cachedBots?.find((b) => b.id === botId);
+            showDesktopNotification(
+              "Bot 已断线",
+              shutdownBot ? `${shutdownBot.avatar_emoji} ${shutdownBot.name} 的 Gateway 已关闭` : "一个 Bot 的 Gateway 已关闭",
+            );
           } else {
             setShutdown(true);
+            showDesktopNotification("系统通知", "OpenClaw Gateway 已关闭");
           }
           qc.invalidateQueries();
           break;

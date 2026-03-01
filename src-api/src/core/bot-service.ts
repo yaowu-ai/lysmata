@@ -137,4 +137,14 @@ export const BotService = {
     const info = db.run("DELETE FROM bots WHERE id = ?", [id]);
     return info.changes > 0;
   },
+
+  /** Returns the number of conversations this bot is participating in. */
+  conversationCount(id: string): number {
+    const row = getDb()
+      .query<{ count: number }, [string]>(
+        "SELECT COUNT(*) as count FROM conversation_bots WHERE bot_id = ?",
+      )
+      .get(id);
+    return row?.count ?? 0;
+  },
 };

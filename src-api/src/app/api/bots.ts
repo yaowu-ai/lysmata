@@ -81,6 +81,13 @@ bots.delete("/:id", (c) => {
   return c.json({ success: true });
 });
 
+bots.get("/:id/conversations-count", (c) => {
+  const bot = BotService.findById(c.req.param("id"));
+  if (!bot) throw notFound("Bot");
+  const count = BotService.conversationCount(c.req.param("id"));
+  return c.json({ count });
+});
+
 bots.get("/:id/remote-config", async (c) => {
   const bot = BotService.findById(c.req.param("id"));
   if (!bot) throw notFound("Bot");
