@@ -14,6 +14,13 @@ import {
 } from "./connection-pool";
 import type { PoolEntry, GatewayFrame, GatewayEvent, GatewayResponse, PushEvent } from "./types";
 
+/**
+ * In-flight connection attempts keyed by URL.
+ * Prevents concurrent connectWS() races that can create duplicate sockets
+ * and duplicate event delivery for the same gateway URL.
+ */
+const connectingPool = new Map<string, Promise<PoolEntry>>();
+
 // ── Connect params builder ──────────────────────────────────────────────────
 
 /**
@@ -264,13 +271,33 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
   // Post-handshake: wire persistent handlers
   ws.onmessage = (ev) => handleFrame(entry, ev.data as string);
   ws.onerror = () => {
+    if (pool.get(url) !== entry) {
+      GatewayLogger.logSystem(url, "WebSocket error on stale entry, skipping teardown");
+      return;
+    }
     GatewayLogger.logSystem(url, "WebSocket error");
     teardown(url, entry, new Error("WebSocket error"));
   };
   ws.onclose = () => {
+    if (pool.get(url) !== entry) {
+      GatewayLogger.logSystem(url, "WebSocket closed on stale entry, skipping teardown");
+      return;
+    }
     GatewayLogger.logSystem(url, "WebSocket closed");
     teardown(url, entry, new Error("WebSocket closed"));
   };
+
+  // If another entry won the race and is already active for this URL, keep the
+  // active one and close this duplicate socket to avoid duplicate push delivery.
+  const existing = pool.get(url);
+  if (existing && existing !== entry) {
+    if (entry.heartbeatTimer) clearInterval(entry.heartbeatTimer);
+    entry.readyWaiters.forEach((w) => w.reject(new Error("Duplicate connection replaced")));
+    entry.readyWaiters.length = 0;
+    ws.close();
+    GatewayLogger.logSystem(url, "duplicate connection detected, closed newly connected socket");
+    return existing;
+  }
 
   pool.set(url, entry);
 
@@ -298,7 +325,18 @@ export async function getOrCreateWSConnection(url: string, token?: string): Prom
     // Dead — remove and reconnect
     pool.delete(url);
   }
-  return connectWS(url, token);
+
+  const inflight = connectingPool.get(url);
+  if (inflight) return inflight;
+
+  const connectPromise = connectWS(url, token).finally(() => {
+    if (connectingPool.get(url) === connectPromise) {
+      connectingPool.delete(url);
+    }
+  });
+
+  connectingPool.set(url, connectPromise);
+  return connectPromise;
 }
 
 // ── GatewayWSAdapter public API ─────────────────────────────────────────────
