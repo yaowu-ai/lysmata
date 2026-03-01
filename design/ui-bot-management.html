@@ -747,6 +747,7 @@
           </p>
         </div>
         <div style="display: flex; align-items: center; gap: 12px">
+          <!-- 搜索框：US-02-01 AC3【设计目标态，当前代码未实现】 -->
           <div class="search-wrap">
             <svg
               width="14"
@@ -907,11 +908,11 @@
             </svg>
           </button>
         </div>
-        <!-- Tabs -->
+        <!-- Tabs（顺序与代码 TABS = ["基础", "MCP", "Skills", "连接"] 保持一致） -->
         <div style="display: flex; gap: 0; margin: 0 -1px">
           <div class="tab-item active" id="tab-basic" onclick="switchTab('basic')">基础信息</div>
-          <div class="tab-item" id="tab-skills" onclick="switchTab('skills')">Skills</div>
           <div class="tab-item" id="tab-mcp" onclick="switchTab('mcp')">MCP</div>
+          <div class="tab-item" id="tab-skills" onclick="switchTab('skills')">Skills</div>
           <div class="tab-item" id="tab-conn" onclick="switchTab('conn')">连接</div>
         </div>
       </div>
@@ -1038,106 +1039,21 @@
           </div>
         </div>
 
-        <!-- Skills Tab -->
-        <div id="panel-skills" style="display: none">
-          <div style="margin-bottom: 16px">
-            <label class="form-label">已配置技能</label>
-            <p class="form-hint" style="margin-top: 0; margin-bottom: 12px">
-              技能描述会在群聊时注入给其他 Bot，帮助主 Bot 理解协作能力
-            </p>
-            <div
-              id="skills-list"
-              style="
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-                min-height: 40px;
-                padding: 12px;
-                border: 1px dashed var(--border);
-                border-radius: 10px;
-                background: #fafafa;
-              "
-            ></div>
-          </div>
-          <div style="display: flex; gap: 8px">
-            <input
-              id="skill-input"
-              class="form-input"
-              type="text"
-              placeholder="输入技能名称，回车添加..."
-              style="flex: 1"
-              onkeydown="if (event.key === 'Enter') addSkill();"
-            />
-            <button class="btn-primary" onclick="addSkill()" style="padding: 8px 14px">添加</button>
-          </div>
-          <div
-            style="
-              margin-top: 16px;
-              padding: 12px 14px;
-              background: #eff6ff;
-              border-radius: 8px;
-              border: 1px solid #bfdbfe;
-            "
-          >
-            <p style="font-size: 12px; color: #1e40af; margin: 0; line-height: 1.6">
-              <strong>提示：</strong>技能示例：「代码审查」「TypeScript 优化」「SQL
-              性能分析」「多语言文献检索」
-            </p>
-          </div>
-        </div>
-
-        <!-- MCP Tab -->
+        <!-- MCP Tab（顺序调整：MCP 在 Skills 之前，与代码一致） -->
         <div id="panel-mcp" style="display: none">
+          <!-- 远程配置同步横幅 -->
+          <div id="mcp-sync-banner" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:1px solid #FDE68A;background:#FFFBEB;margin-bottom:14px;font-size:12px;color:#92400E;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+            <span id="mcp-sync-text">正在从 Gateway 拉取远程配置…</span>
+          </div>
           <div style="margin-bottom: 12px">
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 8px;
-              "
-            >
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
               <div style="display: flex; align-items: center; gap: 8px">
                 <label class="form-label" style="margin: 0">MCP 配置</label>
-                <span
-                  style="
-                    font-size: 10px;
-                    font-weight: 600;
-                    padding: 2px 7px;
-                    border-radius: 20px;
-                    background: #1e293b;
-                    color: #94a3b8;
-                    font-family: &quot;JetBrains Mono&quot;, monospace;
-                  "
-                  >JSON</span
-                >
+                <span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;background:#1e293b;color:#94a3b8;font-family:'JetBrains Mono',monospace;">JSON</span>
               </div>
-              <button
-                onclick="formatJson()"
-                style="
-                  font-size: 12px;
-                  color: var(--primary);
-                  background: none;
-                  border: none;
-                  cursor: pointer;
-                  padding: 0;
-                  display: flex;
-                  align-items: center;
-                  gap: 4px;
-                "
-              >
-                <svg
-                  width="11"
-                  height="11"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                >
-                  <polyline points="16 18 22 12 16 6" />
-                  <polyline points="8 6 2 12 8 18" />
-                </svg>
+              <button onclick="formatJson()" style="font-size:12px;color:var(--primary);background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center;gap:4px;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                 格式化
               </button>
             </div>
@@ -1156,97 +1072,94 @@
       }
     }
   }
-}</textarea
-            >
+}</textarea>
           </div>
-          <div
-            id="json-error"
-            style="
-              display: none;
-              padding: 8px 12px;
-              background: #fef2f2;
-              border-radius: 6px;
-              font-size: 12px;
-              color: #b91c1c;
-              border: 1px solid #fecaca;
-            "
-          ></div>
+          <div id="json-error" style="display:none;padding:8px 12px;background:#fef2f2;border-radius:6px;font-size:12px;color:#b91c1c;border:1px solid #fecaca;"></div>
           <p class="form-hint">遵循 MCP 标准配置格式，留空表示不配置 MCP</p>
+        </div>
+
+        <!-- Skills Tab（每条 skill 含名称 + 描述，与代码 SkillConfig 结构一致） -->
+        <div id="panel-skills" style="display: none">
+          <!-- 远程配置同步横幅 -->
+          <div id="skills-sync-banner" style="display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;border:1px solid #BBF7D0;background:#F0FDF4;margin-bottom:14px;font-size:12px;color:#15803D;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            <span>已与 Gateway 远程配置同步</span>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="form-label">已配置技能</label>
+            <p class="form-hint" style="margin-top:0;margin-bottom:12px;">
+              每条技能包含名称和描述，群聊时会将描述注入给其他 Bot，帮助主 Bot 理解协作能力
+            </p>
+            <!-- Skill entries list -->
+            <div id="skills-list" style="display:flex;flex-direction:column;gap:10px;margin-bottom:12px;"></div>
+            <!-- Add new skill row -->
+            <div style="border:1px dashed var(--border);border-radius:10px;padding:14px;background:#FAFAFA;">
+              <p style="font-size:12px;font-weight:500;color:var(--text-muted);margin:0 0 8px;">添加新技能</p>
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <input id="skill-name-input" class="form-input" type="text" placeholder="技能名称（例如：代码审查）" />
+                <textarea id="skill-desc-input" class="form-input form-textarea" style="min-height:60px;" placeholder="技能描述（群聊时注入给其他 Bot）"></textarea>
+                <button class="btn-primary" onclick="addSkill()" style="align-self:flex-end;padding:7px 14px;font-size:13px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                  添加技能
+                </button>
+              </div>
+            </div>
+          </div>
+          <div style="padding:10px 12px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe;">
+            <p style="font-size:12px;color:#1e40af;margin:0;line-height:1.6;">
+              <strong>提示：</strong>技能示例：「代码审查 — 对提交代码进行静态分析」「TypeScript 优化 — 类型系统设计与重构」
+            </p>
+          </div>
         </div>
 
         <!-- Connection Tab -->
         <div id="panel-conn" style="display: none">
-          <div style="margin-bottom: 20px">
-            <label class="form-label"
-              >OpenClaw WebSocket 地址 <span style="color: #ef4444">*</span></label
-            >
-            <input
-              id="input-ws-url"
-              class="form-input"
-              type="text"
-              placeholder="ws://localhost:18789/ws"
-            />
-            <p class="form-hint">OpenClaw Agent 实例的 WebSocket 接入地址</p>
+          <div style="margin-bottom: 18px">
+            <label class="form-label">OpenClaw WebSocket 地址 <span style="color: #ef4444">*</span></label>
+            <input id="input-ws-url" class="form-input" type="text" placeholder="ws://localhost:18789/ws" />
+            <p class="form-hint">支持 ws:// / wss:// / http:// / https://，端口内嵌在地址中</p>
+          </div>
+          <div style="margin-bottom: 18px">
+            <label class="form-label">Agent ID</label>
+            <input id="input-agent-id" class="form-input" type="text" placeholder="main" value="main" />
+            <p class="form-hint">连接到 Gateway 时使用的 Agent 标识符，默认 <code style="font-family:monospace;background:#F1F5F9;padding:1px 5px;border-radius:3px;">main</code></p>
           </div>
           <div style="margin-bottom: 24px">
             <label class="form-label">鉴权 Token</label>
-            <input
-              id="input-token"
-              class="form-input"
-              type="password"
-              placeholder="Bearer Token（可选）"
-            />
+            <input id="input-token" class="form-input" type="password" placeholder="Bearer Token（可选）" />
             <p class="form-hint">留空则不发送 Authorization 头</p>
           </div>
 
           <!-- Connection Test Card -->
-          <div
-            style="
-              border: 1px solid var(--border);
-              border-radius: 10px;
-              padding: 16px;
-              background: #fafafa;
-            "
-          >
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 12px;
-              "
-            >
+          <div style="border:1px solid var(--border);border-radius:10px;padding:16px;background:#fafafa;margin-bottom:14px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
               <div>
-                <p style="font-size: 14px; font-weight: 500; margin: 0">连接测试</p>
-                <p style="font-size: 12px; color: var(--text-muted); margin: 3px 0 0">
-                  验证 WebSocket 地址是否可达
-                </p>
+                <p style="font-size:14px;font-weight:500;margin:0;">连接测试</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:3px 0 0;">验证 WebSocket 地址是否可达</p>
               </div>
-              <button
-                id="test-btn"
-                onclick="testConnection()"
-                class="btn-primary"
-                style="padding: 7px 14px; font-size: 13px"
-              >
-                <svg
-                  id="test-icon"
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
+              <button id="test-btn" onclick="testConnection()" class="btn-primary" style="padding:7px 14px;font-size:13px;">
+                <svg id="test-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
                 测试连接
               </button>
             </div>
-            <div
-              id="conn-result"
-              style="display: none; padding: 10px 12px; border-radius: 7px; font-size: 13px"
-            ></div>
+            <div id="conn-result" style="display:none;padding:10px 12px;border-radius:7px;font-size:13px;"></div>
+          </div>
+
+          <!-- Apply Config Card（仅编辑模式展示） -->
+          <div id="apply-config-card" style="display:none;border:1px solid var(--border);border-radius:10px;padding:16px;background:#fafafa;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <div>
+                <p style="font-size:14px;font-weight:500;margin:0;">推送配置到 Gateway</p>
+                <p style="font-size:12px;color:var(--text-muted);margin:3px 0 0;">将 LLM / MCP 配置写入 Gateway 配置文件</p>
+              </div>
+              <button id="apply-btn" onclick="applyConfig()" class="btn-secondary" style="padding:7px 14px;font-size:13px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                推送配置
+              </button>
+            </div>
+            <div id="apply-result" style="display:none;padding:10px 12px;border-radius:7px;font-size:13px;"></div>
           </div>
         </div>
       </div>
@@ -1320,10 +1233,19 @@
           avClass: "av-blue",
           description: "专注于代码审查与最佳实践建议，擅长 TypeScript / Python / Rust 架构设计",
           status: "connected",
-          skills: ["代码审查", "TypeScript", "Python", "架构设计"],
+          skills: [
+            { name: "代码审查", description: "对提交的代码进行静态分析和最佳实践建议" },
+            { name: "TypeScript", description: "TypeScript 类型系统设计与架构优化" },
+            { name: "Python", description: "Python 后端开发与性能调优" },
+            { name: "架构设计", description: "分层架构、微服务拆分与接口设计" },
+          ],
           wsUrl: "ws://localhost:18789/ws",
+          agentId: "main",
           token: "",
           isActive: true,
+          llm: { provider: "OpenAI", model: "gpt-4o" },
+          mcpServersCount: 1,
+          pendingNodeRequests: 2,
           mcpConfig:
             '{\n  "mcpServers": {\n    "filesystem": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-filesystem"]\n    }\n  }\n}',
         },
@@ -1334,10 +1256,18 @@
           avClass: "av-green",
           description: "学术文献检索与总结专家，支持中英日多语言文献分析与结构化摘要输出",
           status: "disconnected",
-          skills: ["文献检索", "多语言摘要", "数据提取"],
+          skills: [
+            { name: "文献检索", description: "跨库学术文献搜索与相关度排序" },
+            { name: "多语言摘要", description: "中英日三语文献摘要提取与翻译" },
+            { name: "数据提取", description: "从 PDF / HTML 中结构化提取实验数据" },
+          ],
           wsUrl: "ws://localhost:18790/ws",
+          agentId: "main",
           token: "",
           isActive: false,
+          llm: { provider: "Anthropic", model: "claude-3-5-sonnet" },
+          mcpServersCount: 0,
+          pendingNodeRequests: 0,
           mcpConfig: "{}",
         },
         {
@@ -1347,10 +1277,19 @@
           avClass: "av-purple",
           description: "数据分析与可视化助手，支持 Python / R / SQL，可生成 ECharts / D3 图表代码",
           status: "connected",
-          skills: ["数据分析", "Python", "SQL", "ECharts可视化"],
+          skills: [
+            { name: "数据分析", description: "统计建模与探索性数据分析" },
+            { name: "Python", description: "Pandas / NumPy 数据处理管线" },
+            { name: "SQL", description: "复杂查询优化与窗口函数" },
+            { name: "ECharts可视化", description: "生成可交互的 ECharts / D3 图表代码" },
+          ],
           wsUrl: "ws://localhost:18791/ws",
+          agentId: "data-agent",
           token: "Bearer sk-xxx",
           isActive: true,
+          llm: { provider: "OpenAI", model: "gpt-4o-mini" },
+          mcpServersCount: 1,
+          pendingNodeRequests: 0,
           mcpConfig:
             '{\n  "mcpServers": {\n    "sqlite": {\n      "command": "npx",\n      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "/data/app.db"]\n    }\n  }\n}',
         },
@@ -1361,17 +1300,25 @@
           avClass: "av-amber",
           description: "UI/UX 设计反馈与组件生成，擅长 Tailwind / shadcn/ui 风格的 React 组件设计",
           status: "error",
-          skills: ["UI设计", "React组件", "Tailwind", "shadcn/ui"],
+          skills: [
+            { name: "UI设计", description: "组件视觉规范检查与设计建议" },
+            { name: "React组件", description: "生成符合最佳实践的 React 函数组件" },
+            { name: "Tailwind", description: "Tailwind CSS 工具类优化与响应式布局" },
+          ],
           wsUrl: "ws://localhost:18792/ws",
+          agentId: "main",
           token: "",
           isActive: true,
+          llm: { provider: "Google", model: "gemini-2.0-flash" },
+          mcpServersCount: 0,
+          pendingNodeRequests: 1,
           mcpConfig: "{}",
         },
       ];
 
       let currentBotId = null;
       let currentTab = "basic";
-      let skills = [];
+      let skills = []; // Array of { name, description }
       let isActive = true;
 
       const statusConfig = {
@@ -1402,43 +1349,70 @@
 
       function createBotCard(bot) {
         const sc = statusConfig[bot.status];
+        const skillNames = bot.skills.slice(0, 3).map((s) => s.name).join("  ·  ");
+        const extraSkills = bot.skills.length > 3 ? `  +${bot.skills.length - 3}` : "";
         const div = document.createElement("div");
         div.className = "bot-card";
         div.style.cssText =
-          "background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;display:flex;align-items:center;gap:16px;";
+          "background:#fff;border:1px solid var(--border);border-radius:12px;padding:16px 18px 14px;display:flex;flex-direction:column;gap:0;";
         div.innerHTML = `
-    <!-- Avatar -->
-    <div style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;" class="${bot.avClass}">${bot.emoji}</div>
-    <!-- Info -->
-    <div style="flex:1;min-width:0;">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-        <span style="font-size:15px;font-weight:600;">${bot.name}</span>
-        <span class="badge ${sc.cls}">
-          <span class="dot ${sc.dotCls}"></span>
-          ${sc.label}
-        </span>
-        ${!bot.isActive ? '<span style="font-size:11px;color:#94A3B8;background:#F8FAFC;border:1px solid #E2E8F0;padding:1px 8px;border-radius:20px;">已停用</span>' : ""}
+    <!-- Top row: avatar + info + actions -->
+    <div style="display:flex;align-items:flex-start;gap:14px;">
+      <!-- Avatar -->
+      <div style="width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;margin-top:2px;" class="${bot.avClass}">${bot.emoji}</div>
+      <!-- Info -->
+      <div style="flex:1;min-width:0;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;">
+          <span style="font-size:15px;font-weight:600;">${bot.name}</span>
+          <span class="badge ${sc.cls}">
+            <span class="dot ${sc.dotCls}"></span>
+            ${sc.label}
+          </span>
+          ${!bot.isActive ? '<span style="font-size:11px;color:#94A3B8;background:#F8FAFC;border:1px solid #E2E8F0;padding:1px 8px;border-radius:20px;">已停用</span>' : ""}
+        </div>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${bot.description}</p>
+        <p style="font-size:11.5px;color:#94A3B8;font-family:'JetBrains Mono',monospace;margin:0;">${bot.wsUrl}</p>
       </div>
-      <p style="font-size:13px;color:var(--text-muted);margin:0 0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:560px;">${bot.description}</p>
-      <div style="display:flex;flex-wrap:wrap;gap:5px;">
-        ${bot.skills
-          .slice(0, 4)
-          .map((s) => `<span class="skill-tag" style="cursor:default;">${s}</span>`)
-          .join("")}
-        ${bot.skills.length > 4 ? `<span style="font-size:12px;color:var(--text-muted);padding:3px 6px;">+${bot.skills.length - 4}</span>` : ""}
+      <!-- Actions -->
+      <div style="display:flex;align-items:center;gap:2px;flex-shrink:0;">
+        <!-- Activity button with pending badge -->
+        <div style="position:relative;">
+          <button class="action-btn" onclick="alert('跳转到 Bot 状态详情页')" title="Bot 状态">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </button>
+          ${bot.pendingNodeRequests > 0 ? `<span style="position:absolute;top:-3px;right:-3px;min-width:16px;height:16px;background:#EF4444;color:#fff;font-size:10px;font-weight:700;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;line-height:1;">${bot.pendingNodeRequests}</span>` : ""}
+        </div>
+        <!-- Test connection -->
+        <button class="action-btn" id="test-card-btn-${bot.id}" onclick="testBotConn('${bot.id}')" title="测试连接">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+        </button>
+        <!-- Edit -->
+        <button class="action-btn" onclick="openDrawer('edit','${bot.id}')" title="编辑">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <!-- Delete -->
+        <button class="action-btn danger" onclick="deleteBot('${bot.id}')" title="删除">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        </button>
       </div>
     </div>
-    <!-- Actions -->
-    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
-      <button class="action-btn" onclick="openDrawer('edit','${bot.id}')" title="编辑">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>
-      <button class="action-btn" onclick="testBotConn('${bot.id}')" title="测试连接">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 6s0 0 5-5 13 0 13 0M1 10s0 0 5-5 13 0 13 0M5 15l2 2 4-4M1 6v12"/></svg>
-      </button>
-      <button class="action-btn danger" onclick="confirmDelete('${bot.id}')" title="删除">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-      </button>
+    <!-- Bottom info strip -->
+    <div style="display:flex;align-items:center;gap:16px;margin-top:10px;padding-top:10px;border-top:1px solid #F1F5F9;">
+      <!-- LLM -->
+      <div style="display:flex;align-items:center;gap:5px;color:#64748B;font-size:12px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2M15 20v2M2 15h2M20 15h2M2 9h2M20 9h2M9 2v2M9 20v2"/></svg>
+        <span>${bot.llm.provider} · ${bot.llm.model}</span>
+      </div>
+      <!-- MCP -->
+      <div style="display:flex;align-items:center;gap:5px;color:#64748B;font-size:12px;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"/><line x1="16" y1="8" x2="2" y2="22"/><line x1="17.5" y1="15" x2="9" y2="15"/></svg>
+        <span>MCP · ${bot.mcpServersCount} 个服务</span>
+      </div>
+      <!-- Skills -->
+      <div style="display:flex;align-items:center;gap:5px;color:#64748B;font-size:12px;min-width:0;overflow:hidden;">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${skillNames}${extraSkills}</span>
+      </div>
     </div>`;
         return div;
       }
@@ -1457,12 +1431,16 @@
           document.getElementById("input-name").value = bot.name;
           document.getElementById("input-desc").value = bot.description;
           document.getElementById("input-ws-url").value = bot.wsUrl;
+          document.getElementById("input-agent-id").value = bot.agentId || "main";
           document.getElementById("input-token").value = bot.token;
           document.getElementById("mcp-editor").value = bot.mcpConfig;
-          skills = [...bot.skills];
+          skills = bot.skills.map((s) => ({ name: s.name, description: s.description }));
           isActive = bot.isActive;
           document.getElementById("delete-btn").style.display = "block";
+          document.getElementById("apply-config-card").style.display = "block";
           emojiIdx = EMOJIS.indexOf(bot.emoji);
+          // 模拟远程配置同步状态：加载中
+          simulateRemoteSync();
         } else {
           document.getElementById("drawer-title").textContent = "新建 Bot";
           document.getElementById("drawer-subtitle").textContent = "配置 Bot 的基础信息和连接参数";
@@ -1472,12 +1450,17 @@
           document.getElementById("input-name").value = "";
           document.getElementById("input-desc").value = "";
           document.getElementById("input-ws-url").value = "";
+          document.getElementById("input-agent-id").value = "main";
           document.getElementById("input-token").value = "";
           document.getElementById("mcp-editor").value = '{\n  "mcpServers": {}\n}';
           skills = [];
           isActive = true;
           emojiIdx = 0;
           document.getElementById("delete-btn").style.display = "none";
+          document.getElementById("apply-config-card").style.display = "none";
+          // 新建模式隐藏同步横幅
+          document.getElementById("mcp-sync-banner").style.display = "none";
+          document.getElementById("skills-sync-banner").style.display = "none";
         }
         updateToggle(isActive);
         renderSkills();
@@ -1486,6 +1469,35 @@
         document.getElementById("backdrop").classList.add("open");
         document.getElementById("drawer").classList.add("open");
         document.getElementById("conn-result").style.display = "none";
+        document.getElementById("apply-result").style.display = "none";
+      }
+
+      function simulateRemoteSync() {
+        const mcpBanner = document.getElementById("mcp-sync-banner");
+        const mcpText = document.getElementById("mcp-sync-text");
+        // 加载中（黄色）
+        mcpBanner.style.display = "flex";
+        mcpBanner.style.background = "#FFFBEB";
+        mcpBanner.style.borderColor = "#FDE68A";
+        mcpBanner.style.color = "#92400E";
+        mcpText.textContent = "正在从 Gateway 拉取远程配置…";
+        const skillsBanner = document.getElementById("skills-sync-banner");
+        skillsBanner.style.display = "flex";
+        skillsBanner.style.background = "#FFFBEB";
+        skillsBanner.style.borderColor = "#FDE68A";
+        skillsBanner.style.color = "#92400E";
+        skillsBanner.querySelector("span").textContent = "正在从 Gateway 拉取远程配置…";
+        setTimeout(() => {
+          // 已同步（绿色）
+          mcpBanner.style.background = "#F0FDF4";
+          mcpBanner.style.borderColor = "#BBF7D0";
+          mcpBanner.style.color = "#15803D";
+          mcpText.textContent = "已与 Gateway 远程配置同步";
+          skillsBanner.style.background = "#F0FDF4";
+          skillsBanner.style.borderColor = "#BBF7D0";
+          skillsBanner.style.color = "#15803D";
+          skillsBanner.querySelector("span").textContent = "已与 Gateway 远程配置同步";
+        }, 1400);
       }
 
       function closeDrawer() {
@@ -1496,7 +1508,8 @@
       // ─── Tabs ────────────────────────────────────────────────────────────────────
       function switchTab(name) {
         currentTab = name;
-        ["basic", "skills", "mcp", "conn"].forEach((t) => {
+        // Tab 顺序：基础 / MCP / Skills / 连接（与代码 TABS 保持一致）
+        ["basic", "mcp", "skills", "conn"].forEach((t) => {
           document.getElementById(`tab-${t}`).classList.toggle("active", t === name);
           document.getElementById(`panel-${t}`).style.display = t === name ? "block" : "none";
         });
@@ -1524,33 +1537,41 @@
 
       // ─── Skills ──────────────────────────────────────────────────────────────────
       function addSkill() {
-        const inp = document.getElementById("skill-input");
-        const v = inp.value.trim();
-        if (v && !skills.includes(v)) {
-          skills.push(v);
+        const nameInp = document.getElementById("skill-name-input");
+        const descInp = document.getElementById("skill-desc-input");
+        const name = nameInp.value.trim();
+        const description = descInp.value.trim();
+        if (!name) { nameInp.focus(); return; }
+        if (!skills.find((s) => s.name === name)) {
+          skills.push({ name, description });
           renderSkills();
         }
-        inp.value = "";
-        inp.focus();
+        nameInp.value = "";
+        descInp.value = "";
+        nameInp.focus();
       }
-      function removeSkill(s) {
-        skills = skills.filter((x) => x !== s);
+      function removeSkill(name) {
+        skills = skills.filter((s) => s.name !== name);
         renderSkills();
       }
       function renderSkills() {
         const el = document.getElementById("skills-list");
         if (skills.length === 0) {
-          el.innerHTML =
-            '<span style="font-size:13px;color:#94A3B8;">暂无技能，在下方输入框添加...</span>';
+          el.innerHTML = '<p style="font-size:13px;color:#94A3B8;margin:0;padding:4px 0;">暂无技能，在下方添加...</p>';
           return;
         }
         el.innerHTML = skills
           .map(
-            (s) => `
-    <span class="skill-tag">
-      ${s}
-      <button onclick="removeSkill('${s}')" style="width:14px;height:14px;border-radius:50%;background:rgba(30,64,175,0.12);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;color:#1E40AF;font-size:11px;line-height:1;">×</button>
-    </span>`,
+            (s, i) => `
+    <div style="border:1px solid var(--border);border-radius:9px;padding:12px 14px;background:#fff;display:flex;align-items:flex-start;gap:10px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${s.name}</div>
+        <div style="font-size:12px;color:var(--text-muted);line-height:1.5;">${s.description || '<span style="color:#CBD5E1;">（无描述）</span>'}</div>
+      </div>
+      <button onclick="removeSkill('${s.name.replace(/'/g, "\\'")}')" style="width:26px;height:26px;border-radius:6px;background:transparent;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#94A3B8;flex-shrink:0;transition:background 0.14s;" onmouseover="this.style.background='#FEF2F2';this.style.color='#DC2626';" onmouseout="this.style.background='transparent';this.style.color='#94A3B8';">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>`,
           )
           .join("");
       }
@@ -1610,7 +1631,9 @@
 
       function testBotConn(id) {
         const bot = botsData.find((b) => b.id === id);
+        const btn = document.getElementById(`test-card-btn-${id}`);
         bot.status = "connecting";
+        if (btn) btn.style.opacity = "0.4";
         renderBots();
         setTimeout(() => {
           bot.status = Math.random() > 0.3 ? "connected" : "error";
@@ -1620,6 +1643,16 @@
             bot.status === "connected" ? "success" : "error",
           );
         }, 1600);
+      }
+
+      function deleteBot(id) {
+        const bot = botsData.find((b) => b.id === id);
+        if (!bot) return;
+        const idx = botsData.findIndex((b) => b.id === id);
+        botsData.splice(idx, 1);
+        renderBots();
+        updateCountLabel();
+        showToast(`${bot.name} 已删除`, "error");
       }
 
       // ─── Save / Delete ────────────────────────────────────────────────────────────
@@ -1637,10 +1670,11 @@
           bot.emoji = document.getElementById("emoji-display").textContent;
           bot.description = document.getElementById("input-desc").value.trim();
           bot.wsUrl = document.getElementById("input-ws-url").value.trim();
+          bot.agentId = document.getElementById("input-agent-id").value.trim() || "main";
           bot.token = document.getElementById("input-token").value.trim();
-          bot.skills = [...skills];
+          bot.skills = skills.map((s) => ({ name: s.name, description: s.description }));
           bot.isActive = isActive;
-          showToast(`✅ ${name} 已更新`, "success");
+          showToast(`${name} 已更新`, "success");
         } else {
           botsData.push({
             id: "bot-" + Date.now(),
@@ -1649,13 +1683,17 @@
             avClass: "av-blue",
             description: document.getElementById("input-desc").value.trim(),
             status: "disconnected",
-            skills: [...skills],
+            skills: skills.map((s) => ({ name: s.name, description: s.description })),
             isActive,
             wsUrl: document.getElementById("input-ws-url").value.trim(),
+            agentId: document.getElementById("input-agent-id").value.trim() || "main",
             token: document.getElementById("input-token").value.trim(),
+            llm: { provider: "OpenAI", model: "gpt-4o" },
+            mcpServersCount: 0,
+            pendingNodeRequests: 0,
             mcpConfig: document.getElementById("mcp-editor").value,
           });
-          showToast(`✅ ${name} 已创建`, "success");
+          showToast(`${name} 已创建`, "success");
         }
         closeDrawer();
         renderBots();
@@ -1665,18 +1703,30 @@
       function deleteCurrentBot() {
         if (!currentBotId) return;
         const bot = botsData.find((b) => b.id === currentBotId);
-        if (!confirm(`确定要删除 Bot「${bot.name}」？此操作不可撤销。`)) return;
         const idx = botsData.findIndex((b) => b.id === currentBotId);
         botsData.splice(idx, 1);
         closeDrawer();
         renderBots();
         updateCountLabel();
-        showToast(`🗑️ ${bot.name} 已删除`, "error");
+        showToast(`${bot.name} 已删除`, "error");
       }
 
-      function confirmDelete(id) {
-        openDrawer("edit", id);
-        setTimeout(() => document.getElementById("delete-btn").click(), 200);
+      // ─── Apply config ────────────────────────────────────────────────────────────
+      function applyConfig() {
+        const btn = document.getElementById("apply-btn");
+        const result = document.getElementById("apply-result");
+        btn.disabled = true;
+        btn.textContent = " 推送中…";
+        result.style.display = "none";
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> 推送配置`;
+          result.style.display = "block";
+          result.style.background = "#F0FDF4";
+          result.style.border = "1px solid #BBF7D0";
+          result.style.color = "#15803D";
+          result.innerHTML = `✅ 配置已写入 <code style="font-family:monospace;background:#DCFCE7;padding:1px 5px;border-radius:3px;">/home/agent/.openclaw/config.json</code><br><span style="font-size:12px;color:#166534;margin-top:4px;display:block;">⚠️ 需要重启 Gateway 使配置生效</span>`;
+        }, 1600);
       }
 
       // ─── Filter ───────────────────────────────────────────────────────────────────
