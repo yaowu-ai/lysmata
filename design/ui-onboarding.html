@@ -24,10 +24,10 @@
     * { font-family: 'Inter', system-ui, -apple-system, sans-serif; box-sizing: border-box; }
     body { background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
 
-    /* Container */
+    /* ── Container ── */
     .wizard-container {
-      width: 720px;
-      height: 540px;
+      width: 900px;
+      height: 640px;
       background: var(--surface);
       border-radius: 14px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.15);
@@ -37,181 +37,196 @@
       position: relative;
     }
 
-    /* Header & Stepper */
+    /* ── Header & Stepper ── */
     .wizard-header {
-      padding: 24px 32px 20px;
+      padding: 20px 32px 16px;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
-    }
-    .stepper {
       display: flex;
-      align-items: center;
-      gap: 8px;
+      align-items: flex-start;
+      justify-content: space-between;
     }
+    .wizard-header-left { flex: 1; }
+    .wizard-title { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+
+    .stepper { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; overflow-x: auto; }
     .step-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--text-muted);
-      position: relative;
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 500; color: var(--text-muted);
+      white-space: nowrap; flex-shrink: 0;
     }
-    .step-item.active {
-      color: var(--primary);
-    }
-    .step-item.completed {
-      color: var(--text);
-    }
+    .step-item.active  { color: var(--primary); }
+    .step-item.completed { color: var(--text); }
+    .step-item.skipped { color: #94A3B8; }
     .step-circle {
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
+      width: 22px; height: 22px; border-radius: 50%;
       border: 1.5px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 600;
       background: var(--surface);
-      transition: all 0.2s ease;
+      transition: all 0.2s ease; flex-shrink: 0;
     }
-    .step-item.active .step-circle {
-      border-color: var(--primary);
-      background: #EFF6FF;
-      color: var(--primary);
-    }
-    .step-item.completed .step-circle {
-      border-color: var(--primary);
-      background: var(--primary);
-      color: #fff;
-    }
-    .step-divider {
-      width: 32px;
-      height: 1.5px;
-      background: var(--border);
-      transition: background 0.2s ease;
-    }
-    .step-divider.completed {
-      background: var(--primary);
-    }
+    .step-item.active    .step-circle { border-color: var(--primary); background: #EFF6FF; color: var(--primary); }
+    .step-item.completed .step-circle { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .step-item.skipped   .step-circle { border-color: #D1D5DB; background: #F8FAFC; color: #94A3B8; }
+    .step-divider { width: 24px; height: 1.5px; background: var(--border); transition: background 0.2s ease; flex-shrink: 0; }
+    .step-divider.completed { background: var(--primary); }
+    .step-divider.skipped   { background: #D1D5DB; border-style: dashed; }
 
-    /* Content Area */
-    .wizard-content {
-      flex: 1;
-      padding: 32px;
-      overflow-y: auto;
-      position: relative;
+    /* 右上角关闭按钮 */
+    .btn-close-wizard {
+      width: 28px; height: 28px; border-radius: 7px;
+      background: transparent; border: none;
+      color: #94A3B8; cursor: pointer; font-size: 16px;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0; margin-left: 16px; margin-top: 2px;
     }
-    /* Views (Pages) */
-    .view-panel {
-      display: none;
-      animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-    }
-    .view-panel.active {
-      display: block;
-    }
+    .btn-close-wizard:hover { background: #F1F5F9; color: var(--text); }
+
+    /* ── Content Area ── */
+    .wizard-content { flex: 1; padding: 28px 32px; overflow-y: auto; position: relative; }
+    .view-panel { display: none; animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .view-panel.active { display: block; }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    /* Footer / Actions */
+    /* ── Footer ── */
     .wizard-footer {
-      padding: 16px 32px;
+      padding: 14px 32px;
       border-top: 1px solid var(--border);
       background: #FAFAFA;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: flex; align-items: center; justify-content: space-between;
       flex-shrink: 0;
     }
+    .wizard-footer-left  { display: flex; align-items: center; gap: 10px; }
+    .wizard-footer-right { display: flex; align-items: center; gap: 10px; }
 
-    /* Buttons */
+    /* ── Buttons ── */
     .btn-primary { background: var(--primary); color: #fff; border: none; padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s; display: inline-flex; align-items: center; gap: 6px; }
-    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:hover    { background: var(--primary-hover); }
     .btn-primary:disabled { background: #94A3B8; cursor: not-allowed; }
-    .btn-ghost { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, color 0.15s; }
+    .btn-ghost  { background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 9px 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: background 0.15s, color 0.15s; display: inline-flex; align-items: center; gap: 6px; }
     .btn-ghost:hover { background: #F8FAFC; color: var(--text); }
+    .btn-link   { background: transparent; border: none; color: var(--text-muted); font-size: 13px; font-weight: 500; cursor: pointer; padding: 0; text-decoration: underline; text-underline-offset: 3px; transition: color 0.15s; }
+    .btn-link:hover { color: var(--text); }
 
-    /* Form Elements */
+    /* ── Form Elements ── */
+    .form-group { margin-bottom: 18px; }
     .form-label { font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 6px; display: block; }
     .form-input { width: 100%; padding: 9px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 8px; background: #fff; color: var(--text); outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
-    .form-input:focus { border-color: #93C5FD; box-shadow: 0 0 0 3px rgba(147,197,253,0.25); }
-    .form-hint { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
-    .form-error { border-color: var(--error) !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
+    .form-input:focus    { border-color: #93C5FD; box-shadow: 0 0 0 3px rgba(147,197,253,0.25); }
+    .form-hint           { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+    .form-error          { border-color: var(--error) !important; box-shadow: 0 0 0 3px rgba(239,68,68,0.1) !important; }
+    .form-row            { display: flex; gap: 16px; }
+    .form-row > *        { flex: 1; }
 
-    /* Toggle */
-    .toggle-wrapper { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-    .toggle-track { position: relative; width: 36px; height: 20px; border-radius: 10px; background: #CBD5E1; transition: background 0.2s; }
+    /* ── Toggle ── */
+    .toggle-row   { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; }
+    .toggle-label { font-size: 14px; font-weight: 500; color: var(--text); }
+    .toggle-desc  { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+    .toggle-wrapper { display: flex; align-items: center; gap: 8px; cursor: pointer; flex-shrink: 0; }
+    .toggle-track   { position: relative; width: 36px; height: 20px; border-radius: 10px; background: #CBD5E1; transition: background 0.2s; }
     .toggle-track.active { background: var(--primary); }
-    .toggle-thumb { position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
+    .toggle-thumb   { position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.2); transition: transform 0.2s; }
     .toggle-track.active .toggle-thumb { transform: translateX(16px); }
 
-    /* Tabs & Cards */
-    .tab-item { padding: 8px 16px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
+    /* ── Tabs & Cards ── */
+    .tab-bar  { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 18px; }
+    .tab-item { padding: 8px 14px; font-size: 13px; font-weight: 500; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: color 0.15s; white-space: nowrap; }
     .tab-item:hover { color: var(--text); }
     .tab-item.active { color: var(--primary); border-bottom-color: var(--primary); }
 
-    .provider-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px; cursor: pointer; transition: all 0.16s ease; text-align: center; }
-    .provider-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-2px); border-color: #93C5FD; }
+    .provider-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px; cursor: pointer; transition: all 0.16s ease; text-align: center; }
+    .provider-card:hover  { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-2px); border-color: #93C5FD; }
     .provider-card.active { border-color: var(--primary); background: #F0F7FF; box-shadow: 0 0 0 2px rgba(37,99,235,0.1); }
+    .providers-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
 
-    /* Scrollbar */
+    /* ── Info Banner ── */
+    .info-banner { padding: 12px 16px; background: #EFF6FF; border-radius: 8px; border: 1px solid #BFDBFE; font-size: 13px; color: #1E40AF; line-height: 1.5; margin-top: 20px; }
+
+    /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
-    /* Toast */
+    /* ── Toast ── */
     .toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 18px; border-radius: 10px; font-size: 13px; font-weight: 500; box-shadow: 0 8px 24px rgba(0,0,0,0.12); z-index: 999; transform: translateY(16px); opacity: 0; transition: transform 0.22s ease, opacity 0.22s ease; pointer-events: none; }
     .toast.show { transform: translateY(0); opacity: 1; }
     .toast-success { background: #fff; color: #15803D; border-left: 4px solid #16A34A; }
-    .toast-error { background: #fff; color: #B91C1C; border-left: 4px solid #DC2626; }
-    
-    /* Spinner */
+    .toast-error   { background: #fff; color: #B91C1C; border-left: 4px solid #DC2626; }
+    .toast-info    { background: #fff; color: #1E40AF; border-left: 4px solid #2563EB; }
+
+    /* ── Spinner ── */
     .conn-testing { animation: spin 1s linear infinite; }
-    @keyframes spin { to { transform:rotate(360deg); } }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes blink { 0%,100% { opacity:1; } 50% { opacity:0.5; } }
+
+    /* ── Step badge ── */
+    .step-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; background: #EFF6FF; color: var(--primary); border: 1px solid #BFDBFE; margin-bottom: 10px; }
+    .step-badge.skippable { background: #F1F5F9; color: #64748B; border-color: var(--border); }
+
+    /* ── Select dropdown arrow ── */
+    .form-select { appearance: none; background: #fff url('data:image/svg+xml;utf8,<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%2394A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>') no-repeat right 12px center; }
+
+    /* ── Centered card content / intro / success ── */
+    .centered-panel { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding-bottom: 8px; }
   </style>
 </head>
 <body>
 
 <div class="wizard-container">
-  
-  <!-- Header (Visible mainly during Config Wizard) -->
+
+  <!-- Header (only for config steps) -->
   <div class="wizard-header" id="wizard-header" style="display: none;">
-    <div style="font-size: 17px; font-weight: 600; margin-bottom: 16px; color: var(--text);">OpenClaw 配置向导</div>
-    <!-- Stepper -->
-    <div class="stepper" id="stepper">
-      <!-- Generated dynamically -->
+    <div class="wizard-header-left">
+      <div class="wizard-title">OpenClaw 配置向导</div>
+      <div class="stepper" id="stepper"></div>
     </div>
+    <button class="btn-close-wizard" onclick="handleExitWizard()" title="退出向导">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
   </div>
 
   <!-- Content -->
   <div class="wizard-content" id="wizard-content">
-    
-    <!-- view: intro -->
+
+    <!-- ════════════ view: intro ════════════ -->
     <div class="view-panel active" id="view-intro">
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding-top: 40px;">
-        <div style="width: 64px; height: 64px; border-radius: 16px; background: linear-gradient(135deg, #3B82F6, #2563EB); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(37,99,235,0.3); margin-bottom: 24px;">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <div class="centered-panel">
+        <div style="width: 72px; height: 72px; border-radius: 18px; background: linear-gradient(135deg, #3B82F6, #2563EB); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(37,99,235,0.3); margin-bottom: 24px;">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2L4 7l8 5 8-5-8-5z"/><path d="M4 12l8 5 8-5"/><path d="M4 17l8 5 8-5"/>
           </svg>
         </div>
-        <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px;">欢迎使用 OpenClaw</h1>
-        <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; max-width: 400px; margin: 0 0 32px;">
+        <h1 style="font-size: 26px; font-weight: 700; margin: 0 0 12px;">欢迎使用 OpenClaw</h1>
+        <p style="font-size: 14px; color: var(--text-muted); line-height: 1.65; max-width: 420px; margin: 0 0 32px;">
           lysmata 是轻量级的 OpenClaw 桌面伴侣。只需几分钟，即可完成环境检测、核心安装与基础配置。
         </p>
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px;">
+          <button class="btn-primary" style="width: 100%; justify-content: center; padding: 11px 18px; font-size: 15px;" onclick="goNext()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            开始安装 OpenClaw
+          </button>
+          <button class="btn-ghost" style="width: 100%; justify-content: center;" onclick="skipToConfig()">
+            已安装 OpenClaw，直接配置 →
+          </button>
+        </div>
+        <p style="font-size: 12px; color: #94A3B8; margin-top: 20px;">安装过程无需终端操作，约 1–2 分钟完成</p>
       </div>
     </div>
 
-    <!-- view: env-check -->
+    <!-- ════════════ view: env-check ════════════ -->
     <div class="view-panel" id="view-env">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">环境检测</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">正在扫描运行 OpenClaw 必需的系统环境依赖...</p>
-      
-      <div style="background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 16px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #F1F5F9;">
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">环境检测</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 22px;">正在扫描运行 OpenClaw 必需的系统环境依赖...</p>
+
+      <div style="background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+        <!-- Node.js -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #F1F5F9;">
           <div style="display: flex; align-items: center; gap: 12px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             <div>
@@ -220,12 +235,12 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #15803D;">
-            <span class="dot" style="width:8px;height:8px;background:#10B981;box-shadow:0 0 0 3px rgba(16,185,129,0.18);"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 0 3px rgba(16,185,129,0.18);display:inline-block;"></span>
             v20.11.0 已安装
           </div>
         </div>
-
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #F1F5F9;">
+        <!-- 系统权限 -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #F1F5F9;">
           <div style="display: flex; align-items: center; gap: 12px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <div>
@@ -234,12 +249,12 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #15803D;">
-            <span class="dot" style="width:8px;height:8px;background:#10B981;box-shadow:0 0 0 3px rgba(16,185,129,0.18);"></span>
+            <span style="width:8px;height:8px;border-radius:50%;background:#10B981;box-shadow:0 0 0 3px rgba(16,185,129,0.18);display:inline-block;"></span>
             权限通过
           </div>
         </div>
-
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 0;">
+        <!-- 网络 -->
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px;">
           <div style="display: flex; align-items: center; gap: 12px;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
             <div>
@@ -248,23 +263,23 @@
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #F59E0B;">
-            <span class="dot" style="width:8px;height:8px;background:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,0.25);animation:blink 1.4s ease-in-out infinite;"></span>
-            <style>@keyframes blink { 0%,100% {opacity:1;} 50% {opacity:0.5;} }</style>
+            <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;box-shadow:0 0 0 3px rgba(245,158,11,0.25);display:inline-block;animation:blink 1.4s ease-in-out infinite;"></span>
             测试中...
           </div>
         </div>
       </div>
-      <div style="margin-top: 24px; padding: 12px 16px; background: #EFF6FF; border-radius: 8px; border: 1px solid #BFDBFE; font-size: 13px; color: #1E40AF; line-height: 1.5;">
+
+      <div class="info-banner">
         <strong style="font-weight: 600;">提示：</strong>检测通过后，系统将使用一键脚本安装 OpenClaw Daemon 及 CLI 工具。安装过程中无需终端交互。
       </div>
     </div>
 
-    <!-- view: installing -->
+    <!-- ════════════ view: installing ════════════ -->
     <div class="view-panel" id="view-installing">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">正在安装 OpenClaw</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">下载并配置核心组件，此过程通常需要 1-2 分钟。</p>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">正在安装 OpenClaw</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 22px;">下载并配置核心组件，此过程通常需要 1-2 分钟。</p>
 
-      <div style="margin-bottom: 16px;">
+      <div style="margin-bottom: 18px;">
         <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; margin-bottom: 8px;">
           <span style="color: var(--primary);">下载依赖包...</span>
           <span>45%</span>
@@ -275,7 +290,7 @@
       </div>
 
       <!-- Terminal Log -->
-      <div style="background: #1E293B; border-radius: 8px; padding: 16px; height: 180px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; color: #94A3B8;">
+      <div style="background: #1E293B; border-radius: 8px; padding: 16px; height: 220px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.65; color: #94A3B8;">
         <div>&gt; curl -fsSL https://openclaw.ai/install.sh | bash</div>
         <div>[INFO] OS: macOS 14.2 (Apple Silicon)</div>
         <div>[INFO] Node.js v20.11.0 found</div>
@@ -285,262 +300,301 @@
       </div>
     </div>
 
-    <!-- view: install-success -->
+    <!-- ════════════ view: install-success ════════════ -->
     <div class="view-panel" id="view-success">
-      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; padding-top: 40px;">
-        <div style="width: 64px; height: 64px; border-radius: 50%; background: #DCFCE7; border: 4px solid #BBF7D0; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; color: #16A34A;">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <div class="centered-panel">
+        <div style="width: 72px; height: 72px; border-radius: 50%; background: #DCFCE7; border: 4px solid #BBF7D0; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; color: #16A34A;">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
         </div>
-        <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px;">安装成功</h1>
-        <p style="font-size: 14px; color: var(--text-muted); line-height: 1.6; max-width: 400px; margin: 0 0 32px;">
+        <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px;">安装成功！</h1>
+        <p style="font-size: 14px; color: var(--text-muted); line-height: 1.65; max-width: 420px; margin: 0 0 32px;">
           OpenClaw 核心组件已成功部署至你的系统。<br>
-          接下来，只需几个简单步骤，即可完成 Gateway 和大模型提供商的配置。
+          接下来完成 Gateway 和大模型的可视化配置，只需 2 分钟。
         </p>
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 340px;">
+          <button class="btn-primary" style="width: 100%; justify-content: center; padding: 11px 18px; font-size: 15px;" onclick="goNext()">
+            立即配置 →
+          </button>
+          <button class="btn-ghost" style="width: 100%; justify-content: center;" onclick="handleDefer()">
+            稍后再说，先去主界面
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- view: config-step1 -->
+    <!-- ════════════ view: config-step1 ════════════ -->
     <div class="view-panel" id="view-step1">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">1. Gateway 配置</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 24px;">设置 OpenClaw Gateway 的基础运行参数。</p>
-      
-      <div style="display: flex; flex-direction: column; gap: 20px;">
-        <div>
+      <div class="step-badge">step 1 / 6 · 必填</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Gateway 配置</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 22px;">设置 OpenClaw Gateway 的基础运行参数。</p>
+
+      <div class="form-row">
+        <div class="form-group">
           <label class="form-label">绑定地址</label>
           <input type="text" class="form-input" value="127.0.0.1" />
-          <p class="form-hint">本地使用通常保持 127.0.0.1，局域网共享可设为 0.0.0.0</p>
+          <p class="form-hint">本地使用保持 127.0.0.1；局域网共享可设为 0.0.0.0</p>
         </div>
-        <div>
+        <div class="form-group">
           <label class="form-label">监听端口</label>
           <input type="number" class="form-input" value="18789" />
           <p class="form-hint">默认 18789，若有冲突请修改</p>
         </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">认证模式</label>
+        <select class="form-input form-select">
+          <option>None（本地无感，推荐）</option>
+          <option>Token（需鉴权）</option>
+        </select>
+        <p class="form-hint">建议本地环境使用 None，提升开发体验</p>
+      </div>
+
+      <div class="toggle-row">
         <div>
-          <label class="form-label">认证模式</label>
-          <select class="form-input" style="appearance: none; background: #fff url('data:image/svg+xml;utf8,<svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%2394A3B8\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"6 9 12 15 18 9\"></polyline></svg>') no-repeat right 12px center;">
-            <option>None (本地无感)</option>
-            <option>Token (需鉴权)</option>
-          </select>
-          <p class="form-hint">建议本地环境使用 None，提升开发体验</p>
-        </div>
-        <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; margin-top: 4px;">
-          <div>
-            <div style="font-size: 14px; font-weight: 500; color: var(--text);">开机自启 (Daemon)</div>
-            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">让 Gateway 作为后台服务随系统启动</div>
-          </div>
-        <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-          <div class="toggle-track active">
-            <div class="toggle-thumb"></div>
-          </div>
-        </div>
-      </div>
-      </div>
-    </div>
-
-    <!-- view: config-step2 -->
-    <div class="view-panel" id="view-step2">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">2. LLM Provider 配置</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">选择并配置你的主要大模型服务提供商。</p>
-      
-      <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 20px;">
-        <div class="tab-item active" id="ptab-btn-builtin" onclick="switchProviderTab('builtin')">内置 Provider</div>
-        <div class="tab-item" id="ptab-btn-custom" onclick="switchProviderTab('custom')">自定义 Provider</div>
-        <div class="tab-item" id="ptab-btn-marketplace" onclick="switchProviderTab('marketplace')">Marketplace 🛒</div>
-      </div>
-
-      <!-- Tab Built-in -->
-      <div id="ptab-builtin" class="provider-tab" style="display: block;">
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;">
-          <!-- Card 1 -->
-          <div class="provider-card active" onclick="this.parentElement.querySelectorAll('.provider-card').forEach(c=>c.classList.remove('active'));this.classList.add('active');">
-            <div style="font-size: 24px; margin-bottom: 8px;">🚀</div>
-            <div style="font-weight: 600; font-size: 14px;">OpenAI</div>
-            <div style="font-size: 12px; color: var(--text-muted);">gpt-4o, gpt-4-turbo</div>
-          </div>
-          <!-- Card 2 -->
-          <div class="provider-card" onclick="this.parentElement.querySelectorAll('.provider-card').forEach(c=>c.classList.remove('active'));this.classList.add('active');">
-            <div style="font-size: 24px; margin-bottom: 8px;">🧠</div>
-            <div style="font-weight: 600; font-size: 14px;">Anthropic</div>
-            <div style="font-size: 12px; color: var(--text-muted);">claude-3-5-sonnet</div>
-          </div>
-        </div>
-        <div>
-          <label class="form-label">API Key</label>
-          <input type="password" class="form-input" placeholder="sk-..." />
-          <p class="form-hint">安全提示：Key 将安全保存在本地 Keyring 中</p>
-        </div>
-      </div>
-
-      <!-- Tab Custom -->
-      <div id="ptab-custom" class="provider-tab" style="display: none;">
-        <div style="display: flex; gap: 12px; margin-bottom: 16px;">
-          <button class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">Ollama</button>
-          <button class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">vLLM</button>
-          <button class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">LM Studio</button>
-          <button class="btn-ghost" style="padding: 6px 12px; font-size: 12px;">Moonshot</button>
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 12px;">
-          <div style="display: flex; gap: 16px;">
-            <div style="flex: 1;">
-              <label class="form-label">Provider ID <span style="color: var(--error);">*</span></label>
-              <input type="text" class="form-input" placeholder="例如: local-ollama" />
-            </div>
-            <div style="flex: 1;">
-              <label class="form-label">显示名称</label>
-              <input type="text" class="form-input" placeholder="例如: Ollama Local" />
-            </div>
-          </div>
-          <div>
-            <label class="form-label">Base URL <span style="color: var(--error);">*</span></label>
-            <input type="text" class="form-input" placeholder="http://127.0.0.1:11434/v1" />
-          </div>
-          <div>
-            <label class="form-label">API Key</label>
-            <input type="password" class="form-input" placeholder="支持环境变量如 ${ENV_VAR}" />
-          </div>
-          <div style="display: flex; gap: 16px;">
-            <div style="flex: 1;">
-              <label class="form-label">Model ID <span style="color: var(--error);">*</span></label>
-              <input type="text" class="form-input" placeholder="例如: llama3" />
-            </div>
-            <div style="flex: 1;">
-              <label class="form-label">Model 显示名称</label>
-              <input type="text" class="form-input" placeholder="例如: Llama 3 8B" />
-            </div>
-          </div>
-          <div style="display: flex; gap: 16px;">
-             <div style="flex: 1;">
-                <label class="form-label">API 类型</label>
-                <select class="form-input" style="appearance: none; background: #fff url('data:image/svg+xml;utf8,<svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"%2394A3B8\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"6 9 12 15 18 9\"></polyline></svg>') no-repeat right 12px center;">
-                  <option>OpenAI Compatible</option>
-                  <option>Anthropic Compatible</option>
-                </select>
-             </div>
-             <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end;">
-               <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; background: #FAFAFA; border: 1px solid var(--border); border-radius: 8px;">
-                 <span style="font-size: 13px; font-weight: 500;">设为默认模型</span>
-                 <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-                   <div class="toggle-track active"><div class="toggle-thumb"></div></div>
-                 </div>
-               </div>
-             </div>
-          </div>
-          <!-- 展开项：Context Window (可选) -->
-          <div>
-             <label class="form-label" style="display: flex; align-items: center; gap: 4px; cursor: pointer; color: var(--primary);" onclick="document.getElementById('ctx-window-container').style.display = document.getElementById('ctx-window-container').style.display === 'none' ? 'block' : 'none';">
-                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                 高级配置
-             </label>
-             <div id="ctx-window-container" style="display: none; margin-top: 8px;">
-                <label class="form-label">Context Window</label>
-                <input type="number" class="form-input" placeholder="例如: 8192" />
-             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Tab Marketplace -->
-      <div id="ptab-marketplace" class="provider-tab" style="display: none;">
-        <div style="background: #FAFAFA; border: 1px dashed var(--border); border-radius: 10px; padding: 32px 24px; text-align: center; color: var(--text-muted);">
-          <div style="font-size: 32px; margin-bottom: 12px;">🛒</div>
-          <div style="font-weight: 600; color: var(--text); font-size: 15px; margin-bottom: 4px;">lysmata Marketplace</div>
-          <div style="font-size: 13px; max-width: 280px; margin: 0 auto;">提供稳定的大模型 API 服务，直接购买额度一键激活，无需自行配置网络与 Key。</div>
-          <button class="btn-primary" style="margin-top: 20px;">浏览大模型服务</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- view: config-step3 -->
-    <div class="view-panel" id="view-step3">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">3. Channel 配置</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">配置可接入到 Gateway 的客户端通道白名单与鉴权。</p>
-      
-      <div style="background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
-        <div>
-          <div style="font-weight: 500; font-size: 14px; color: var(--text);">Lysmata 桌面端</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Token: sk-lysmata-desktop-local</div>
+          <div class="toggle-label">开机自启 (Daemon)</div>
+          <div class="toggle-desc">让 Gateway 作为后台服务随系统启动</div>
         </div>
         <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
           <div class="toggle-track active"><div class="toggle-thumb"></div></div>
         </div>
       </div>
-      
-      <div style="background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 16px; display: flex; align-items: center; justify-content: space-between;">
+    </div>
+
+    <!-- ════════════ view: config-step2 ════════════ -->
+    <div class="view-panel" id="view-step2">
+      <div class="step-badge">step 2 / 6 · 必填</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">LLM Provider 配置</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">选择并配置你的主要大模型服务提供商。</p>
+
+      <div class="tab-bar">
+        <div class="tab-item active" id="ptab-btn-builtin"    onclick="switchProviderTab('builtin')">内置 Provider</div>
+        <div class="tab-item"        id="ptab-btn-custom"     onclick="switchProviderTab('custom')">自定义 Provider</div>
+        <div class="tab-item"        id="ptab-btn-marketplace"onclick="switchProviderTab('marketplace')">Marketplace 🛒</div>
+      </div>
+
+      <!-- Tab: Built-in -->
+      <div id="ptab-builtin" class="provider-tab" style="display: block;">
+        <div class="providers-grid">
+          <div class="provider-card active" onclick="selectCard(this)">
+            <div style="font-size: 22px; margin-bottom: 6px;">🚀</div>
+            <div style="font-weight: 600; font-size: 13px;">OpenAI</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">gpt-4o</div>
+          </div>
+          <div class="provider-card" onclick="selectCard(this)">
+            <div style="font-size: 22px; margin-bottom: 6px;">🧠</div>
+            <div style="font-weight: 600; font-size: 13px;">Anthropic</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">claude-3.5</div>
+          </div>
+          <div class="provider-card" onclick="selectCard(this)">
+            <div style="font-size: 22px; margin-bottom: 6px;">⚡</div>
+            <div style="font-weight: 600; font-size: 13px;">Groq</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">llama-3.1</div>
+          </div>
+          <div class="provider-card" onclick="selectCard(this)">
+            <div style="font-size: 22px; margin-bottom: 6px;">🌙</div>
+            <div style="font-weight: 600; font-size: 13px;">Moonshot</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">moonshot-v1</div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+          <label class="form-label">API Key <span style="color: var(--error);">*</span></label>
+          <input type="password" class="form-input" placeholder="sk-..." />
+          <p class="form-hint">安全提示：Key 将使用本地 Keyring 加密存储，不上传云端</p>
+        </div>
+      </div>
+
+      <!-- Tab: Custom -->
+      <div id="ptab-custom" class="provider-tab" style="display: none;">
+        <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px;" onclick="fillTemplate('ollama')">Ollama</button>
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px;" onclick="fillTemplate('vllm')">vLLM</button>
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px;" onclick="fillTemplate('lmstudio')">LM Studio</button>
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px;" onclick="fillTemplate('moonshot')">Moonshot</button>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Provider ID <span style="color: var(--error);">*</span></label>
+            <input type="text" class="form-input" placeholder="例如: local-ollama" id="custom-provider-id" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">显示名称</label>
+            <input type="text" class="form-input" placeholder="例如: Ollama Local" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Base URL <span style="color: var(--error);">*</span></label>
+          <input type="text" class="form-input" placeholder="http://127.0.0.1:11434/v1" id="custom-base-url" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Model ID <span style="color: var(--error);">*</span></label>
+            <input type="text" class="form-input" placeholder="例如: llama3" id="custom-model-id" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Model 显示名称</label>
+            <input type="text" class="form-input" placeholder="例如: Llama 3 8B" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">API Key</label>
+            <input type="password" class="form-input" placeholder="支持 ${ENV_VAR}" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">API 类型</label>
+            <select class="form-input form-select">
+              <option>OpenAI Compatible</option>
+              <option>Anthropic Compatible</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: #FAFAFA; border: 1px solid var(--border); border-radius: 8px;">
+          <span style="font-size: 13px; font-weight: 500;">设为默认模型</span>
+          <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
+            <div class="toggle-track active"><div class="toggle-thumb"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Marketplace -->
+      <div id="ptab-marketplace" class="provider-tab" style="display: none;">
+        <div style="background: #FAFAFA; border: 1px dashed var(--border); border-radius: 10px; padding: 36px 24px; text-align: center; color: var(--text-muted);">
+          <div style="font-size: 36px; margin-bottom: 12px;">🛒</div>
+          <div style="font-weight: 600; color: var(--text); font-size: 15px; margin-bottom: 6px;">lysmata Marketplace</div>
+          <div style="font-size: 13px; max-width: 300px; margin: 0 auto; line-height: 1.6;">提供稳定的大模型 API 服务。购买额度后一键激活，无需自行配置网络与 Key。</div>
+          <button class="btn-primary" style="margin-top: 20px;">浏览大模型服务</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════════════ view: config-step3 ════════════ -->
+    <div class="view-panel" id="view-step3">
+      <div class="step-badge skippable">step 3 / 6 · 可跳过</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Channel 配置</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">配置可接入 Gateway 的客户端通道白名单与鉴权。</p>
+
+      <div class="toggle-row" style="margin-bottom: 10px;">
         <div>
-          <div style="font-weight: 500; font-size: 14px; color: var(--text);">VS Code 插件</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">Token: sk-vscode-extension</div>
+          <div class="toggle-label">Lysmata 桌面端</div>
+          <div class="toggle-desc">Token: sk-lysmata-desktop-local</div>
+        </div>
+        <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
+          <div class="toggle-track active"><div class="toggle-thumb"></div></div>
+        </div>
+      </div>
+
+      <div class="toggle-row" style="margin-bottom: 10px;">
+        <div>
+          <div class="toggle-label">VS Code 插件</div>
+          <div class="toggle-desc">Token: sk-vscode-extension</div>
         </div>
         <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
           <div class="toggle-track"><div class="toggle-thumb"></div></div>
         </div>
       </div>
-      <button class="btn-ghost" style="width: 100%; margin-top: 16px; justify-content: center;">+ 添加新 Channel</button>
+
+      <button class="btn-ghost" style="width: 100%; justify-content: center; margin-top: 6px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        添加新 Channel
+      </button>
     </div>
 
-    <!-- view: config-step4 -->
+    <!-- ════════════ view: config-step4 ════════════ -->
     <div class="view-panel" id="view-step4">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">4. Skills 配置</h2>
+      <div class="step-badge skippable">step 4 / 6 · 可跳过</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Skills 配置</h2>
       <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">从 ClawHub 安装或配置本地自定义技能。</p>
-      
+
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
         <div style="background: #fff; border: 1px solid #BFDBFE; border-radius: 10px; padding: 16px; position: relative;">
-          <div style="font-size: 20px; margin-bottom: 8px;">🖥️</div>
+          <div style="font-size: 22px; margin-bottom: 8px;">🖥️</div>
           <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">System Execution</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">允许大模型在本地执行终端命令和读写文件。</div>
-          <button class="btn-primary" style="padding: 4px 10px; font-size: 12px; width: 100%; justify-content: center; background: #F1F5F9; color: #475569; pointer-events: none;">已安装</button>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">允许大模型在本地执行终端命令和读写文件。</div>
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px; width: 100%; justify-content: center; background: #F1F5F9; color: #475569; border-color: #E2E8F0; cursor: default;">已安装 ✓</button>
         </div>
-        
-        <div style="background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative;">
-          <div style="font-size: 20px; margin-bottom: 8px;">🌐</div>
+        <div style="background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px;">
+          <div style="font-size: 22px; margin-bottom: 8px;">🌐</div>
           <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">Web Search</div>
-          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 12px;">允许大模型调用搜索引擎获取实时信息。</div>
-          <button class="btn-ghost" style="padding: 4px 10px; font-size: 12px; width: 100%; justify-content: center;">点击安装</button>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">允许大模型调用搜索引擎获取实时信息。</div>
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px; width: 100%; justify-content: center;">点击安装</button>
+        </div>
+        <div style="background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 16px;">
+          <div style="font-size: 22px; margin-bottom: 8px;">📄</div>
+          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">File Reader</div>
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">读取并解析 PDF、Word、Excel 等文档格式。</div>
+          <button class="btn-ghost" style="padding: 5px 10px; font-size: 12px; width: 100%; justify-content: center;">点击安装</button>
+        </div>
+        <div style="background: #fff; border: 1.5px dashed var(--border); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 8px; cursor: pointer; color: var(--text-muted); transition: all 0.15s;" onmouseover="this.style.background='#F8FAFC'" onmouseout="this.style.background='#fff'">
+          <div style="font-size: 22px;">🔍</div>
+          <div style="font-size: 13px; font-weight: 500;">浏览 ClawHub</div>
+          <div style="font-size: 12px;">探索更多社区技能</div>
         </div>
       </div>
     </div>
 
-    <!-- view: config-step5 -->
+    <!-- ════════════ view: config-step5 ════════════ -->
     <div class="view-panel" id="view-step5">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">5. Hooks 配置</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">设置请求的预处理或后处理钩子逻辑。</p>
+      <div class="step-badge skippable">step 5 / 6 · 可跳过</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">Hooks 配置</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">设置请求的预处理或后处理钩子逻辑，默认关闭。</p>
 
-      <div style="background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 12px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
-          <div style="font-weight: 500; font-size: 14px;">全局日志拦截器</div>
+      <div style="background: #FAFAFA; border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 10px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+          <div>
+            <div style="font-weight: 500; font-size: 14px;">全局日志拦截器</div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px; font-family: 'JetBrains Mono', monospace;">path: /hooks/global-logger.js</div>
+          </div>
           <div class="toggle-wrapper" onclick="this.querySelector('.toggle-track').classList.toggle('active')">
             <div class="toggle-track active"><div class="toggle-thumb"></div></div>
           </div>
         </div>
-        <div style="font-size: 12px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">
-          path: /hooks/global-logger.js
-        </div>
       </div>
-      
-      <button class="btn-ghost" style="width: 100%; justify-content: center;">+ 注册新 Hook</button>
+
+      <button class="btn-ghost" style="width: 100%; justify-content: center;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        注册新 Hook
+      </button>
+
+      <div class="info-banner" style="margin-top: 18px;">
+        Hooks 支持热重载，变更后无需重启 Gateway 即可生效。
+      </div>
     </div>
 
-    <!-- view: config-step6 -->
+    <!-- ════════════ view: config-step6 ════════════ -->
     <div class="view-panel" id="view-step6">
-      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">6. 检查与应用</h2>
-      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px;">确认配置变更，应用并重启 Gateway。</p>
-      
-      <div style="background: #1E293B; border-radius: 8px; padding: 16px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; color: #E2E8F0; margin-bottom: 24px; max-height: 200px;">
+      <div class="step-badge">step 6 / 6 · 检查与应用</div>
+      <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px;">确认配置</h2>
+      <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 18px;">确认以下变更，应用并重启 Gateway。</p>
+
+      <!-- Diff 预览 -->
+      <div style="background: #1E293B; border-radius: 8px; padding: 16px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.65; color: #E2E8F0; margin-bottom: 16px; max-height: 180px;">
         <div style="color: #64748B;">// openclaw.json diff</div>
         <div style="color: #10B981;">+ "gateway": {</div>
         <div style="color: #10B981;">+   "port": 18789,</div>
-        <div style="color: #10B981;">+   "auth": "none"</div>
+        <div style="color: #10B981;">+   "auth": "none",</div>
+        <div style="color: #10B981;">+   "autostart": true</div>
         <div style="color: #10B981;">+ },</div>
         <div style="color: #10B981;">+ "providers": {</div>
-        <div style="color: #10B981;">+   "primary": "openai"</div>
+        <div style="color: #10B981;">+   "primary": "openai",</div>
+        <div style="color: #10B981;">+   "openai": { "model": "gpt-4o" }</div>
+        <div style="color: #10B981;">+ },</div>
+        <div style="color: #10B981;">+ "channels": {</div>
+        <div style="color: #10B981;">+   "lysmata-desktop": { "enabled": true }</div>
         <div style="color: #10B981;">+ }</div>
       </div>
-      
-      <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 10px;">
+
+      <!-- 跳过的步骤提示 -->
+      <div id="skipped-steps-note" style="display: none; padding: 10px 14px; background: #FFFBEB; border: 1px solid #FDE68A; border-radius: 8px; font-size: 13px; color: #92400E; margin-bottom: 12px;">
+        <strong>提示：</strong>以下步骤已跳过，可在主界面设置中随时配置：<span id="skipped-list"></span>
+      </div>
+
+      <div class="toggle-row" style="background: #FFFBEB; border-color: #FDE68A;">
         <div>
-          <div style="font-size: 14px; font-weight: 600; color: #B45309; margin-bottom: 2px;">重启 Gateway</div>
-          <div style="font-size: 12px; color: #92400E;">核心参数变更需要重启服务以生效。</div>
+          <div class="toggle-label" style="color: #B45309;">重启 Gateway</div>
+          <div class="toggle-desc" style="color: #92400E;">核心参数变更需要重启服务以生效。</div>
         </div>
         <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
           <div class="toggle-track active" style="background: #F59E0B;"><div class="toggle-thumb"></div></div>
@@ -548,13 +602,42 @@
       </div>
     </div>
 
+    <!-- ════════════ view: done ════════════ -->
+    <div class="view-panel" id="view-done">
+      <div class="centered-panel">
+        <div style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #DCFCE7, #BBF7D0); border: 4px solid #BBF7D0; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; color: #16A34A;">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        </div>
+        <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px;">已就绪 🎉</h1>
+        <p style="font-size: 14px; color: var(--text-muted); line-height: 1.65; max-width: 380px; margin: 0 0 28px;">
+          Gateway 配置已应用并成功重启。<br>
+          你现在可以开始创建 Bot 并开始对话了。
+        </p>
+        <button class="btn-primary" style="padding: 11px 28px; font-size: 15px;" onclick="goToDashboard()">
+          进入主界面
+        </button>
+        <button class="btn-link" style="margin-top: 16px;" onclick="reenterWizard()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px;"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.57"/></svg>
+          重新运行配置向导
+        </button>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Footer -->
+  <!-- ── Footer ── -->
   <div class="wizard-footer">
-    <button class="btn-ghost" id="btn-cancel" onclick="handleCancel()">取消</button>
-    <div style="display: flex; gap: 10px;">
-      <button class="btn-ghost" id="btn-prev" onclick="goPrev()" style="display: none;">上一步</button>
+    <div class="wizard-footer-left">
+      <button class="btn-ghost" id="btn-cancel" onclick="handleCancel()">取消</button>
+    </div>
+    <div class="wizard-footer-right">
+      <button class="btn-link" id="btn-skip" onclick="skipCurrentStep()" style="display: none;">跳过此步</button>
+      <button class="btn-ghost" id="btn-prev" onclick="goPrev()" style="display: none;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        上一步
+      </button>
       <button class="btn-primary" id="btn-next" onclick="goNext()">开始安装</button>
     </div>
   </div>
@@ -565,153 +648,154 @@
 <div id="toast" class="toast"></div>
 
 <script>
-  // Flow state
-  const FLOW = [
-    { id: 'intro', type: 'install' },
-    { id: 'env', type: 'install' },
+  // ── 步骤数据 ──
+  const INSTALL_STEPS = [
+    { id: 'intro',      type: 'install' },
+    { id: 'env',        type: 'install' },
     { id: 'installing', type: 'install' },
-    { id: 'success', type: 'install' },
-    { id: 'step1', type: 'config', title: 'Gateway', index: 1 },
-    { id: 'step2', type: 'config', title: 'Provider', index: 2 },
-    { id: 'step3', type: 'config', title: 'Channel', index: 3 },
-    { id: 'step4', type: 'config', title: 'Skills', index: 4 },
-    { id: 'step5', type: 'config', title: 'Hooks', index: 5 },
-    { id: 'step6', type: 'config', title: 'Review', index: 6 }
+    { id: 'success',    type: 'install' },
   ];
+  const CONFIG_STEPS = [
+    { id: 'step1', type: 'config', title: 'Gateway',  index: 1, skippable: false },
+    { id: 'step2', type: 'config', title: 'Provider', index: 2, skippable: false },
+    { id: 'step3', type: 'config', title: 'Channel',  index: 3, skippable: true  },
+    { id: 'step4', type: 'config', title: 'Skills',   index: 4, skippable: true  },
+    { id: 'step5', type: 'config', title: 'Hooks',    index: 5, skippable: true  },
+    { id: 'step6', type: 'config', title: 'Review',   index: 6, skippable: false },
+  ];
+  const FLOW = [...INSTALL_STEPS, ...CONFIG_STEPS, { id: 'done', type: 'done' }];
+
   let currentStepIdx = 0;
+  // 保存每个 config step 的跳过状态
+  const skippedSteps = {};
 
+  // ── 渲染进度器 ──
   function renderStepper(step) {
-    const stepperEl = document.getElementById('stepper');
-    if (step.type !== 'config') return;
-
-    const configSteps = FLOW.filter(f => f.type === 'config');
-    const total = configSteps.length;
+    const el = document.getElementById('stepper');
+    const total = CONFIG_STEPS.length;
     let html = '';
-    
-    configSteps.forEach((s, idx) => {
+    CONFIG_STEPS.forEach((s, idx) => {
       const isCompleted = s.index < step.index;
-      const isActive = s.index === step.index;
-      let stateClass = '';
-      if (isActive) stateClass = 'active';
-      if (isCompleted) stateClass = 'completed';
+      const isActive    = s.index === step.index;
+      const isSkipped   = skippedSteps[s.id];
+      let cls = '';
+      if (isActive)    cls = 'active';
+      if (isCompleted) cls = isSkipped ? 'skipped' : 'completed';
 
-      html += `
-        <div class="step-item ${stateClass}">
-          <div class="step-circle">${isCompleted ? '✓' : s.index}</div>
-          <span style="display: ${isActive ? 'inline-block' : 'none'};">${s.title}</span>
-        </div>
-      `;
+      html += `<div class="step-item ${cls}">
+        <div class="step-circle">${isCompleted ? (isSkipped ? '–' : '✓') : s.index}</div>
+        <span style="display:${isActive ? 'inline-block' : 'none'};">${s.title}</span>
+      </div>`;
       if (idx < total - 1) {
-        html += `<div class="step-divider ${isCompleted ? 'completed' : ''}"></div>`;
+        const divClass = isCompleted ? (isSkipped ? 'skipped' : 'completed') : '';
+        html += `<div class="step-divider ${divClass}"></div>`;
       }
     });
-
-    stepperEl.innerHTML = html;
+    el.innerHTML = html;
   }
 
+  // ── 渲染视图 ──
   function renderView() {
     const step = FLOW[currentStepIdx];
-    
-    // Manage header visibility based on step type
+
+    // header 显示/隐藏
     const header = document.getElementById('wizard-header');
     if (step.type === 'config') {
-      header.style.display = 'block';
+      header.style.display = 'flex';
       renderStepper(step);
     } else {
       header.style.display = 'none';
     }
 
-    // Toggle panels
-    document.querySelectorAll('.view-panel').forEach(el => {
-      el.classList.remove('active');
-    });
+    // 切换 panel
+    document.querySelectorAll('.view-panel').forEach(el => el.classList.remove('active'));
     const panel = document.getElementById('view-' + step.id);
-    if (panel) {
-      panel.classList.add('active');
-    }
+    if (panel) panel.classList.add('active');
 
-    // Update buttons
-    const btnPrev = document.getElementById('btn-prev');
-    const btnNext = document.getElementById('btn-next');
-    
-    if (currentStepIdx === 0) {
-      btnPrev.style.display = 'none';
+    // 按钮状态
+    const btnCancel = document.getElementById('btn-cancel');
+    const btnPrev   = document.getElementById('btn-prev');
+    const btnNext   = document.getElementById('btn-next');
+    const btnSkip   = document.getElementById('btn-skip');
+
+    // 默认重置
+    btnCancel.style.display = 'block';
+    btnPrev.style.display   = 'none';
+    btnSkip.style.display   = 'none';
+    btnNext.disabled        = false;
+
+    if (step.id === 'intro') {
       btnNext.textContent = '开始安装';
-      btnNext.disabled = false;
+      btnCancel.textContent = '取消';
     } else if (step.id === 'env') {
-      btnPrev.style.display = 'block';
+      btnPrev.style.display = 'flex';
       btnNext.textContent = '一键安装';
-      btnNext.disabled = false;
     } else if (step.id === 'installing') {
-      btnPrev.style.display = 'none';
       btnNext.textContent = '安装中...';
       btnNext.disabled = true;
-      // Auto-advance for mockup
-      setTimeout(() => {
-        goNext();
-      }, 3000);
+      btnCancel.style.display = 'none';
+      setTimeout(() => { goNext(); }, 3000);
     } else if (step.id === 'success') {
-      btnPrev.style.display = 'none';
-      btnNext.textContent = '去配置';
-      btnNext.disabled = false;
-    } else {
-      btnPrev.style.display = 'block';
-      btnNext.textContent = currentStepIdx === FLOW.length - 1 ? '完成' : '下一步';
-      btnNext.disabled = false;
+      btnNext.textContent = '立即配置 →';
+      btnCancel.style.display = 'none';
+    } else if (step.type === 'config') {
+      btnPrev.style.display = 'flex';
+      btnCancel.textContent = '取消';
+      if (step.skippable) {
+        btnSkip.style.display = 'inline-flex';
+        btnSkip.textContent = '跳过此步';
+      }
+      if (step.id === 'step6') {
+        btnNext.textContent = '应用配置';
+        // 更新跳过步骤提示
+        const skippedNames = CONFIG_STEPS
+          .filter(s => skippedSteps[s.id])
+          .map(s => s.title);
+        const note = document.getElementById('skipped-steps-note');
+        if (skippedNames.length > 0) {
+          note.style.display = 'block';
+          document.getElementById('skipped-list').textContent = ' ' + skippedNames.join('、');
+        } else {
+          note.style.display = 'none';
+        }
+      } else {
+        btnNext.textContent = '下一步';
+      }
+    } else if (step.id === 'done') {
+      btnCancel.style.display = 'none';
+      btnNext.style.display   = 'none';
+      btnNext.style.display   = 'none';
     }
   }
 
-  function switchProviderTab(tabId) {
-    document.querySelectorAll('.provider-tab').forEach(el => {
-      el.style.display = 'none';
-    });
-    const target = document.getElementById('ptab-' + tabId);
-    if (target) target.style.display = 'block';
-
-    document.querySelectorAll('.tab-item').forEach(el => {
-      el.classList.remove('active');
-    });
-    const btn = document.getElementById('ptab-btn-' + tabId);
-    if (btn) btn.classList.add('active');
-  }
-
+  // ── 导航函数 ──
   function goNext() {
     const step = FLOW[currentStepIdx];
-    
-    // Validation for Step 2
+
+    // 自定义 Provider 必填校验
     if (step.id === 'step2') {
       const activeTab = document.querySelector('.tab-item.active').innerText;
       if (activeTab.includes('自定义')) {
-        const inputs = document.getElementById('ptab-custom').querySelectorAll('.form-input');
+        const requiredIds = ['custom-provider-id', 'custom-base-url', 'custom-model-id'];
         let valid = true;
-        inputs.forEach(inp => {
-          // Check required fields (those with * in label)
-          const label = inp.previousElementSibling;
-          if (label && label.innerText.includes('*') && !inp.value.trim()) {
-            inp.classList.add('form-error');
-            valid = false;
-          } else {
-            inp.classList.remove('form-error');
-          }
+        requiredIds.forEach(id => {
+          const inp = document.getElementById(id);
+          if (!inp.value.trim()) { inp.classList.add('form-error'); valid = false; }
+          else inp.classList.remove('form-error');
         });
-        if (!valid) {
-          showToast('请填写必填字段', 'error');
-          return;
-        }
+        if (!valid) { showToast('请填写必填字段（标有 *）', 'error'); return; }
       }
     }
-    
-    if (currentStepIdx === FLOW.length - 1) {
-      // Final apply
+
+    // 最后一步应用配置
+    if (step.id === 'step6') {
       const btn = document.getElementById('btn-next');
       btn.innerHTML = `<svg class="conn-testing" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 应用中...`;
       btn.disabled = true;
       setTimeout(() => {
-        btn.innerHTML = '已就绪';
         showToast('Gateway 配置已应用并成功重启', 'success');
-        setTimeout(() => {
-          window.location.href = 'ui-bot-management.html';
-        }, 1500);
+        currentStepIdx++;
+        renderView();
       }, 2000);
       return;
     }
@@ -723,23 +807,96 @@
   }
 
   function goPrev() {
-    if (currentStepIdx > 0) {
-      currentStepIdx--;
-      renderView();
-    }
+    if (currentStepIdx > 0) { currentStepIdx--; renderView(); }
   }
 
+  // 跳过当前可选步骤
+  function skipCurrentStep() {
+    const step = FLOW[currentStepIdx];
+    if (!step.skippable) return;
+    skippedSteps[step.id] = true;
+    showToast(`已跳过「${step.title}」，可在设置中随时配置`, 'info');
+    currentStepIdx++;
+    renderView();
+  }
+
+  // 已安装，直接跳到配置
+  function skipToConfig() {
+    currentStepIdx = FLOW.findIndex(s => s.id === 'step1');
+    renderView();
+  }
+
+  // 稍后再说
+  function handleDefer() {
+    showToast('已保存进度，可在「设置 → 重新运行向导」中继续', 'info');
+    setTimeout(() => { window.location.href = 'ui-bot-management.html'; }, 1800);
+  }
+
+  // 退出向导（配置过程中点 ✕）
+  function handleExitWizard() {
+    showToast('已退出向导，配置将保留已完成步骤', 'info');
+    setTimeout(() => { window.location.href = 'ui-bot-management.html'; }, 1800);
+  }
+
+  // 取消
   function handleCancel() {
-    // normally close window
     showToast('已取消操作', 'error');
   }
 
+  // 进入主界面
+  function goToDashboard() {
+    window.location.href = 'ui-bot-management.html';
+  }
+
+  // 重新运行向导
+  function reenterWizard() {
+    Object.keys(skippedSteps).forEach(k => delete skippedSteps[k]);
+    currentStepIdx = FLOW.findIndex(s => s.id === 'step1');
+    document.getElementById('btn-next').style.display = '';
+    renderView();
+    showToast('已进入配置向导', 'info');
+  }
+
+  // ── Provider Tab 切换 ──
+  function switchProviderTab(tabId) {
+    document.querySelectorAll('.provider-tab').forEach(el => { el.style.display = 'none'; });
+    const target = document.getElementById('ptab-' + tabId);
+    if (target) target.style.display = 'block';
+    document.querySelectorAll('.tab-item').forEach(el => el.classList.remove('active'));
+    const btn = document.getElementById('ptab-btn-' + tabId);
+    if (btn) btn.classList.add('active');
+  }
+
+  // ── 卡片单选 ──
+  function selectCard(el) {
+    el.closest('.providers-grid').querySelectorAll('.provider-card').forEach(c => c.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // ── 模板填充 ──
+  const TEMPLATES = {
+    ollama:   { id: 'local-ollama',  url: 'http://127.0.0.1:11434/v1', model: 'llama3' },
+    vllm:     { id: 'local-vllm',    url: 'http://127.0.0.1:8000/v1',  model: 'meta-llama-3-8b' },
+    lmstudio: { id: 'local-lmstudio',url: 'http://127.0.0.1:1234/v1',  model: 'local-model' },
+    moonshot: { id: 'moonshot',      url: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  };
+  function fillTemplate(name) {
+    const t = TEMPLATES[name];
+    if (!t) return;
+    document.getElementById('custom-provider-id').value = t.id;
+    document.getElementById('custom-base-url').value    = t.url;
+    document.getElementById('custom-model-id').value    = t.model;
+    showToast(`已加载 ${name} 模板`, 'info');
+  }
+
+  // ── Toggle ──
   function toggleTrackClick(el) {
     el.querySelector('.toggle-track').classList.toggle('active');
   }
 
+  // ── Toast ──
   let toastTimer;
-  function showToast(msg, type='success') {
+  function showToast(msg, type = 'success') {
     const el = document.getElementById('toast');
     el.textContent = msg;
     el.className = `toast toast-${type} show`;
@@ -747,6 +904,7 @@
     toastTimer = setTimeout(() => { el.classList.remove('show'); }, 2800);
   }
 
+  // 初始化
   renderView();
 </script>
 
