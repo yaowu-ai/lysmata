@@ -10,6 +10,8 @@ import { GroupChatPage } from './pages/Chat/GroupChatPage';
 import SettingsPage from './pages/SettingsPage';
 // import OpenClawInstallPage from './pages/OpenClawInstallPage';
 import { startSidecar } from './shared/tauri-bridge';
+import { WizardPage } from './pages/Onboarding/WizardPage';
+import { isOnboardingComplete } from './shared/store/wizard-store';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -37,8 +39,19 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
+          <Route
+            index
+            element={
+              isOnboardingComplete()
+                ? <Navigate to="/bots" replace />
+                : <Navigate to="/onboarding" replace />
+            }
+          />
+          {/* Wizard — outside AppLayout */}
+          <Route path="onboarding" element={<WizardPage />} />
+
+          {/* Main app */}
           <Route element={<AppLayout />}>
-            <Route index element={<Navigate to="/bots" replace />} />
             <Route path="bots" element={<BotManagementPage />} />
             <Route path="bots/:id/status" element={<BotStatusPage />} />
             <Route path="chat/private" element={<PrivateChatPage />} />
