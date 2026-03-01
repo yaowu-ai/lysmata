@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { readLlmSettings, updateLlmSettings } from "../../core/openclaw-config-file";
+import {
+  readLlmSettings,
+  updateLlmSettings,
+  readGatewaySettings,
+} from "../../core/openclaw-config-file";
 
 const settings = new Hono();
 
@@ -54,6 +58,21 @@ settings.put("/llm", zValidator("json", llmSettingsSchema), async (c) => {
   } catch {
     return c.json({ error: "Failed to update LLM settings" }, 500);
   }
+});
+
+settings.get("/gateway", async (c) => {
+  try {
+    const data = await readGatewaySettings();
+    return c.json(data);
+  } catch {
+    return c.json({ error: "Failed to read gateway settings" }, 500);
+  }
+});
+
+settings.post("/gateway-restart", async (c) => {
+  // Gateway restart is handled by the Tauri shell layer in production.
+  // This endpoint acknowledges the request and returns success.
+  return c.json({ success: true });
 });
 
 export default settings;

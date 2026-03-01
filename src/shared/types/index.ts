@@ -85,6 +85,16 @@ export interface SendMessageInput {
   content: string;
 }
 
+// ── Gateway Settings ─────────────────────────────────────────────
+export interface GatewaySettings {
+  port: number;
+  bindAddress: string;
+  authMode: "none" | "token";
+  /** Auth token value; only present when authMode === "token" */
+  authToken?: string;
+  autostart: boolean;
+}
+
 // ── LLM Settings ────────────────────────────────────────────────
 export interface ProviderModel {
   id: string;

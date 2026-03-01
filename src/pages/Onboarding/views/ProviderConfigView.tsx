@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiClient } from "../../../shared/api-client";
+import { useLlmSettings } from "../../../shared/hooks/useLlmSettings";
 
 const BUILTIN_PROVIDERS = [
   {
@@ -43,12 +44,18 @@ const TEMPLATES: Record<string, { id: string; url: string; model: string }> = {
   moonshot: { id: "moonshot", url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
 };
 
+// Sentinel value placed in the API Key field when a key already exists in the
+// backend but we intentionally do not re-expose it in plaintext.
+const MASKED_PLACEHOLDER = "•••••••••••";
+
 interface Props {
   onRegisterSubmit: (fn: () => Promise<void>) => void;
   onDone: () => void;
 }
 
 export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
+  const { data: llmSettings, isLoading } = useLlmSettings();
+
   const [activeTab, setActiveTab] = useState<"builtin" | "custom" | "market">("builtin");
   const [selectedId, setSelectedId] = useState("openai");
   const [apiKey, setApiKey] = useState("");
@@ -58,6 +65,44 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   const [cName, setCName] = useState("");
   const [cApi, setCApi] = useState<"openai" | "anthropic">("openai");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const [initialized, setInitialized] = useState(false);
+
+  // Prefill from backend on first load
+  useEffect(() => {
+    if (llmSettings && !initialized) {
+      const primary = llmSettings.defaultModel.primary;
+      if (primary) {
+        const slashIdx = primary.indexOf("/");
+        const provider = slashIdx > 0 ? primary.slice(0, slashIdx) : primary;
+        const builtin = BUILTIN_PROVIDERS.find((p) => p.id === provider);
+
+        if (builtin) {
+          setActiveTab("builtin");
+          setSelectedId(provider);
+          // Show masked placeholder when API key already exists
+          const providerConfig = llmSettings.providers[provider];
+          if (providerConfig?.apiKey) {
+            setApiKey(MASKED_PLACEHOLDER);
+          }
+        } else if (provider) {
+          // Custom provider
+          const providerConfig = llmSettings.providers[provider];
+          if (providerConfig) {
+            setActiveTab("custom");
+            setCId(provider);
+            setCUrl(providerConfig.baseUrl ?? "");
+            setCApi((providerConfig.api as "openai" | "anthropic") ?? "openai");
+            const firstModel = providerConfig.models?.[0];
+            if (firstModel) {
+              setCModel(firstModel.id);
+              setCName(firstModel.name ?? "");
+            }
+          }
+        }
+      }
+      setInitialized(true);
+    }
+  }, [llmSettings, initialized]);
 
   async function handleSave() {
     if (activeTab === "custom") {
@@ -77,12 +122,14 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
       });
     } else if (activeTab === "builtin") {
       const p = BUILTIN_PROVIDERS.find((b) => b.id === selectedId)!;
+      // Skip updating API key if user left the masked placeholder unchanged
+      const keyToSave = apiKey === MASKED_PLACEHOLDER ? undefined : apiKey;
       await apiClient.put("/settings/llm", {
         providers: {
           [p.id]: {
             baseUrl: p.baseUrl,
             api: p.api,
-            apiKey,
+            ...(keyToSave !== undefined && { apiKey: keyToSave }),
             models: [{ id: p.defaultModel, name: p.defaultModel }],
           },
         },
@@ -103,6 +150,29 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
     setCModel(t.model);
   }
 
+  if (isLoading) {
+    return (
+      <div>
+        <div className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] mb-2.5">
+          step 2 / 6 · 必填
+        </div>
+        <h2 className="text-[20px] font-bold mb-1.5">LLM Provider 配置</h2>
+        <p className="text-sm text-[#64748B] mb-4">选择并配置你的主要大模型服务提供商。</p>
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-[#F1F5F9] rounded-lg w-2/3" />
+          <div className="grid grid-cols-4 gap-2.5">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-20 bg-[#F1F5F9] rounded-[10px]" />
+            ))}
+          </div>
+          <div className="h-[52px] bg-[#F1F5F9] rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  const hasExistingConfig = initialized && !!llmSettings?.defaultModel.primary;
+
   return (
     <div>
       <div className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] mb-2.5">
@@ -110,6 +180,15 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
       </div>
       <h2 className="text-[20px] font-bold mb-1.5">LLM Provider 配置</h2>
       <p className="text-sm text-[#64748B] mb-4">选择并配置你的主要大模型服务提供商。</p>
+
+      {hasExistingConfig && (
+        <div className="flex items-center gap-1.5 text-[12px] text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-2 mb-3">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          已加载当前配置，修改 API Key 时请重新输入（出于安全原因不显示原始值）
+        </div>
+      )}
 
       <div className="flex border-b border-[#E5E7EB] mb-4">
         {(
@@ -151,11 +230,19 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
             <input
               type="password"
               value={apiKey}
-              placeholder="sk-..."
+              placeholder={apiKey === MASKED_PLACEHOLDER ? undefined : "sk-..."}
               onChange={(e) => setApiKey(e.target.value)}
+              onFocus={() => {
+                // Clear mask on focus so user can type a new key
+                if (apiKey === MASKED_PLACEHOLDER) setApiKey("");
+              }}
               className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD]"
             />
-            <p className="text-xs text-[#64748B] mt-1">安全提示：Key 将加密存储，不上传云端</p>
+            <p className="text-xs text-[#64748B] mt-1">
+              {apiKey === MASKED_PLACEHOLDER
+                ? "已配置 API Key，点击输入框可重新设置"
+                : "安全提示：Key 将加密存储，不上传云端"}
+            </p>
           </div>
         </div>
       )}

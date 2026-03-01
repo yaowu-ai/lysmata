@@ -162,9 +162,30 @@ export function WizardPage() {
               onDone={goNext}
             />
           )}
-          {step.id === "step3" && <ChannelConfigView />}
-          {step.id === "step4" && <SkillsConfigView />}
-          {step.id === "step5" && <HooksConfigView />}
+          {step.id === "step3" && (
+            <ChannelConfigView
+              onRegisterSubmit={(fn) => {
+                submitRef.current = fn;
+              }}
+              onDone={goNext}
+            />
+          )}
+          {step.id === "step4" && (
+            <SkillsConfigView
+              onRegisterSubmit={(fn) => {
+                submitRef.current = fn;
+              }}
+              onDone={goNext}
+            />
+          )}
+          {step.id === "step5" && (
+            <HooksConfigView
+              onRegisterSubmit={(fn) => {
+                submitRef.current = fn;
+              }}
+              onDone={goNext}
+            />
+          )}
           {step.id === "step6" && (
             <ReviewView
               skippedSteps={skippedSteps}

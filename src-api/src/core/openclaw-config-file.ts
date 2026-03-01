@@ -235,11 +235,34 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
 }
 
+export interface GatewaySettings {
+  port: number;
+  bindAddress: string;
+  authMode: "none" | "token";
+  /** Auth token value; only present when authMode === "token" */
+  authToken?: string;
+  autostart: boolean;
+}
+
 export interface GatewayConfigUpdate {
   port?: number;
   bindAddress?: string;
   authMode?: "none" | "token";
+  authToken?: string;
   autostart?: boolean;
+}
+
+export async function readGatewaySettings(): Promise<GatewaySettings> {
+  const config = await readOpenClawConfig();
+  const gw = config?.gateway as Record<string, unknown> | undefined;
+  const auth = gw?.auth as { mode?: string; token?: string } | undefined;
+  return {
+    port: typeof gw?.port === "number" ? gw.port : 18789,
+    bindAddress: typeof gw?.bindAddress === "string" ? gw.bindAddress : "127.0.0.1",
+    authMode: auth?.mode === "token" ? "token" : "none",
+    authToken: typeof auth?.token === "string" ? auth.token : undefined,
+    autostart: typeof gw?.autostart === "boolean" ? gw.autostart : true,
+  };
 }
 
 export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<void> {
@@ -248,8 +271,13 @@ export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<
 
   updated.gateway ??= {};
   if (update.port !== undefined) updated.gateway.port = update.port;
-  if (update.authMode !== undefined)
-    updated.gateway.auth = { ...updated.gateway.auth, mode: update.authMode };
+  if (update.authMode !== undefined || update.authToken !== undefined) {
+    updated.gateway.auth = {
+      ...updated.gateway.auth,
+      ...(update.authMode !== undefined && { mode: update.authMode }),
+      ...(update.authToken !== undefined && { token: update.authToken }),
+    };
+  }
   if (update.bindAddress !== undefined)
     (updated.gateway as Record<string, unknown>).bindAddress = update.bindAddress;
   if (update.autostart !== undefined)
