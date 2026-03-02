@@ -17,6 +17,17 @@ export function BotInfoPanel({ bot }: Props) {
   const { botPanelCollapsed, setBotPanelCollapsed } = useChatStore();
   const badge = STATUS_BADGE[bot.connection_status] ?? STATUS_BADGE.disconnected;
 
+  // skills_config is stored as a JSON string in SQLite and returned as-is by the API
+  const skills = Array.isArray(bot.skills_config)
+    ? bot.skills_config
+    : (() => {
+        try {
+          return JSON.parse(bot.skills_config as unknown as string) as typeof bot.skills_config;
+        } catch {
+          return [];
+        }
+      })();
+
   if (botPanelCollapsed) {
     return (
       <div className="w-10 border-l border-[#E5E7EB] bg-white flex flex-col items-center pt-3 flex-shrink-0 transition-all duration-200">
@@ -69,9 +80,9 @@ export function BotInfoPanel({ bot }: Props) {
         <div className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wider mb-2">
           技能列表
         </div>
-        {bot.skills_config?.length > 0 ? (
+        {skills.length > 0 ? (
           <ul className="space-y-1.5">
-            {bot.skills_config.map((skill) => (
+            {skills.map((skill) => (
               <li key={skill.name} className="flex flex-col gap-0.5">
                 <span className="text-[13px] font-medium text-[#0F172A]">{skill.name}</span>
                 {skill.description && (
