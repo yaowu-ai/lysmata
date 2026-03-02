@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { Message } from "../../shared/types";
 import { cn, formatMsgTime } from "../../shared/lib/utils";
 import { useResolveApproval } from "../../shared/hooks/useMessages";
+import { MarkdownContent } from "./MarkdownContent";
 
 interface Props {
   message: Message;
@@ -210,11 +211,11 @@ export function BotMessage({ message, isPrimary }: Props) {
         ) : (
           <div
             className={cn(
-              "rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap",
+              "rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words",
               isPrimary ? "bg-[#F0F7FF] border-l-[3px] border-[#2563EB]" : "bg-[#F1F5F9]",
             )}
           >
-            {message.content}
+            <MarkdownContent content={message.content} />
           </div>
         )}
 

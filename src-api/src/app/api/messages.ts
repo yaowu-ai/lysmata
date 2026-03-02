@@ -12,7 +12,11 @@ import { SSE } from "../../config/constants";
 const messages = new Hono();
 
 messages.get("/", (c) => {
-  const msgs = MessageRouter.listMessages(c.req.param("conversationId"));
+  const { before, limit } = c.req.query();
+  const msgs = MessageRouter.listMessages(c.req.param("conversationId"), {
+    before: before || undefined,
+    limit: limit ? parseInt(limit, 10) : undefined,
+  });
   return c.json(msgs);
 });
 

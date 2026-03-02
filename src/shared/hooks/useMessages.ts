@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../../config";
 import { apiClient } from "../api-client";
 import type { Message, SendMessageInput } from "../types";
@@ -7,11 +7,29 @@ export const msgKeys = {
   list: (convId: string) => ["messages", convId] as const,
 };
 
+const PAGE_SIZE = 50;
+
 export function useMessages(conversationId: string) {
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: msgKeys.list(conversationId),
-    queryFn: () => apiClient.get<Message[]>(`/conversations/${conversationId}/messages`),
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      const url = pageParam
+        ? `/conversations/${conversationId}/messages?before=${pageParam}&limit=${PAGE_SIZE}`
+        : `/conversations/${conversationId}/messages?limit=${PAGE_SIZE}`;
+      return apiClient.get<Message[]>(url);
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (firstPage: Message[]) => {
+      // firstPage is the oldest page loaded (we load older pages going "up")
+      // If we got a full page, there are more older messages
+      return firstPage.length === PAGE_SIZE ? firstPage[0]?.id : undefined;
+    },
     enabled: !!conversationId,
+    select: (data) => ({
+      ...data,
+      // Flatten all pages into a single sorted list
+      messages: data.pages.flat(),
+    }),
   });
 }
 
@@ -87,19 +105,30 @@ export function useResolveApproval(conversationId: string) {
 export function useSendMessageStream(conversationId: string) {
   const qc = useQueryClient();
 
-  return async (content: string, onChunk: (text: string) => void): Promise<{ error?: string }> => {
-    // Optimistically insert user message
+  return async (
+    content: string,
+    onChunk: (text: string) => void,
+    signal?: AbortSignal,
+  ): Promise<{ error?: string }> => {
+    // Optimistically append user message to the last page of the infinite query
     const optimisticId = `optimistic-${Date.now()}`;
-    qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => [
-      ...old,
-      {
-        id: optimisticId,
-        conversation_id: conversationId,
-        sender_type: "user",
-        content,
-        created_at: new Date().toISOString(),
-      } as Message,
-    ]);
+    qc.setQueryData<{ pages: Message[][]; pageParams: unknown[] }>(
+      msgKeys.list(conversationId),
+      (old) => {
+        if (!old) return old;
+        const pages = [...old.pages];
+        const lastPage = [...(pages[pages.length - 1] ?? [])];
+        lastPage.push({
+          id: optimisticId,
+          conversation_id: conversationId,
+          sender_type: "user",
+          content,
+          created_at: new Date().toISOString(),
+        } as Message);
+        pages[pages.length - 1] = lastPage;
+        return { ...old, pages };
+      },
+    );
 
     let botMsg: Message | null = null;
     let streamError: string | undefined;
@@ -107,6 +136,7 @@ export function useSendMessageStream(conversationId: string) {
     try {
       const res = await fetch(
         `${API_BASE_URL}/conversations/${conversationId}/messages/stream?content=${encodeURIComponent(content)}`,
+        { signal },
       );
       if (!res.ok || !res.body) throw new Error(`Stream error: ${res.status}`);
 
@@ -150,36 +180,41 @@ export function useSendMessageStream(conversationId: string) {
         }
       }
     } catch (err) {
-      streamError = String(err);
+      // Ignore AbortError — user intentionally stopped the stream
+      if (err instanceof DOMException && err.name === "AbortError") {
+        streamError = undefined;
+      } else {
+        streamError = String(err);
+      }
     } finally {
-      // Write real records into the cache immediately so there is no visual gap
-      // between the streaming bubble disappearing and the refetch completing.
-      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
-        // Replace the optimistic user entry with a confirmed one (same content,
-        // but keep optimisticId so it is still replaced by the real ID on refetch).
-        const withoutOptimistic = old.filter((m) => m.id !== optimisticId);
-        const userMsg: Message = {
-          id: optimisticId,
-          conversation_id: conversationId,
-          sender_type: "user",
-          content,
-          created_at: new Date().toISOString(),
-        } as Message;
+      // Append real bot message to cache if available — eliminates the gap
+      // between streaming bubble disappearing and refetch completing.
+      if (botMsg) {
+        qc.setQueryData<{ pages: Message[][]; pageParams: unknown[] }>(
+          msgKeys.list(conversationId),
+          (old) => {
+            if (!old) return old;
+            const pages = [...old.pages];
+            const lastPage = [...(pages[pages.length - 1] ?? [])];
+            // Replace optimistic user msg + append real bot msg
+            const withoutOptimistic = lastPage.filter((m) => m.id !== optimisticId);
+            const userMsg: Message = {
+              id: optimisticId,
+              conversation_id: conversationId,
+              sender_type: "user",
+              content,
+              created_at: new Date().toISOString(),
+            } as Message;
+            const hasBotMsg = lastPage.some((m) => m.id === botMsg!.id);
+            pages[pages.length - 1] = hasBotMsg
+              ? withoutOptimistic
+              : [...withoutOptimistic, userMsg, botMsg!];
+            return { ...old, pages };
+          },
+        );
+      }
 
-        if (botMsg) {
-          // Already have real bot message — write it directly.
-          // Guard against duplicate if a concurrent invalidate already fetched it.
-          const hasBotMsg = old.some((m) => m.id === botMsg!.id);
-          return hasBotMsg ? old : [...withoutOptimistic, userMsg, botMsg!];
-        }
-        // No bot message yet (stream error or timeout) — keep user message so
-        // the bubble doesn't disappear, and let refetch bring the real data.
-        const hasUser = old.some((m) => m.id === optimisticId);
-        return hasUser ? old : [...withoutOptimistic, userMsg];
-      });
-
-      // Background refetch to replace the optimistic user ID with the real DB
-      // record ID and pick up any messages we may have missed.
+      // Background refetch to sync real IDs and pick up any missed messages.
       void qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
     }
 

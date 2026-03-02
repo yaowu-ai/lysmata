@@ -1,16 +1,17 @@
 import { useRef, useState, useEffect } from "react";
-import { Send, AtSign } from "lucide-react";
+import { Send, AtSign, Square } from "lucide-react";
 import type { Bot } from "../../shared/types";
 import { cn } from "../../shared/lib/utils";
 
 interface Props {
   bots: Bot[];
   onSend: (content: string) => void;
+  onStop?: () => void;
   disabled?: boolean;
   placeholder?: string;
 }
 
-export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
+export function MessageInput({ bots, onSend, onStop, disabled, placeholder }: Props) {
   const [value, setValue] = useState("");
   const [mention, setMention] = useState<{ query: string; start: number } | null>(null);
   const [focusIdx, setFocusIdx] = useState(0);
@@ -202,13 +203,23 @@ export function MessageInput({ bots, onSend, disabled, placeholder }: Props) {
                 </span>
               )}
             </div>
-            <button
-              onClick={handleSend}
-              disabled={!value.trim() || disabled}
-              className="w-[34px] h-[34px] rounded-lg bg-[#2563EB] flex items-center justify-center hover:bg-[#1D4ED8] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Send size={15} className="text-white" />
-            </button>
+            {disabled ? (
+              <button
+                onClick={onStop}
+                className="w-[34px] h-[34px] rounded-lg bg-[#EF4444] flex items-center justify-center hover:bg-[#DC2626] active:scale-95 transition-all"
+                title="停止生成"
+              >
+                <Square size={14} className="text-white fill-white" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSend}
+                disabled={!value.trim()}
+                className="w-[34px] h-[34px] rounded-lg bg-[#2563EB] flex items-center justify-center hover:bg-[#1D4ED8] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Send size={15} className="text-white" />
+              </button>
+            )}
           </div>
         </div>
         <p className="text-[11px] text-[#CBD5E1] text-center mt-1.5">

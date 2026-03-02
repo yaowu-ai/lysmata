@@ -8,6 +8,8 @@ import { ConversationSidebar } from "./ConversationSidebar";
 import { BotMessage } from "./BotMessage";
 import { MessageInput } from "./MessageInput";
 import { NewConversationDialog } from "./NewConversationDialog";
+import { MarkdownContent } from "./MarkdownContent";
+import { BotInfoPanel } from "./BotInfoPanel";
 import { isSameDay, formatDateLabel } from "../../shared/lib/utils";
 
 export function PrivateChatPage() {
@@ -16,11 +18,27 @@ export function PrivateChatPage() {
   const { activeConversationId: activeId, setActiveConversationId } = useChatStore();
   const [dialogOpen, setDialogOpen] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
+  const topSentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Task A: abort ref
+  const abortRef = useRef<(() => void) | null>(null);
+
+  // Task D: delete confirmation state
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const singleConvs = convs.filter((c) => c.type === "single");
   const activeConv = singleConvs.find((c) => c.id === activeId) ?? null;
 
-  const { data: messages = [] } = useMessages(activeId ?? "");
+  // Task E: useInfiniteQuery
+  const {
+    data: msgData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useMessages(activeId ?? "");
+  const messages = msgData?.messages ?? [];
+
   const sendStream = useSendMessageStream(activeId ?? "");
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
@@ -28,22 +46,68 @@ export function PrivateChatPage() {
   const deleteMut = useDeleteConversation();
   usePushStream(activeId);
 
-  function handleDelete(id: string) {
+  // Task D: delete with confirmation + auto-switch
+  function handleDeleteRequest(id: string) {
+    setDeleteConfirmId(id);
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteConfirmId) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+    const remaining = singleConvs.filter((c) => c.id !== id);
     deleteMut.mutate(id, {
       onSuccess: () => {
-        if (activeId === id) setActiveConversationId(null);
+        if (activeId === id) {
+          setActiveConversationId(remaining[0]?.id ?? null);
+        }
       },
     });
   }
 
+  // Task A: stop streaming
+  function handleStop() {
+    abortRef.current?.();
+    abortRef.current = null;
+    setStreamingContent(null);
+    setIsSending(false);
+  }
+
+  // Task E: IntersectionObserver for top sentinel — load older messages
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    const container = scrollContainerRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          // Preserve scroll position: record heights before fetching
+          const prevScrollHeight = container?.scrollHeight ?? 0;
+          fetchNextPage().then(() => {
+            // Compensate scroll to prevent jump
+            if (container) {
+              const diff = container.scrollHeight - prevScrollHeight;
+              container.scrollTop += diff;
+            }
+          });
+        }
+      },
+      { root: container, threshold: 0.1 },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   useEffect(() => {
     msgEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, streamingContent]);
+  }, [messages.length, streamingContent]);
 
   useEffect(() => {
     setStreamingContent(null);
     setStreamError(null);
     setIsSending(false);
+    abortRef.current = null;
   }, [activeId]);
 
   const convBotId = activeConv?.bots?.[0]?.bot_id;
@@ -58,7 +122,7 @@ export function PrivateChatPage() {
         activeId={activeId}
         onSelect={setActiveConversationId}
         onNew={() => setDialogOpen(true)}
-        onDelete={handleDelete}
+        onDelete={handleDeleteRequest}
         isLoading={convLoading}
       />
 
@@ -75,8 +139,15 @@ export function PrivateChatPage() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+          {/* Messages — Task E: scroll container with top sentinel */}
+          <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-5 py-5 flex flex-col gap-4">
+            {/* Top sentinel for loading older messages */}
+            <div ref={topSentinelRef} className="h-1 flex-shrink-0">
+              {isFetchingNextPage && (
+                <div className="text-center text-[12px] text-[#94A3B8] py-2">加载更早消息...</div>
+              )}
+            </div>
+
             {messages.map((m, i) => {
               const msgBot = m.bot_id ? bots.find((b) => b.id === m.bot_id) : undefined;
               const prev = messages[i - 1];
@@ -113,8 +184,8 @@ export function PrivateChatPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="bg-[#F0F7FF] border-l-[3px] border-[#2563EB] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words whitespace-pre-wrap">
-                      {streamingContent}
+                    <div className="bg-[#F0F7FF] border-l-[3px] border-[#2563EB] rounded-[0_12px_12px_12px] px-3.5 py-2.5 text-[14px] leading-[1.65] break-words">
+                      <MarkdownContent content={streamingContent} />
                       <span className="inline-block w-[2px] h-[14px] bg-[#2563EB] ml-0.5 animate-pulse align-middle" />
                     </div>
                   )}
@@ -137,20 +208,25 @@ export function PrivateChatPage() {
           <MessageInput
             bots={convBot ? [convBot] : []}
             onSend={async (content) => {
+              const ctrl = new AbortController();
+              abortRef.current = () => ctrl.abort();
               setIsSending(true);
               setStreamError(null);
               setStreamingContent("");
               try {
-                const result = await sendStream(content, (chunk) => setStreamingContent(chunk));
+                const result = await sendStream(
+                  content,
+                  (chunk) => setStreamingContent(chunk),
+                  ctrl.signal,
+                );
                 if (result.error) setStreamError(result.error);
               } finally {
-                // By the time sendStream resolves, the real bot message has already
-                // been written into the React Query cache inside useSendMessageStream.
-                // We can clear the streaming bubble immediately — no gap.
+                abortRef.current = null;
                 setStreamingContent(null);
                 setIsSending(false);
               }
             }}
+            onStop={handleStop}
             disabled={isSending}
           />
         </div>
@@ -160,6 +236,9 @@ export function PrivateChatPage() {
         </div>
       )}
 
+      {/* Task F: Bot info panel */}
+      {activeConv && convBot && <BotInfoPanel bot={convBot} />}
+
       <NewConversationDialog
         open={dialogOpen}
         mode="single"
@@ -167,6 +246,32 @@ export function PrivateChatPage() {
         onClose={() => setDialogOpen(false)}
         onCreated={setActiveConversationId}
       />
+
+      {/* Task D: Delete confirmation dialog */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-[340px]">
+            <div className="text-[16px] font-semibold mb-2">删除对话</div>
+            <div className="text-[14px] text-[#64748B] mb-5">
+              确定要删除这个对话吗？删除后将无法恢复。
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-4 py-2 text-[14px] rounded-lg border border-[#E5E7EB] hover:bg-[#F8FAFC] transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDeleteConfirm}
+                className="px-4 py-2 text-[14px] rounded-lg bg-[#EF4444] text-white hover:bg-[#DC2626] transition-colors"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -18,13 +18,35 @@ export interface Message {
 }
 
 export const MessageRouter = {
-  listMessages(conversationId: string): Message[] {
-    return getDb()
-      .query<
-        Message,
-        [string]
-      >("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at ASC")
-      .all(conversationId);
+  listMessages(
+    conversationId: string,
+    opts?: { limit?: number; before?: string },
+  ): Message[] {
+    const db = getDb();
+    const limit = opts?.limit ?? 50;
+
+    if (opts?.before) {
+      // Cursor-based: fetch messages older than the given message id
+      const cursor = db
+        .query<Message, [string]>("SELECT created_at FROM messages WHERE id = ?")
+        .get(opts.before);
+      if (cursor) {
+        return db
+          .query<Message, [string, string, number]>(
+            "SELECT * FROM messages WHERE conversation_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
+          )
+          .all(conversationId, cursor.created_at, limit)
+          .reverse();
+      }
+    }
+
+    // Default: latest N messages (returned oldest→newest)
+    return db
+      .query<Message, [string, number]>(
+        "SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
+      )
+      .all(conversationId, limit)
+      .reverse();
   },
 
   getMessage(msgId: string): Message | null {

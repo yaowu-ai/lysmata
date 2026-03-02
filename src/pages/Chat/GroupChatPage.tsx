@@ -22,7 +22,8 @@ export function GroupChatPage() {
   const groupConvs = convs.filter((c) => c.type === "group");
   const activeConv = groupConvs.find((c) => c.id === activeId) ?? null;
 
-  const { data: messages = [] } = useMessages(activeId ?? "");
+  const { data: msgData } = useMessages(activeId ?? "");
+  const messages = msgData?.messages ?? [];
   const sendStream = useSendMessageStream(activeId ?? "");
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
