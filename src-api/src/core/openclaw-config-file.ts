@@ -56,7 +56,8 @@ export interface OpenClawConfig {
     tailscale?: Record<string, unknown>;
   };
   tools?: Record<string, unknown>;
-  channels?: Record<string, unknown>;
+  channels?: Record<string, { label: string; token: string; enabled: boolean }>;
+  hooks?: Record<string, { name: string; path: string; enabled: boolean }>;
   plugins?: Record<string, unknown>;
   models?: {
     mode?: string;
@@ -264,6 +265,68 @@ export async function readGatewaySettings(): Promise<GatewaySettings> {
     authMode: auth?.mode === "token" ? "token" : "none",
     authToken: typeof auth?.token === "string" ? auth.token : undefined,
   };
+}
+
+// ── Channel Settings ────────────────────────────────────────────────────────
+
+export interface ChannelEntry {
+  id: string;
+  label: string;
+  token: string;
+  enabled: boolean;
+}
+
+export async function readChannelSettings(): Promise<ChannelEntry[]> {
+  const config = await readOpenClawConfig();
+  const raw = config?.channels ?? {};
+  return Object.entries(raw).map(([id, v]) => ({
+    id,
+    label: v.label,
+    token: v.token,
+    enabled: v.enabled,
+  }));
+}
+
+export async function updateChannelSettings(channels: ChannelEntry[]): Promise<void> {
+  const existing = (await readOpenClawConfig()) ?? {};
+  const updated: OpenClawConfig = structuredClone(existing);
+  updated.channels = {};
+  for (const ch of channels) {
+    updated.channels[ch.id] = { label: ch.label, token: ch.token, enabled: ch.enabled };
+  }
+  updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
+  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+}
+
+// ── Hook Settings ─────────────────────────────────────────────────────────────
+
+export interface HookEntry {
+  id: string;
+  name: string;
+  path: string;
+  enabled: boolean;
+}
+
+export async function readHookSettings(): Promise<HookEntry[]> {
+  const config = await readOpenClawConfig();
+  const raw = config?.hooks ?? {};
+  return Object.entries(raw).map(([id, v]) => ({
+    id,
+    name: v.name,
+    path: v.path,
+    enabled: v.enabled,
+  }));
+}
+
+export async function updateHookSettings(hooks: HookEntry[]): Promise<void> {
+  const existing = (await readOpenClawConfig()) ?? {};
+  const updated: OpenClawConfig = structuredClone(existing);
+  updated.hooks = {};
+  for (const h of hooks) {
+    updated.hooks[h.id] = { name: h.name, path: h.path, enabled: h.enabled };
+  }
+  updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
+  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
 }
 
 export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<void> {

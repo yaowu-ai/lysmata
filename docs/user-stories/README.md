@@ -3,6 +3,7 @@
 **产品**：Lysmata（OpenClaw 桌面伴侣）
 **版本对应**：PRD v2.2 + v2.1（安装/配置向导）
 **更新日期**：2026-03-01
+**最近更新**：2026-06-13（新增 US-09 Agent 配置管理）
 
 ---
 
@@ -18,6 +19,7 @@
 | [us-06-skills.md](./us-06-skills.md)                 | 技能市场            | P1     |
 | [us-07-settings.md](./us-07-settings.md)             | 配置中心            | P0     |
 | [us-08-system-tray.md](./us-08-system-tray.md)       | 系统托盘 & 快捷入口 | P1     |
+| [us-09-agent-config.md](./us-09-agent-config.md)     | Agent 配置管理      | P0     |
 
 ## 用户角色定义
 

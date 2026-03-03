@@ -7,7 +7,8 @@ interface Props {
 }
 
 export function InstallingView({ onSuccess }: Props) {
-  const { logs, progress, statusLabel, isDone, isError, errorMsg } = useOnboardingInstall(true);
+  const { logs, progress, statusLabel, isDone, isError, errorMsg, retry } =
+    useOnboardingInstall(true);
 
   useEffect(() => {
     if (isDone) {
@@ -54,8 +55,20 @@ export function InstallingView({ onSuccess }: Props) {
       </div>
 
       {isError && (
-        <div className="mt-4 px-4 py-3 bg-[#FEF2F2] border border-[#FECACA] rounded-lg text-sm text-[#DC2626]">
-          安装失败：{errorMsg}
+        <div className="mt-4 space-y-2">
+          <div className="px-4 py-3 bg-[#FEF2F2] border border-[#FECACA] rounded-lg text-sm text-[#DC2626]">
+            安装失败：{errorMsg}
+          </div>
+          <button
+            onClick={retry}
+            className="w-full flex items-center justify-center gap-1.5 bg-[#2563EB] text-white px-[18px] py-[9px] rounded-lg text-sm font-medium cursor-pointer hover:bg-[#1D4ED8] transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+            </svg>
+            重试
+          </button>
         </div>
       )}
     </div>

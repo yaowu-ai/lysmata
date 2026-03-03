@@ -272,6 +272,40 @@ app.post("/install", async (c) => {
   });
 });
 
+app.post("/skills/install", async (c) => {
+  try {
+    const body = await c.req.json<{ id: string }>();
+    const skillId = body?.id;
+    if (!skillId) {
+      return c.json({ success: false, message: "缺少 skill id" }, 400);
+    }
+
+    // Check openclaw CLI is available
+    const whichExit = await Bun.spawn(["which", "openclaw"]).exited;
+    if (whichExit !== 0) {
+      return c.json({ success: false, message: "openclaw CLI 未安装" });
+    }
+
+    const proc = Bun.spawn(["openclaw", "skill", "install", skillId], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+      proc.exited,
+    ]);
+
+    if (exitCode === 0) {
+      return c.json({ success: true, message: stdout.trim() || "安装成功" });
+    } else {
+      return c.json({ success: false, message: stderr.trim() || "安装失败" });
+    }
+  } catch (err) {
+    return c.json({ success: false, message: String(err) }, 500);
+  }
+});
+
 app.post("/gateway-config", async (c) => {
   const body = await c.req.json<{
     port?: number;

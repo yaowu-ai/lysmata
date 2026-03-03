@@ -95,6 +95,22 @@ export interface GatewaySettings {
   authToken?: string;
 }
 
+// ── Channel Settings ─────────────────────────────────────────────
+export interface ChannelEntry {
+  id: string;
+  label: string;
+  token: string;
+  enabled: boolean;
+}
+
+// ── Hook Settings ─────────────────────────────────────────────────
+export interface HookEntry {
+  id: string;
+  name: string;
+  path: string;
+  enabled: boolean;
+}
+
 // ── LLM Settings ────────────────────────────────────────────────
 export interface ProviderModel {
   id: string;

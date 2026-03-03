@@ -5,6 +5,10 @@ import {
   readLlmSettings,
   updateLlmSettings,
   readGatewaySettings,
+  readChannelSettings,
+  updateChannelSettings,
+  readHookSettings,
+  updateHookSettings,
 } from "../../core/openclaw-config-file";
 
 const settings = new Hono();
@@ -73,6 +77,58 @@ settings.post("/gateway-restart", async (c) => {
   // Gateway restart is handled by the Tauri shell layer in production.
   // This endpoint acknowledges the request and returns success.
   return c.json({ success: true });
+});
+
+const channelEntrySchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  token: z.string(),
+  enabled: z.boolean(),
+});
+
+settings.get("/channels", async (c) => {
+  try {
+    const data = await readChannelSettings();
+    return c.json(data);
+  } catch {
+    return c.json({ error: "Failed to read channel settings" }, 500);
+  }
+});
+
+settings.put("/channels", zValidator("json", z.array(channelEntrySchema)), async (c) => {
+  try {
+    const body = c.req.valid("json");
+    await updateChannelSettings(body);
+    return c.json({ success: true });
+  } catch {
+    return c.json({ error: "Failed to update channel settings" }, 500);
+  }
+});
+
+const hookEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  path: z.string(),
+  enabled: z.boolean(),
+});
+
+settings.get("/hooks", async (c) => {
+  try {
+    const data = await readHookSettings();
+    return c.json(data);
+  } catch {
+    return c.json({ error: "Failed to read hook settings" }, 500);
+  }
+});
+
+settings.put("/hooks", zValidator("json", z.array(hookEntrySchema)), async (c) => {
+  try {
+    const body = c.req.valid("json");
+    await updateHookSettings(body);
+    return c.json({ success: true });
+  } catch {
+    return c.json({ error: "Failed to update hook settings" }, 500);
+  }
 });
 
 export default settings;
