@@ -1,6 +1,13 @@
 /**
  * OpenClaw installation API
- * Provides one-click installation of OpenClaw on macOS
+ *
+ * Strategy:
+ *   1. Detect environment (Node.js 22+, existing openclaw, platform)
+ *   2. If Node.js 22+ present → npm install -g openclaw@latest
+ *   3. If Node.js missing → run official install.sh (macOS/Linux) or install.ps1 (Windows)
+ *   4. Verify installation with openclaw --version
+ *
+ * All install steps are streamed via SSE so the frontend can show real-time progress.
  */
 
 import { Hono } from "hono";
@@ -8,6 +15,70 @@ import { stream } from "hono/streaming";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
 
 const app = new Hono();
+
+// ── PATH helpers ─────────────────────────────────────────────────────────────
+
+const COMMON_PATH_DIRS = [
+  "/usr/local/bin",
+  "/usr/bin",
+  "/bin",
+  "/usr/sbin",
+  "/sbin",
+  "/opt/homebrew/bin",
+  "/opt/homebrew/sbin",
+];
+
+function getEnrichedPath(): string {
+  const home = process.env.HOME ?? "";
+  const existing = process.env.PATH ?? "";
+  const extra = [
+    `${home}/.nvm/current/bin`,
+    `${home}/.fnm/current/bin`,
+    `${home}/.local/bin`,
+    `${home}/.openclaw/bin`,
+    ...COMMON_PATH_DIRS,
+  ];
+  const parts = existing.split(":");
+  for (const dir of extra) {
+    if (!parts.includes(dir)) parts.push(dir);
+  }
+  return parts.join(":");
+}
+
+function spawnEnv(): Record<string, string> {
+  return { ...process.env, PATH: getEnrichedPath() } as Record<string, string>;
+}
+
+async function which(bin: string): Promise<string | null> {
+  try {
+    const proc = Bun.spawn(["which", bin], { stdout: "pipe", stderr: "pipe", env: spawnEnv() });
+    const path = (await new Response(proc.stdout).text()).trim();
+    const code = await proc.exited;
+    return code === 0 && path ? path : null;
+  } catch {
+    return null;
+  }
+}
+
+async function exec(
+  cmd: string[],
+  opts?: { cwd?: string },
+): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  const proc = Bun.spawn(cmd, {
+    stdout: "pipe",
+    stderr: "pipe",
+    env: spawnEnv(),
+    cwd: opts?.cwd,
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
+}
+
+// ── SSE event types ──────────────────────────────────────────────────────────
 
 interface InstallEvent {
   step?: string;
@@ -18,256 +89,316 @@ interface InstallEvent {
   success?: boolean;
 }
 
-async function checkEnvironment(): Promise<{
+// ── Environment check ────────────────────────────────────────────────────────
+
+interface EnvCheckResult {
   canInstall: boolean;
   message: string;
-  details?: Record<string, unknown>;
-}> {
-  try {
-    // Check if running on macOS
-    if (process.platform !== "darwin") {
-      return {
-        canInstall: false,
-        message: "当前仅支持 macOS 系统安装",
-      };
-    }
-
-    // Check if Homebrew is installed
-    const brewCheck = await Bun.spawn(["which", "brew"]).exited;
-    const hasHomebrew = brewCheck === 0;
-
-    // Check if curl is available
-    const curlCheck = await Bun.spawn(["which", "curl"]).exited;
-    const hasCurl = curlCheck === 0;
-
-    if (!hasHomebrew && !hasCurl) {
-      return {
-        canInstall: false,
-        message: "系统缺少必要工具。请先安装 Homebrew 或确保 curl 可用。",
-      };
-    }
-
-    return {
-      canInstall: true,
-      message: "系统环境检查通过",
-      details: {
-        platform: process.platform,
-        hasHomebrew,
-        hasCurl,
-      },
-    };
-  } catch (err) {
-    return {
-      canInstall: false,
-      message: `环境检查失败: ${String(err)}`,
-    };
-  }
+  hasOpenClaw: boolean;
+  openclawVersion?: string;
+  openclawPath?: string;
+  hasNode: boolean;
+  nodeVersion?: string;
+  nodeMajor?: number;
+  nodePath?: string;
+  hasNpm: boolean;
+  npmPath?: string;
+  hasCurl: boolean;
+  platform: string;
 }
 
-async function installOpenClaw(sendEvent: (event: InstallEvent) => void): Promise<void> {
-  try {
-    // Step 1: Check if already installed
-    sendEvent({ step: "checking", message: "检查 OpenClaw 安装状态...", progress: 10 });
-    sendEvent({ log: "检查是否已安装 OpenClaw" });
+async function checkEnvironment(): Promise<EnvCheckResult> {
+  const platform = process.platform;
 
-    const checkInstalled = await Bun.spawn(["which", "openclaw"]).exited;
-    if (checkInstalled === 0) {
-      sendEvent({ log: "OpenClaw 已安装，检查版本" });
-      const versionProc = Bun.spawn(["openclaw", "--version"], {
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      const versionText = await new Response(versionProc.stdout).text();
-      sendEvent({ log: `当前版本: ${versionText.trim()}` });
-      sendEvent({ step: "success", message: "OpenClaw 已安装", progress: 100 });
-      sendEvent({ success: true });
+  // Detect OpenClaw
+  const openclawPath = await which("openclaw");
+  let openclawVersion: string | undefined;
+  if (openclawPath) {
+    const r = await exec([openclawPath, "--version"]);
+    if (r.exitCode === 0) openclawVersion = r.stdout;
+  }
+
+  // Detect Node.js
+  const nodePath = await which("node");
+  let nodeVersion: string | undefined;
+  let nodeMajor: number | undefined;
+  if (nodePath) {
+    const r = await exec([nodePath, "--version"]);
+    if (r.exitCode === 0) {
+      nodeVersion = r.stdout;
+      const m = nodeVersion.match(/^v?(\d+)/);
+      if (m) nodeMajor = parseInt(m[1], 10);
+    }
+  }
+
+  // Detect npm
+  const npmPath = await which("npm");
+
+  // Detect curl
+  const hasCurl = !!(await which("curl"));
+
+  const hasOpenClaw = !!openclawPath;
+  const hasNode = !!nodePath && (nodeMajor ?? 0) >= 22;
+  const hasNpm = !!npmPath;
+
+  let canInstall = true;
+  let message = "环境检查通过";
+
+  if (hasOpenClaw) {
+    message = `OpenClaw 已安装 (${openclawVersion ?? "unknown"})`;
+  } else if (hasNode && hasNpm) {
+    message = `Node.js ${nodeVersion} 就绪，可以安装 OpenClaw`;
+  } else if (hasCurl && platform !== "win32") {
+    message = "将通过官方安装脚本自动安装（含 Node.js）";
+  } else if (!hasNode) {
+    canInstall = false;
+    message = "未检测到 Node.js 22+，请先安装 Node.js";
+  }
+
+  return {
+    canInstall,
+    message,
+    hasOpenClaw,
+    openclawVersion,
+    openclawPath: openclawPath ?? undefined,
+    hasNode,
+    nodeVersion,
+    nodeMajor,
+    nodePath: nodePath ?? undefined,
+    hasNpm,
+    npmPath: npmPath ?? undefined,
+    hasCurl,
+    platform,
+  };
+}
+
+// ── Install logic ────────────────────────────────────────────────────────────
+
+type SendEvent = (event: InstallEvent) => void;
+
+async function runNpmInstall(send: SendEvent, npmPath: string): Promise<boolean> {
+  send({ step: "installing", message: "正在通过 npm 安装 OpenClaw...", progress: 40 });
+  send({ log: `npm path: ${npmPath}` });
+  send({ log: "$ npm install -g openclaw@latest" });
+
+  const proc = Bun.spawn([npmPath, "install", "-g", "openclaw@latest"], {
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      ...spawnEnv(),
+      SHARP_IGNORE_GLOBAL_LIBVIPS: "1",
+    },
+  });
+
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+
+  if (stdout.trim()) {
+    for (const line of stdout.trim().split("\n")) {
+      send({ log: line });
+    }
+  }
+  if (stderr.trim()) {
+    for (const line of stderr.trim().split("\n")) {
+      if (line.includes("WARN")) send({ log: `⚠ ${line}` });
+      else send({ log: line });
+    }
+  }
+
+  if (exitCode !== 0) {
+    send({ log: `npm install 退出码: ${exitCode}` });
+    return false;
+  }
+
+  send({ log: "npm install 完成" });
+  return true;
+}
+
+async function runInstallScript(send: SendEvent): Promise<boolean> {
+  send({ step: "installing", message: "正在执行官方安装脚本...", progress: 30 });
+  send({ log: "$ curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard" });
+
+  const proc = Bun.spawn(
+    ["bash", "-c", "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard"],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        ...spawnEnv(),
+        NONINTERACTIVE: "1",
+      },
+    },
+  );
+
+  const decoder = new TextDecoder();
+
+  const streamOutput = async (
+    reader: ReadableStream<Uint8Array>,
+    prefix?: string,
+  ) => {
+    const r = reader.getReader();
+    let buf = "";
+    while (true) {
+      const { done, value } = await r.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (line.trim()) send({ log: prefix ? `${prefix}${line}` : line });
+      }
+    }
+    if (buf.trim()) send({ log: prefix ? `${prefix}${buf}` : buf });
+  };
+
+  await Promise.all([
+    streamOutput(proc.stdout),
+    streamOutput(proc.stderr, ""),
+  ]);
+
+  const exitCode = await proc.exited;
+
+  if (exitCode !== 0) {
+    send({ log: `安装脚本退出码: ${exitCode}` });
+    return false;
+  }
+
+  send({ log: "安装脚本执行完成" });
+  return true;
+}
+
+async function verifyInstallation(send: SendEvent): Promise<boolean> {
+  send({ step: "verifying", message: "验证安装结果...", progress: 85 });
+
+  // Give PATH a moment to settle, then re-detect
+  const openclawPath = await which("openclaw");
+  if (!openclawPath) {
+    // Try common known locations directly
+    const home = process.env.HOME ?? "";
+    const candidates = [
+      `${home}/.openclaw/bin/openclaw`,
+      "/usr/local/bin/openclaw",
+      `${home}/.npm-global/bin/openclaw`,
+    ];
+    for (const p of candidates) {
+      try {
+        const f = Bun.file(p);
+        if (await f.exists()) {
+          const r = await exec([p, "--version"]);
+          if (r.exitCode === 0) {
+            send({ log: `找到 openclaw: ${p} (${r.stdout})` });
+            send({ step: "verifying", message: "安装验证通过", progress: 95 });
+            return true;
+          }
+        }
+      } catch { /* skip */ }
+    }
+    send({ log: "未找到 openclaw 可执行文件" });
+    return false;
+  }
+
+  const r = await exec([openclawPath, "--version"]);
+  if (r.exitCode === 0) {
+    send({ log: `openclaw 版本: ${r.stdout}` });
+    send({ step: "verifying", message: "安装验证通过", progress: 95 });
+    return true;
+  }
+
+  send({ log: `openclaw --version 失败: ${r.stderr}` });
+  return false;
+}
+
+async function installOpenClaw(send: SendEvent): Promise<void> {
+  try {
+    send({ step: "checking", message: "检查系统环境...", progress: 5 });
+    const env = await checkEnvironment();
+
+    send({ log: `平台: ${env.platform}` });
+    send({ log: `Node.js: ${env.hasNode ? env.nodeVersion : "未安装"}` });
+    send({ log: `npm: ${env.hasNpm ? env.npmPath : "未安装"}` });
+    send({ log: `OpenClaw: ${env.hasOpenClaw ? env.openclawVersion : "未安装"}` });
+
+    // Already installed
+    if (env.hasOpenClaw) {
+      send({ step: "success", message: `OpenClaw 已安装 (${env.openclawVersion})`, progress: 100 });
+      send({ success: true });
       return;
     }
 
-    // Step 2: Try Homebrew installation first
-    sendEvent({ step: "downloading", message: "尝试通过 Homebrew 安装...", progress: 30 });
-    sendEvent({ log: "检查 Homebrew 可用性" });
+    let installed = false;
 
-    const brewCheck = await Bun.spawn(["which", "brew"]).exited;
+    // Path 1: Node.js 22+ + npm available → npm install -g
+    if (env.hasNode && env.hasNpm && env.npmPath) {
+      send({ log: "检测到 Node.js 22+，使用 npm 安装" });
+      installed = await runNpmInstall(send, env.npmPath);
+    }
 
-    if (brewCheck === 0) {
-      sendEvent({ log: "使用 Homebrew 安装 OpenClaw" });
-      sendEvent({ log: "注意：OpenClaw 可能没有官方 Homebrew formula" });
-      sendEvent({ log: "请参考手动安装说明" });
+    // Path 2: Fall back to official install.sh (macOS/Linux)
+    if (!installed && env.hasCurl && env.platform !== "win32") {
+      send({ log: "使用官方安装脚本安装..." });
+      installed = await runInstallScript(send);
+    }
 
-      throw new Error("OpenClaw 暂不支持 Homebrew 自动安装，请使用手动安装方式");
+    if (!installed) {
+      send({
+        error: "自动安装失败。请手动在终端运行：curl -fsSL https://openclaw.ai/install.sh | bash",
+      });
+      return;
+    }
+
+    // Verify
+    const verified = await verifyInstallation(send);
+    if (verified) {
+      send({ step: "success", message: "OpenClaw 安装成功！", progress: 100 });
+      send({ success: true });
     } else {
-      throw new Error("未找到 Homebrew，请先安装 Homebrew 或参考手动安装说明");
+      send({
+        error: "安装已完成但未能验证。请打开终端运行 openclaw --version 确认，然后刷新页面。",
+      });
     }
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    sendEvent({ error: errorMsg });
-    sendEvent({ log: `安装失败: ${errorMsg}` });
-    throw err;
+    const msg = err instanceof Error ? err.message : String(err);
+    send({ error: `安装出错: ${msg}` });
   }
 }
 
-async function manualInstall(sendEvent: (event: InstallEvent) => void): Promise<void> {
-  sendEvent({ log: "开始手动安装流程" });
-  sendEvent({ step: "downloading", message: "下载 OpenClaw...", progress: 40 });
+// ── Routes ───────────────────────────────────────────────────────────────────
 
-  const homeDir = process.env.HOME;
-  if (!homeDir) {
-    throw new Error("无法获取用户主目录");
-  }
-
-  const installDir = `${homeDir}/.openclaw/bin`;
-  const binaryPath = `${installDir}/openclaw`;
-
-  // Create installation directory
-  await Bun.spawn(["mkdir", "-p", installDir]).exited;
-  sendEvent({ log: `创建安装目录: ${installDir}` });
-
-  // Download OpenClaw binary
-  // Note: This is a placeholder URL - adjust based on actual OpenClaw releases
-  const downloadUrl =
-    "https://github.com/openclaw/openclaw/releases/latest/download/openclaw-macos-arm64";
-
-  sendEvent({ log: `下载 OpenClaw: ${downloadUrl}` });
-
-  const downloadProc = Bun.spawn(["curl", "-L", "-o", binaryPath, downloadUrl], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
-
-  const stderr = await new Response(downloadProc.stderr).text();
-  if (stderr) sendEvent({ log: stderr });
-
-  const downloadExitCode = await downloadProc.exited;
-
-  if (downloadExitCode !== 0) {
-    throw new Error("下载 OpenClaw 二进制文件失败");
-  }
-
-  sendEvent({ log: "OpenClaw 下载完成" });
-  sendEvent({ step: "installing", message: "设置执行权限...", progress: 60 });
-
-  // Make binary executable
-  await Bun.spawn(["chmod", "+x", binaryPath]).exited;
-  sendEvent({ log: "已设置执行权限" });
-
-  // Add to PATH by updating shell profile
-  sendEvent({ step: "installing", message: "配置环境变量...", progress: 70 });
-
-  const shellProfile = `${homeDir}/.zshrc`;
-  const pathExport = `\n# OpenClaw\nexport PATH="$HOME/.openclaw/bin:$PATH"\n`;
-
-  // Check if already in PATH
-  const profileFile = Bun.file(shellProfile);
-  const profileExists = await profileFile.exists();
-
-  if (profileExists) {
-    const content = await profileFile.text();
-    if (!content.includes(".openclaw/bin")) {
-      await Bun.write(shellProfile, content + pathExport);
-      sendEvent({ log: "已添加到 PATH (需要重启终端生效)" });
-    } else {
-      sendEvent({ log: "PATH 已配置" });
-    }
-  } else {
-    await Bun.write(shellProfile, pathExport);
-    sendEvent({ log: "已创建 shell 配置文件" });
-  }
-
-  sendEvent({ log: "手动安装完成" });
-}
-
-async function initializeConfig(sendEvent: (event: InstallEvent) => void): Promise<void> {
-  const homeDir = process.env.HOME;
-  if (!homeDir) {
-    throw new Error("无法获取用户主目录");
-  }
-
-  const openclawDir = `${homeDir}/.openclaw`;
-  const configPath = `${openclawDir}/openclaw.json`;
-
-  sendEvent({ log: `配置目录: ${openclawDir}` });
-
-  // Create .openclaw directory if it doesn't exist
-  await Bun.spawn(["mkdir", "-p", openclawDir]).exited;
-
-  // Check if config already exists
-  const configFile = Bun.file(configPath);
-  const configExists = await configFile.exists();
-
-  if (configExists) {
-    sendEvent({ log: "配置文件已存在，跳过初始化" });
-    return;
-  }
-
-  // Create default configuration
-  const defaultConfig = {
-    meta: {
-      lastTouchedVersion: "1.0.0",
-      lastTouchedAt: new Date().toISOString(),
-    },
-    gateway: {
-      port: 8080,
-      mode: "local",
-      auth: {
-        mode: "token",
-        token: generateToken(),
-      },
-    },
-    agents: {
-      defaults: {
-        model: {
-          primary: "openai/gpt-4o",
-          fallbacks: [],
-        },
-        workspace: `${homeDir}/openclaw-workspace`,
-      },
-    },
-    auth: {
-      profiles: {},
-    },
-  };
-
-  await Bun.write(configPath, JSON.stringify(defaultConfig, null, 2));
-  sendEvent({ log: `配置文件已创建: ${configPath}` });
-}
-
-function generateToken(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let token = "";
-  for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-}
-
-// Routes
 app.get("/check-environment", async (c) => {
   const result = await checkEnvironment();
   return c.json(result);
 });
 
-app.post("/install", async (c) => {
-  return stream(c, async (stream) => {
+app.get("/install", async (c) => {
+  c.header("Content-Type", "text/event-stream");
+  c.header("Cache-Control", "no-cache");
+  c.header("Connection", "keep-alive");
+
+  return stream(c, async (s) => {
     const encoder = new TextEncoder();
 
-    const sendEvent = (event: InstallEvent) => {
-      const data = `data: ${JSON.stringify(event)}\n\n`;
-      stream.write(encoder.encode(data));
+    const send: SendEvent = (event) => {
+      try {
+        s.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      } catch { /* stream closed */ }
     };
 
-    // Send keepalive every 5 seconds
-    const keepaliveTimer = setInterval(() => {
-      stream.write(encoder.encode(": keepalive\n\n"));
+    const keepalive = setInterval(() => {
+      try {
+        s.write(encoder.encode(": keepalive\n\n"));
+      } catch { /* stream closed */ }
     }, 5000);
 
     try {
-      await installOpenClaw(sendEvent);
+      await installOpenClaw(send);
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      sendEvent({ error: errorMsg });
+      const msg = err instanceof Error ? err.message : String(err);
+      send({ error: msg });
     } finally {
-      clearInterval(keepaliveTimer);
+      clearInterval(keepalive);
     }
   });
 });
@@ -280,27 +411,17 @@ app.post("/skills/install", async (c) => {
       return c.json({ success: false, message: "缺少 skill id" }, 400);
     }
 
-    // Check openclaw CLI is available
-    const whichExit = await Bun.spawn(["which", "openclaw"]).exited;
-    if (whichExit !== 0) {
+    const openclawPath = await which("openclaw");
+    if (!openclawPath) {
       return c.json({ success: false, message: "openclaw CLI 未安装" });
     }
 
-    const proc = Bun.spawn(["openclaw", "skill", "install", skillId], {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
-    const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const { stdout, stderr, exitCode } = await exec([openclawPath, "skill", "install", skillId]);
 
     if (exitCode === 0) {
-      return c.json({ success: true, message: stdout.trim() || "安装成功" });
-    } else {
-      return c.json({ success: false, message: stderr.trim() || "安装失败" });
+      return c.json({ success: true, message: stdout || "安装成功" });
     }
+    return c.json({ success: false, message: stderr || "安装失败" });
   } catch (err) {
     return c.json({ success: false, message: String(err) }, 500);
   }
@@ -309,7 +430,7 @@ app.post("/skills/install", async (c) => {
 app.post("/gateway-config", async (c) => {
   const body = await c.req.json<{
     port?: number;
-    bind?: "loopback" | "all";
+    bind?: "loopback" | "lan";
     authMode?: "none" | "token";
     authToken?: string;
   }>();

@@ -1,5 +1,5 @@
 // src/pages/Onboarding/WizardPage.tsx
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWizardStore, markOnboardingComplete } from "../../shared/store/wizard-store";
 import { WizardStepper } from "./WizardStepper";
@@ -22,6 +22,7 @@ export function WizardPage() {
   const step = currentStep();
 
   const submitRef = useRef<(() => Promise<void>) | null>(null);
+  const [envCheck, setEnvCheck] = useState<{ canInstall: boolean; hasOpenClaw: boolean } | null>(null);
 
   const isConfigStep = step.type === "config";
 
@@ -31,6 +32,12 @@ export function WizardPage() {
   }
 
   async function handleNext() {
+    // If env check shows OpenClaw already installed, skip installing steps
+    if (step.id === "env" && envCheck?.hasOpenClaw) {
+      goToStep("step1");
+      return;
+    }
+
     if ((step.type === "config" || step.id === "step6") && submitRef.current) {
       try {
         await submitRef.current();
@@ -53,8 +60,11 @@ export function WizardPage() {
       };
     }
     if (step.id === "env") {
+      const checking = envCheck === null;
+      const alreadyInstalled = envCheck?.hasOpenClaw === true;
       return {
-        nextLabel: "一键安装",
+        nextLabel: checking ? "检测中..." : alreadyInstalled ? "已安装，进入配置" : "一键安装",
+        nextDisabled: checking || (!envCheck?.canInstall && !alreadyInstalled),
         showPrev: true,
         showSkip: false,
         showCancel: true,
@@ -135,7 +145,7 @@ export function WizardPage() {
           {step.id === "intro" && (
             <IntroView onStartInstall={goNext} onSkipToConfig={() => goToStep("step1")} />
           )}
-          {step.id === "env" && <EnvCheckView />}
+          {step.id === "env" && <EnvCheckView onEnvReady={setEnvCheck} />}
           {step.id === "installing" && <InstallingView onSuccess={goNext} />}
           {step.id === "install-success" && (
             <InstallSuccessView

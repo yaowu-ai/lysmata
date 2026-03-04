@@ -20,6 +20,13 @@ const INITIAL_STATE: InstallState = {
   errorMsg: "",
 };
 
+const STEP_LABELS: Record<string, string> = {
+  checking: "检查系统环境...",
+  installing: "正在安装 OpenClaw...",
+  verifying: "验证安装结果...",
+  success: "安装成功",
+};
+
 function connectInstall(
   setState: React.Dispatch<React.SetStateAction<InstallState>>,
   esRef: React.MutableRefObject<EventSource | null>,
@@ -42,7 +49,8 @@ function connectInstall(
       setState((prev) => ({
         logs: event.log ? [...prev.logs, event.log] : prev.logs,
         progress: event.progress ?? prev.progress,
-        statusLabel: event.message ?? prev.statusLabel,
+        statusLabel:
+          event.message ?? (event.step ? STEP_LABELS[event.step] : undefined) ?? prev.statusLabel,
         isDone: !!event.success,
         isError: !!event.error,
         errorMsg: event.error ?? prev.errorMsg,
