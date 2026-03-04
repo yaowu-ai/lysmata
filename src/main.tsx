@@ -8,6 +8,7 @@ import { BotStatusPage } from "./pages/BotManagement/BotStatusPage";
 import { PrivateChatPage } from "./pages/Chat/PrivateChatPage";
 import { GroupChatPage } from "./pages/Chat/GroupChatPage";
 import SettingsPage from "./pages/SettingsPage";
+import { ArtifactDemoPage } from "./pages/ArtifactDemoPage";
 // import OpenClawInstallPage from './pages/OpenClawInstallPage';
 import { startSidecar } from "./shared/tauri-bridge";
 import { WizardPage } from "./pages/Onboarding/WizardPage";
@@ -58,6 +59,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="bots/:id/status" element={<BotStatusPage />} />
             <Route path="chat/private" element={<PrivateChatPage />} />
             <Route path="chat/group" element={<GroupChatPage />} />
+            <Route path="artifact" element={<ArtifactDemoPage />} />
             <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Routes>

@@ -5,11 +5,13 @@ import {
   readLlmSettings,
   updateLlmSettings,
   readGatewaySettings,
+  updateGatewayConfig,
   readChannelSettings,
   updateChannelSettings,
   readHookSettings,
   updateHookSettings,
 } from "../../core/openclaw-config-file";
+import { getDb } from "../../shared/db";
 
 const settings = new Hono();
 
@@ -70,6 +72,46 @@ settings.get("/gateway", async (c) => {
     return c.json(data);
   } catch {
     return c.json({ error: "Failed to read gateway settings" }, 500);
+  }
+});
+
+const gatewayUpdateSchema = z.object({
+  port: z.number().int().min(1024).max(65535).optional(),
+  bind: z.enum(["loopback", "lan"]).optional(),
+  authMode: z.enum(["none", "token"]).optional(),
+  authToken: z.string().optional(),
+});
+
+settings.put("/gateway", zValidator("json", gatewayUpdateSchema), async (c) => {
+  try {
+    const body = c.req.valid("json");
+    await updateGatewayConfig(body);
+    return c.json({ success: true, needsRestart: true });
+  } catch (err) {
+    console.error("Failed to update gateway settings:", err);
+    return c.json({ error: "Failed to update gateway settings" }, 500);
+  }
+});
+
+settings.get("/llm/providers/:providerKey/usage", async (c) => {
+  const providerKey = c.req.param("providerKey");
+  const db = getDb();
+
+  try {
+    // 查询 llm_config 字段中包含该 provider 的 Bot
+    const stmt = db.query<{ id: string; name: string }, [string]>(
+      `SELECT id, name FROM bots WHERE llm_config LIKE ? AND is_active = 1`
+    );
+    const bots = stmt.all(`%"provider":"${providerKey}"%`);
+
+    return c.json({
+      inUse: bots.length > 0,
+      count: bots.length,
+      bots: bots.map(b => ({ id: b.id, name: b.name }))
+    });
+  } catch (err) {
+    console.error("Failed to check provider usage:", err);
+    return c.json({ error: "Failed to check provider usage" }, 500);
   }
 });
 

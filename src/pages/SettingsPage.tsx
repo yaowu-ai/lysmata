@@ -1,12 +1,30 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useLlmSettings, useUpdateLlmSettings } from "../shared/hooks/useLlmSettings";
 import type { LlmSettings, ProviderConfig } from "../shared/types";
 import ProviderFormDrawer from "./Settings/ProviderFormDrawer";
-import { OpenClawInstallSection } from "./Settings/OpenClawInstallSection";
 import { AgentManagementSection } from "./Settings/AgentManagementSection";
+import { GatewayConfigSection } from "./Settings/GatewayConfigSection";
 import { ONBOARDING_KEY } from "../shared/store/wizard-store";
+import { useToast } from "../components/Toast";
+import { apiClient } from "../shared/api-client";
+
+// 工具函数：API Key 遮码
+function maskApiKey(key: string | undefined): string {
+  if (!key || key.length < 8) return "***";
+  return `${key.slice(0, 3)}...${key.slice(-6)}`;
+}
+
+// 工具函数：复制到剪贴板
+async function copyToClipboard(text: string, toast: ReturnType<typeof useToast>) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success("API Key 已复制到剪贴板");
+  } catch {
+    toast.error("复制失败");
+  }
+}
 
 export default function SettingsPage() {
   const { data: settings, isLoading } = useLlmSettings();
@@ -16,29 +34,81 @@ export default function SettingsPage() {
     provider: ProviderConfig;
   } | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const navigate = useNavigate();
+  const toast = useToast();
 
-  function handleDeleteProvider(key: string) {
+  // 默认模型配置：拆分为 Provider 和 Model 两个字段
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
+  const [selectedModel, setSelectedModel] = useState<string>("");
+
+  async function handleDeleteProvider(key: string) {
     if (!settings) return;
-    if (!window.confirm(`确认删除 Provider "${key}"？`)) return;
-    const updated: LlmSettings = {
-      ...settings,
-      providers: Object.fromEntries(Object.entries(settings.providers).filter(([k]) => k !== key)),
-    };
-    saveSettings(updated);
+
+    try {
+      // 检查是否有 Bot 正在使用
+      const usage = await apiClient.get<{
+        inUse: boolean;
+        count: number;
+        bots: Array<{ id: string; name: string }>;
+      }>(`/settings/llm/providers/${key}/usage`);
+
+      if (usage.inUse) {
+        toast.error(
+          `无法删除：${usage.count} 个 Bot 正在使用此 Provider\n` +
+            `请先修改这些 Bot 的配置：${usage.bots.map((b) => b.name).join(", ")}`
+        );
+        return;
+      }
+
+      if (!window.confirm(`确认删除 Provider "${key}"？`)) return;
+
+      const updated: LlmSettings = {
+        ...settings,
+        providers: Object.fromEntries(Object.entries(settings.providers).filter(([k]) => k !== key)),
+      };
+
+      saveSettings(updated, {
+        onSuccess: () => toast.success("Provider 已删除"),
+        onError: () => toast.error("删除失败"),
+      });
+    } catch (err) {
+      toast.error("检查使用情况失败");
+    }
   }
 
   function handleSaveProvider(key: string, provider: ProviderConfig) {
     if (!settings) return;
-    saveSettings({ ...settings, providers: { ...settings.providers, [key]: provider } });
-    setDrawerOpen(false);
-    setEditingProvider(null);
+    saveSettings(
+      { ...settings, providers: { ...settings.providers, [key]: provider } },
+      {
+        onSuccess: () => {
+          toast.success("Provider 已保存");
+          setDrawerOpen(false);
+          setEditingProvider(null);
+        },
+        onError: () => toast.error("保存失败"),
+      }
+    );
   }
 
   function handleDefaultModelChange(primary: string) {
     if (!settings) return;
-    saveSettings({ ...settings, defaultModel: { ...settings.defaultModel, primary } });
+    saveSettings(
+      { ...settings, defaultModel: { ...settings.defaultModel, primary } },
+      {
+        onSuccess: () => toast.success("默认模型已更新"),
+        onError: () => toast.error("更新失败"),
+      }
+    );
+  }
+
+  function handleSaveDefaultModel() {
+    if (!selectedProvider || !selectedModel) {
+      toast.error("请选择 Provider 和模型");
+      return;
+    }
+    const primary = `${selectedProvider}/${selectedModel}`;
+    handleDefaultModelChange(primary);
   }
 
   function handleReenterWizard() {
@@ -46,110 +116,159 @@ export default function SettingsPage() {
     navigate("/onboarding");
   }
 
+  // 初始化默认 Provider 和 Model
+  useEffect(() => {
+    if (settings?.defaultModel.primary && !selectedProvider) {
+      const [provider, model] = settings.defaultModel.primary.split("/");
+      setSelectedProvider(provider || "");
+      setSelectedModel(model || "");
+    }
+  }, [settings, selectedProvider]);
+
   if (isLoading || !settings) return <div className="p-6 text-sm text-[#64748B]">加载中...</div>;
 
-  const allModels = Object.entries(settings.providers).flatMap(([providerKey, provider]) =>
-    provider.models.map((m) => ({ value: `${providerKey}/${m.id}`, label: m.name || m.id })),
-  );
+  // 当前选中 Provider 的可用模型
+  const availableModels = selectedProvider && settings.providers[selectedProvider]
+    ? settings.providers[selectedProvider].models
+    : [];
 
   return (
-    <div className="p-6 max-w-3xl">
-      <h1 className="text-lg font-semibold text-[#0F172A] mb-6">设置</h1>
+    <div className="flex-1 overflow-y-auto">
+      <div className="p-8 max-w-[1200px] mx-auto">
+        <h1 className="text-[24px] font-bold mb-6">设置</h1>
 
-      <section className="mb-8">
-        <label
-          htmlFor="default-model"
-          className="block text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3"
+      {/* 1. 默认模型配置 */}
+      <section className="bg-white border border-[#E5E7EB] rounded-xl p-6 mb-5">
+        <h2 className="text-[17px] font-semibold mb-4">默认模型配置</h2>
+        <p className="text-[13px] text-[#64748B] mb-4">
+          选择新建 Bot 时的默认 LLM Provider 和模型
+        </p>
+        <div className="mb-4">
+          <label className="block text-[13px] font-medium mb-2 text-[#0F172A]">默认 Provider</label>
+          <select
+            className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] focus:outline-none focus:border-[#2563EB] transition-colors"
+            value={selectedProvider}
+            onChange={(e) => {
+              setSelectedProvider(e.target.value);
+              setSelectedModel(""); // 重置模型选择
+            }}
+          >
+            <option value="">— 请选择 Provider —</option>
+            {Object.keys(settings.providers).map((key) => (
+              <option key={key} value={key}>
+                {key}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="mb-4">
+          <label className="block text-[13px] font-medium mb-2 text-[#0F172A]">默认模型</label>
+          <select
+            className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg bg-[#F8FAFC] focus:outline-none focus:border-[#2563EB] transition-colors"
+            value={selectedModel}
+            onChange={(e) => setSelectedModel(e.target.value)}
+            disabled={!selectedProvider}
+          >
+            <option value="">— 请选择模型 —</option>
+            {availableModels.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name || m.id}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button
+          onClick={handleSaveDefaultModel}
+          className="px-4 py-2 rounded-lg bg-[#2563EB] text-white text-[14px] font-medium hover:bg-[#1D4ED8] transition-colors"
         >
-          默认模型
-        </label>
-        <select
-          id="default-model"
-          aria-label="默认模型"
-          className="w-full rounded-md border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-          value={settings.defaultModel.primary}
-          onChange={(e) => handleDefaultModelChange(e.target.value)}
-        >
-          <option value="">— 未设置 —</option>
-          {allModels.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label} ({m.value})
-            </option>
-          ))}
-        </select>
+          保存
+        </button>
       </section>
 
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xs font-medium text-[#64748B] uppercase tracking-wide">
-            LLM Providers
-          </h2>
-          <button
-            onClick={() => {
-              setEditingProvider(null);
-              setDrawerOpen(true);
-            }}
-            className="flex items-center gap-1 text-sm text-[#2563EB] hover:text-blue-700"
-          >
-            <Plus size={14} /> 添加
-          </button>
-        </div>
+      {/* 2. LLM Providers 管理 */}
+      <section className="bg-white border border-[#E5E7EB] rounded-xl p-6 mb-5">
+        <h2 className="text-[17px] font-semibold mb-4">LLM Providers</h2>
+        <p className="text-[13px] text-[#64748B] mb-4">
+          管理 LLM Provider 配置，包括 API Key 和可用模型
+        </p>
 
-        <div className="space-y-2">
+        <div className="space-y-3 mt-4">
           {Object.keys(settings.providers).length === 0 ? (
-            <div className="text-sm text-[#94A3B8] py-4 text-center">
-              暂无 Provider，点击「添加」开始配置
+            <div className="text-[14px] text-[#94A3B8] py-8 text-center">
+              暂无 Provider，点击「添加 Provider」开始配置
             </div>
           ) : (
             Object.entries(settings.providers).map(([key, provider]) => (
-              <div key={key} className="rounded-lg border border-[#E5E7EB] bg-white shadow-sm">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <button
-                    className="flex items-center gap-2 text-sm font-medium text-[#0F172A]"
-                    onClick={() => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }))}
-                  >
-                    {expanded[key] ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    {key}
-                    <span className="text-xs text-[#94A3B8]">{provider.models.length} 个模型</span>
-                  </button>
-                  <div className="flex gap-2">
-                    <button
-                      title={`编辑 ${key}`}
-                      onClick={() => {
-                        setEditingProvider({ key, provider });
-                        setDrawerOpen(true);
-                      }}
-                    >
-                      <Pencil size={14} className="text-[#94A3B8] hover:text-[#0F172A]" />
-                    </button>
-                    <button title={`删除 ${key}`} onClick={() => handleDeleteProvider(key)}>
-                      <Trash2 size={14} className="text-[#94A3B8] hover:text-red-500" />
-                    </button>
+              <div
+                key={key}
+                className="flex items-center px-4 py-4 border border-[#E5E7EB] rounded-lg bg-[#FAFAFA]"
+              >
+                <div className="flex-1">
+                  <div className="text-[14px] font-medium text-[#0F172A] mb-1">{key}</div>
+                  <div className="text-[12px] text-[#64748B]">
+                    {provider.models.length} 个模型 • API Key: {maskApiKey(provider.apiKey)}
+                    {provider.apiKey && (
+                      <button
+                        onClick={() => copyToClipboard(provider.apiKey!, toast)}
+                        className="ml-2 text-[#94A3B8] hover:text-[#0F172A] inline-flex items-center"
+                        title="复制 API Key"
+                      >
+                        <Copy size={12} />
+                      </button>
+                    )}
                   </div>
                 </div>
-                {expanded[key] && (
-                  <div className="border-t border-[#F1F5F9] px-4 py-3 text-xs text-[#64748B] space-y-1 bg-[#FAFAFA] rounded-b-lg">
-                    <div>Base URL: {provider.baseUrl}</div>
-                    <div>API: {provider.api}</div>
-                    <div className="mt-2 space-y-1">
-                      {provider.models.map((m) => (
-                        <div key={m.id} className="flex justify-between">
-                          <span>{m.name || m.id}</span>
-                          <span className="text-[#94A3B8]">{m.id}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      setEditingProvider({ key, provider });
+                      setDrawerOpen(true);
+                    }}
+                    className="px-3 py-1.5 text-[13px] text-[#64748B] hover:bg-white rounded transition-colors"
+                  >
+                    编辑
+                  </button>
+                  <button
+                    onClick={() => handleDeleteProvider(key)}
+                    className="px-3 py-1.5 text-[13px] text-[#64748B] hover:bg-white rounded transition-colors"
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
             ))
           )}
         </div>
+        <button
+          onClick={() => {
+            setEditingProvider(null);
+            setDrawerOpen(true);
+          }}
+          className="mt-4 px-4 py-2 rounded-lg bg-[#2563EB] text-white text-[14px] font-medium hover:bg-[#1D4ED8] transition-colors"
+        >
+          添加 Provider
+        </button>
       </section>
 
-      <OpenClawInstallSection />
-
+      {/* 3. OpenClaw Agents 管理 */}
       <AgentManagementSection />
+
+      {/* 4. Gateway 配置 */}
+      <GatewayConfigSection />
+
+      {/* 5. 配置向导 */}
+      <section className="bg-white border border-[#E5E7EB] rounded-xl p-6 mb-5">
+        <h2 className="text-[17px] font-semibold mb-4">配置向导</h2>
+        <p className="text-[13px] text-[#64748B] mb-4">
+          重新运行配置向导，按引导式流程完成所有配置
+        </p>
+        <button
+          onClick={handleReenterWizard}
+          className="px-4 py-2 rounded-lg border border-[#E5E7EB] text-[14px] text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+        >
+          重新运行配置向导
+        </button>
+      </section>
 
       <ProviderFormDrawer
         open={drawerOpen}
@@ -161,18 +280,7 @@ export default function SettingsPage() {
         }}
         onSave={handleSaveProvider}
       />
-
-      <section className="mt-8 pt-8 border-t border-[#E5E7EB]">
-        <h2 className="text-xs font-medium text-[#64748B] uppercase tracking-wide mb-3">
-          配置向导
-        </h2>
-        <button
-          onClick={handleReenterWizard}
-          className="flex items-center gap-1.5 text-sm text-[#2563EB] hover:text-blue-700"
-        >
-          重新运行配置向导 →
-        </button>
-      </section>
+      </div>
     </div>
   );
 }

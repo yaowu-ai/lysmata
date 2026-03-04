@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { Bot, MessageSquare, Users, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { Bot, MessageSquare, Users, Settings, ChevronLeft, ChevronRight, PanelLeft } from "lucide-react";
 import { cn } from "../shared/lib/utils";
 
-const navItems = [
+const mainNavItems = [
   { to: "/bots", icon: Bot, label: "Bot 管理" },
   { to: "/chat/private", icon: MessageSquare, label: "私聊" },
   { to: "/chat/group", icon: Users, label: "群聊" },
+  { to: "/artifact", icon: PanelLeft, label: "Artifact 演示" },
+];
+
+const bottomNavItems = [
   { to: "/settings", icon: Settings, label: "设置" },
 ];
 
@@ -47,9 +51,9 @@ export function LeftNav() {
         </span>
       </div>
 
-      {/* Nav items */}
+      {/* 主导航区域 - 使用 flex-1 自动填充空间 */}
       <div className="flex flex-col gap-0.5 px-2.5 flex-1 min-w-[220px]">
-        {navItems.map(({ to, icon: Icon, label }) => (
+        {mainNavItems.map(({ to, icon: Icon, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -87,8 +91,47 @@ export function LeftNav() {
         ))}
       </div>
 
-      {/* Toggle */}
-      <div className="px-2.5 border-t border-[#F1F5F9] pt-2 mt-1 min-w-[220px]">
+      {/* 底部区域 - 有分隔线 */}
+      <div className="flex flex-col gap-0.5 px-2.5 border-t border-[#F1F5F9] pt-2 mt-1 min-w-[220px]">
+        {/* 设置按钮 */}
+        {bottomNavItems.map(({ to, icon: Icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center w-full rounded-[9px] p-1 transition-colors duration-[120ms] text-left no-underline",
+                isActive
+                  ? "bg-[#EFF6FF] text-blue-600"
+                  : "text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569]",
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <div
+                  className={cn(
+                    "w-9 h-9 flex items-center justify-center flex-shrink-0 rounded-lg",
+                    isActive ? "text-blue-600" : "",
+                  )}
+                >
+                  <Icon size={18} />
+                </div>
+                <span
+                  className={cn(
+                    "text-[14px] font-medium whitespace-nowrap overflow-hidden transition-all duration-[180ms] ease-in-out",
+                    expanded ? "opacity-100 max-w-[180px]" : "opacity-0 max-w-0",
+                    isActive ? "text-blue-600" : "text-[#64748B]",
+                  )}
+                >
+                  {label}
+                </span>
+              </>
+            )}
+          </NavLink>
+        ))}
+
+        {/* 收起/展开按钮 */}
         <button
           onClick={() => setExpanded((v) => !v)}
           className="flex items-center w-full rounded-[9px] p-1 text-[#94A3B8] hover:bg-[#F1F5F9] hover:text-[#475569] transition-colors duration-[120ms]"
