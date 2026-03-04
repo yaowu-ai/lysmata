@@ -21,6 +21,7 @@ import {
   useApplyBotConfig,
   useBotRemoteConfig,
 } from "../../shared/hooks/useBots";
+import { useAgents } from "../../shared/hooks/useAgents";
 import type { Bot, SkillConfig } from "../../shared/types";
 import type { RemoteConfigResult } from "../../shared/hooks/useBots";
 import { cn } from "../../shared/lib/utils";
@@ -53,6 +54,10 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
 
   // Remote config: auto-fetch when editing an existing Bot
   const remoteConfig = useBotRemoteConfig(bot?.id ?? "", isEdit && open);
+
+  // Fetch available agents
+  const { data: agentsData } = useAgents();
+  const agents = agentsData?.data ?? [];
 
   const [tab, setTab] = useState<Tab>("基础");
 
@@ -474,12 +479,39 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
               label="Agent ID"
               hint="目标 OpenClaw Agent 名称，区分大小写，保存时会自动转为小写；留空使用默认 main"
             >
-              <input
-                value={agentId}
-                onChange={(e) => setAgentId(e.target.value)}
-                placeholder="main"
-                className={cn(inputCls, "font-mono text-[13px]")}
-              />
+              {agentsData?.success && agents.length > 0 ? (
+                <select
+                  value={agentId}
+                  onChange={(e) => setAgentId(e.target.value)}
+                  className={cn(inputCls, "font-mono text-[13px]")}
+                >
+                  <option value="">— 选择 Agent —</option>
+                  {agents.map((agent) => (
+                    <option key={agent.id} value={agent.id}>
+                      {agent.id}
+                      {agent.displayName && ` (${agent.displayName})`}
+                      {agent.isDefault && " [默认]"}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="relative">
+                  <input
+                    value={agentId}
+                    onChange={(e) => setAgentId(e.target.value)}
+                    placeholder="main"
+                    className={cn(inputCls, "font-mono text-[13px]")}
+                  />
+                  {agentsData?.message && (
+                    <div
+                      className="absolute right-3 top-1/2 -translate-y-1/2"
+                      title={agentsData.message}
+                    >
+                      <AlertTriangle size={16} className="text-amber-500" />
+                    </div>
+                  )}
+                </div>
+              )}
             </Field>
 
             <Field

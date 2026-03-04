@@ -5,6 +5,7 @@ import { useLlmSettings, useUpdateLlmSettings } from "../shared/hooks/useLlmSett
 import type { LlmSettings, ProviderConfig } from "../shared/types";
 import ProviderFormDrawer from "./Settings/ProviderFormDrawer";
 import { OpenClawInstallSection } from "./Settings/OpenClawInstallSection";
+import { AgentManagementSection } from "./Settings/AgentManagementSection";
 import { ONBOARDING_KEY } from "../shared/store/wizard-store";
 
 export default function SettingsPage() {
@@ -147,6 +148,8 @@ export default function SettingsPage() {
       </section>
 
       <OpenClawInstallSection />
+
+      <AgentManagementSection />
 
       <ProviderFormDrawer
         open={drawerOpen}

@@ -12,6 +12,7 @@ import { BotService } from "./core/bot-service";
 import { ApiError } from "./shared/errors";
 import settings from "./app/api/settings";
 import openclawInstall from "./app/api/openclaw-install";
+import agents from "./app/api/agents";
 
 const app = new Hono();
 
@@ -29,6 +30,7 @@ app.route("/conversations", conversations);
 app.route("/conversations/:conversationId/messages", messages);
 app.route("/settings", settings);
 app.route("/openclaw", openclawInstall);
+app.route("/agents", agents);
 
 // Global error handler
 app.onError((err, c) => {

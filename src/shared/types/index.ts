@@ -136,3 +136,34 @@ export interface LlmSettings {
     fallbacks?: string[];
   };
 }
+
+// ── Agent (OpenClaw CLI managed) ────────────────────────────────
+export interface Agent {
+  id: string;                    // Agent ID (e.g., "main", "production")
+  displayName?: string;          // Optional display name
+  identity?: string;             // Identity description (e.g., "🐧 Andrew (IDENTITY.md)")
+  workspace: string;             // Workspace directory path
+  agentDir: string;              // Agent state directory
+  model?: string;                // Primary model (e.g., "openrouter/deepseek/deepseek-v3.2-exp")
+  routingRules: number;          // Number of routing rules
+  isDefault: boolean;            // Whether this is the default agent
+}
+
+export interface AgentBinding {
+  agent: string;                 // Agent ID
+  channel: string;               // Channel name (e.g., "telegram", "discord")
+  accountId?: string;            // Optional account ID within channel
+}
+
+export interface CreateAgentInput {
+  name: string;                  // Agent ID (required)
+  workspace?: string;            // Workspace directory (optional)
+  agentDir?: string;             // Agent state directory (optional)
+  model?: string;                // Model ID (optional)
+  bindings?: string[];           // Initial bindings (e.g., ["telegram:account1"])
+}
+
+export interface BindAgentInput {
+  agent: string;
+  bindings: string[];            // Array of "channel:accountId" strings
+}
