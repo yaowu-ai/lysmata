@@ -106,12 +106,27 @@ export interface ChannelEntry {
 // ── Hook Settings ─────────────────────────────────────────────────
 export interface HookEntry {
   id: string;
-  name: string;
-  path: string;
+  name?: string;
+  description?: string;
+  emoji?: string;
+  path?: string;
   enabled: boolean;
 }
 
 // ── LLM Settings ────────────────────────────────────────────────
+export const OPENCLAW_API_TYPES = [
+  "openai-completions",
+  "openai-responses",
+  "openai-codex-responses",
+  "anthropic-messages",
+  "google-generative-ai",
+  "github-copilot",
+  "bedrock-converse-stream",
+  "ollama",
+] as const;
+
+export type OpenClawApiType = (typeof OPENCLAW_API_TYPES)[number];
+
 export interface ProviderModel {
   id: string;
   name: string;
@@ -125,7 +140,7 @@ export interface ProviderModel {
 export interface ProviderConfig {
   baseUrl?: string;
   apiKey?: string;
-  api?: string;
+  api?: OpenClawApiType;
   models: ProviderModel[];
 }
 

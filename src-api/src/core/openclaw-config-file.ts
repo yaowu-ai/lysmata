@@ -184,10 +184,24 @@ export interface OpenClawProviderModel {
   maxTokens?: number;
 }
 
+// NOTE: Keep in sync with OPENCLAW_API_TYPES in src/shared/types/index.ts
+export const OPENCLAW_API_TYPES = [
+  "openai-completions",
+  "openai-responses",
+  "openai-codex-responses",
+  "anthropic-messages",
+  "google-generative-ai",
+  "github-copilot",
+  "bedrock-converse-stream",
+  "ollama",
+] as const;
+
+export type OpenClawApiType = (typeof OPENCLAW_API_TYPES)[number];
+
 export interface OpenClawProvider {
   baseUrl?: string;
   apiKey?: string;
-  api?: string;
+  api?: OpenClawApiType;
   models: OpenClawProviderModel[];
 }
 
@@ -298,36 +312,9 @@ export async function updateChannelSettings(channels: ChannelEntry[]): Promise<v
   await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
 }
 
-// ── Hook Settings ─────────────────────────────────────────────────────────────
-
-export interface HookEntry {
-  id: string;
-  name: string;
-  path: string;
-  enabled: boolean;
-}
-
-export async function readHookSettings(): Promise<HookEntry[]> {
-  const config = await readOpenClawConfig();
-  const raw = config?.hooks ?? {};
-  return Object.entries(raw).map(([id, v]) => ({
-    id,
-    name: v.name,
-    path: v.path,
-    enabled: v.enabled,
-  }));
-}
-
-export async function updateHookSettings(hooks: HookEntry[]): Promise<void> {
-  const existing = (await readOpenClawConfig()) ?? {};
-  const updated: OpenClawConfig = structuredClone(existing);
-  updated.hooks = {};
-  for (const h of hooks) {
-    updated.hooks[h.id] = { name: h.name, path: h.path, enabled: h.enabled };
-  }
-  updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
-  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
-}
+// Hook settings are managed via CLI: `openclaw hooks enable/disable <name>`
+// Do NOT write to openclaw.json hooks section directly — OpenClaw only accepts
+// predefined hook IDs and rejects unknown keys with a config validation error.
 
 export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<void> {
   const existing = (await readOpenClawConfig()) ?? {};

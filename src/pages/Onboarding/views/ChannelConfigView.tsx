@@ -7,10 +7,7 @@ interface Props {
   onDone: () => void;
 }
 
-const DEFAULT_CHANNELS: ChannelEntry[] = [
-  { id: "lysmata-desktop", label: "Lysmata 桌面端", token: "sk-lysmata-desktop-local", enabled: true },
-  { id: "vscode-extension", label: "VS Code 插件", token: "sk-vscode-extension", enabled: false },
-];
+const DEFAULT_CHANNELS: ChannelEntry[] = [];
 
 function generateToken() {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";

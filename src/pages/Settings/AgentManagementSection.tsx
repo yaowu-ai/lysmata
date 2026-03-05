@@ -58,15 +58,26 @@ export function AgentManagementSection() {
         </button>
       </div>
 
-      {!agentsData?.success && agentsData?.message && (
-        <div className="mb-4 flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
-          <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
-          <div>
-            <div className="font-medium mb-0.5">OpenClaw CLI 不可用</div>
-            <div className="text-xs text-amber-700">{agentsData.message}</div>
+      {!agentsData?.success && agentsData?.message && (() => {
+        const msg = agentsData.message.toLowerCase();
+        const isConfigError = msg.includes("config invalid") || msg.includes("invalid option") || msg.includes("invalid config");
+        return (
+          <div className="mb-4 flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="font-medium mb-0.5">
+                {isConfigError ? "OpenClaw 配置文件格式错误" : "OpenClaw CLI 不可用"}
+              </div>
+              <div className="text-xs text-amber-700">{agentsData.message}</div>
+              {isConfigError && (
+                <div className="text-xs text-amber-600 mt-1">
+                  请检查 <code className="bg-amber-100 px-1 rounded">~/.openclaw/openclaw.json</code> 中 <code className="bg-amber-100 px-1 rounded">models.providers</code> 的 <code className="bg-amber-100 px-1 rounded">api</code> 字段，或在下方「LLM 供应商」面板中重新保存 Provider。
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {isLoading && (
         <div className="flex items-center justify-center py-12">

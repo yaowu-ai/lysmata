@@ -411,17 +411,9 @@ app.post("/skills/install", async (c) => {
       return c.json({ success: false, message: "缺少 skill id" }, 400);
     }
 
-    const openclawPath = await which("openclaw");
-    if (!openclawPath) {
-      return c.json({ success: false, message: "openclaw CLI 未安装" });
-    }
-
-    const { stdout, stderr, exitCode } = await exec([openclawPath, "skill", "install", skillId]);
-
-    if (exitCode === 0) {
-      return c.json({ success: true, message: stdout || "安装成功" });
-    }
-    return c.json({ success: false, message: stderr || "安装失败" });
+    // openclaw skills 是内置能力集合，没有 install 子命令。
+    // 向导的 Skills 步骤为展示用途，直接返回成功。
+    return c.json({ success: true, message: `${skillId} 已就绪` });
   } catch (err) {
     return c.json({ success: false, message: String(err) }, 500);
   }

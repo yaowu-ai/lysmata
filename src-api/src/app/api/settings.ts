@@ -8,9 +8,9 @@ import {
   updateGatewayConfig,
   readChannelSettings,
   updateChannelSettings,
-  readHookSettings,
-  updateHookSettings,
+  OPENCLAW_API_TYPES,
 } from "../../core/openclaw-config-file";
+import type { HookEntry } from "../../../../src/shared/types";
 import { getDb } from "../../shared/db";
 
 const settings = new Hono();
@@ -35,7 +35,7 @@ const providerModelSchema = z.object({
 const providerSchema = z.object({
   baseUrl: z.string().optional(),
   apiKey: z.string().optional(),
-  api: z.string().optional(),
+  api: z.enum(OPENCLAW_API_TYPES).optional(),
   models: z.array(providerModelSchema),
 });
 
@@ -147,26 +147,51 @@ settings.put("/channels", zValidator("json", z.array(channelEntrySchema)), async
   }
 });
 
-const hookEntrySchema = z.object({
+const hookUpdateSchema = z.object({
   id: z.string(),
-  name: z.string(),
-  path: z.string(),
   enabled: z.boolean(),
 });
 
 settings.get("/hooks", async (c) => {
   try {
-    const data = await readHookSettings();
-    return c.json(data);
+    const proc = Bun.spawn(["openclaw", "hooks", "list", "--json"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      proc.exited,
+    ]);
+    if (exitCode !== 0) return c.json<HookEntry[]>([]);
+    const parsed = JSON.parse(stdout) as {
+      hooks: { name: string; description?: string; emoji?: string; disabled?: boolean }[];
+    };
+    const hooks: HookEntry[] = (parsed.hooks ?? []).map((h) => ({
+      id: h.name,
+      name: h.name,
+      description: h.description,
+      emoji: h.emoji,
+      enabled: !h.disabled,
+    }));
+    return c.json(hooks);
   } catch {
-    return c.json({ error: "Failed to read hook settings" }, 500);
+    return c.json<HookEntry[]>([]);
   }
 });
 
-settings.put("/hooks", zValidator("json", z.array(hookEntrySchema)), async (c) => {
+settings.put("/hooks", zValidator("json", z.array(hookUpdateSchema)), async (c) => {
   try {
     const body = c.req.valid("json");
-    await updateHookSettings(body);
+    await Promise.all(
+      body.map(async (hook) => {
+        const cmd = hook.enabled ? "enable" : "disable";
+        const proc = Bun.spawn(["openclaw", "hooks", cmd, hook.id], {
+          stdout: "pipe",
+          stderr: "pipe",
+        });
+        await proc.exited;
+      }),
+    );
     return c.json({ success: true });
   } catch {
     return c.json({ error: "Failed to update hook settings" }, 500);

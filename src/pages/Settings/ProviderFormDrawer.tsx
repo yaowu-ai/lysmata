@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
-import type { ProviderConfig, ProviderModel } from "../../shared/types";
+import { OPENCLAW_API_TYPES } from "../../shared/types";
+import type { ProviderConfig, ProviderModel, OpenClawApiType } from "../../shared/types";
 
 interface Props {
   open: boolean;
@@ -141,11 +142,11 @@ export default function ProviderFormDrawer({
               id="provider-api-type"
               className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
               value={form.api ?? "openai-completions"}
-              onChange={(e) => setForm((prev) => ({ ...prev, api: e.target.value }))}
+              onChange={(e) => setForm((prev) => ({ ...prev, api: e.target.value as OpenClawApiType }))}
             >
-              <option value="openai-completions">openai-completions</option>
-              <option value="anthropic">anthropic</option>
-              <option value="google">google</option>
+              {OPENCLAW_API_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
             </select>
           </div>
 
