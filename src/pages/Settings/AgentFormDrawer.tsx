@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { useCreateAgent } from "../../shared/hooks/useAgents";
+import { useAvailableModels } from "../../shared/hooks/useAvailableModels";
 import type { CreateAgentInput } from "../../shared/types";
 
 interface AgentFormDrawerProps {
@@ -10,6 +11,7 @@ interface AgentFormDrawerProps {
 
 export function AgentFormDrawer({ open, onClose }: AgentFormDrawerProps) {
   const createMut = useCreateAgent();
+  const { data: availableModels = [] } = useAvailableModels();
 
   const [name, setName] = useState("");
   const [workspace, setWorkspace] = useState("");
@@ -151,11 +153,23 @@ export function AgentFormDrawer({ open, onClose }: AgentFormDrawerProps) {
               </label>
               <input
                 type="text"
+                list="agent-model-list"
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
                 placeholder="例如: openrouter/deepseek/deepseek-v3.2-exp"
                 className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {availableModels.length > 0 && (
+                <datalist id="agent-model-list">
+                  {availableModels.map((m) => (
+                    <option key={m} value={m} />
+                  ))}
+                </datalist>
+              )}
+              <p className="text-xs text-[#64748B] mt-1">
+                留空使用全局默认模型
+                {availableModels.length > 0 && `，可从 ${availableModels.length} 个可用模型中选择`}
+              </p>
             </div>
 
             {/* Bindings */}

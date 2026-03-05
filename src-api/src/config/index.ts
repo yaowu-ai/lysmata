@@ -14,3 +14,7 @@ export const CONFIG_DIR =
 // Gateway communication log file — set GATEWAY_LOG_PATH='' to disable logging
 export const GATEWAY_LOG_PATH =
   process.env.GATEWAY_LOG_PATH ?? join(import.meta.dir, "..", "..", "..", "logs", "gateway.log");
+
+// General application log file
+export const LYSMATA_LOG_PATH =
+  process.env.LYSMATA_LOG_PATH ?? join(import.meta.dir, "..", "..", "..", "logs", "lysmata.log");

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Agent, AgentBinding, CreateAgentInput, BindAgentInput } from "../../../../src/shared/types";
+import { AppLogger } from "../../shared/app-logger";
 
 const app = new Hono();
 
@@ -209,67 +210,67 @@ app.get("/bindings", async (c) => {
  */
 app.post("/", async (c) => {
   try {
-    if (!(await checkOpenClawCli())) {
-      return c.json<ApiResult<void>>({
-        success: false,
-        message: "openclaw CLI 未安装",
-      });
+    const cliAvailable = await checkOpenClawCli();
+    AppLogger.info("agent.create: CLI check", { cliAvailable });
+    if (!cliAvailable) {
+      AppLogger.error("agent.create: openclaw CLI not found");
+      return c.json<ApiResult<void>>({ success: false, message: "openclaw CLI 未安装" });
     }
 
     const input = await c.req.json<CreateAgentInput>();
+    AppLogger.info("agent.create: received input", {
+      name: input.name,
+      workspaceRaw: input.workspace ?? null,
+      agentDir: input.agentDir ?? null,
+      model: input.model ?? null,
+      bindings: input.bindings ?? [],
+    });
 
     if (!input.name) {
-      return c.json<ApiResult<void>>({
-        success: false,
-        message: "Agent ID 不能为空",
-      });
+      AppLogger.warn("agent.create: missing Agent ID");
+      return c.json<ApiResult<void>>({ success: false, message: "Agent ID 不能为空" });
     }
 
     const args = ["openclaw", "agents", "add", input.name];
-
-    if (input.workspace) {
-      args.push("--workspace", input.workspace);
-    }
-    if (input.agentDir) {
-      args.push("--agent-dir", input.agentDir);
-    }
-    if (input.model) {
-      args.push("--model", input.model);
-    }
+    // --json 触发非交互模式，此模式强制要求 --workspace；用户未填时使用默认路径
+    const workspace = input.workspace?.trim() || `${process.env.HOME ?? "~"}/.openclaw/workspace-${input.name}`;
+    args.push("--workspace", workspace);
+    if (input.agentDir) args.push("--agent-dir", input.agentDir);
+    if (input.model) args.push("--model", input.model);
     if (input.bindings && input.bindings.length > 0) {
-      for (const binding of input.bindings) {
-        args.push("--bind", binding);
-      }
+      for (const binding of input.bindings) args.push("--bind", binding);
     }
-
     args.push("--json");
 
-    const proc = Bun.spawn(args, {
-      stdout: "pipe",
-      stderr: "pipe",
-    });
+    AppLogger.info("agent.create: spawning CLI", { cmd: args.join(" ") });
 
-    const [stderr, exitCode] = await Promise.all([
+    const proc = Bun.spawn(args, { stdout: "pipe", stderr: "pipe" });
+
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
       new Response(proc.stderr).text(),
       proc.exited,
     ]);
 
+    AppLogger.info("agent.create: CLI exited", {
+      exitCode,
+      stdout: stdout.trim() || null,
+      stderr: stderr.trim() || null,
+    });
+
     if (exitCode !== 0) {
+      AppLogger.error("agent.create: failed", { exitCode, stderr: stderr.trim() });
       return c.json<ApiResult<void>>({
         success: false,
-        message: stderr || "创建 Agent 失败",
+        message: stderr.trim() || "创建 Agent 失败",
       });
     }
 
-    return c.json<ApiResult<void>>({
-      success: true,
-      message: `Agent "${input.name}" 创建成功`,
-    });
+    AppLogger.info("agent.create: success", { agentId: input.name });
+    return c.json<ApiResult<void>>({ success: true, message: `Agent "${input.name}" 创建成功` });
   } catch (err) {
-    return c.json<ApiResult<void>>({
-      success: false,
-      message: String(err),
-    });
+    AppLogger.error("agent.create: exception", { error: String(err) });
+    return c.json<ApiResult<void>>({ success: false, message: String(err) });
   }
 });
 

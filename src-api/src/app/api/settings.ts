@@ -238,4 +238,29 @@ settings.put("/hooks", zValidator("json", z.array(hookUpdateSchema)), async (c) 
   }
 });
 
+// 去除 ANSI 转义码（颜色、光标等控制字符）
+const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+
+settings.get("/models", async (c) => {
+  try {
+    const proc = Bun.spawn(["openclaw", "models", "list"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, exitCode] = await Promise.all([
+      new Response(proc.stdout).text(),
+      proc.exited,
+    ]);
+    if (exitCode !== 0) return c.json<string[]>([]);
+    const models = stdout
+      .split("\n")
+      .map((l) => l.replace(ANSI_RE, "").trim()) // 去掉颜色码
+      .map((l) => l.split(/\s+/)[0])             // 只取第一列（模型 ID）
+      .filter((l) => !!l && !l.startsWith("-") && l !== "Model"); // 去掉表头/分隔线
+    return c.json(models);
+  } catch {
+    return c.json<string[]>([]);
+  }
+});
+
 export default settings;
