@@ -16,6 +16,7 @@ export function GatewayConfigSection() {
   });
 
   const [hasChanges, setHasChanges] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   // 初始化表单数据
   useEffect(() => {
@@ -55,10 +56,12 @@ export function GatewayConfigSection() {
   }
 
   function handleRestart() {
+    setIsRestarting(true);
     apiClient
       .post("/settings/gateway-restart", {})
-      .then(() => toast.success("Gateway 重启中..."))
-      .catch(() => toast.error("重启失败"));
+      .then(() => toast.success("Gateway 已重启"))
+      .catch(() => toast.error("重启失败"))
+      .finally(() => setIsRestarting(false));
   }
 
   return (
@@ -119,7 +122,7 @@ export function GatewayConfigSection() {
       )}
 
       {/* 按钮组 */}
-      <div className="flex gap-3">
+      <div className="flex items-center gap-3">
         <button
           onClick={handleSave}
           disabled={!hasChanges || updateMut.isPending}
@@ -129,9 +132,34 @@ export function GatewayConfigSection() {
         </button>
         <button
           onClick={handleRestart}
-          className="px-3 py-2 rounded-lg text-[14px] text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+          disabled={isRestarting}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-[14px] font-medium border border-[#E5E7EB] text-[#374151] bg-white hover:bg-[#F9FAFB] hover:border-[#D1D5DB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          重启 Gateway
+          {isRestarting ? (
+            <>
+              <svg
+                className="animate-spin w-4 h-4 text-[#6B7280]"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12" cy="12" r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+              重启中...
+            </>
+          ) : (
+            "重启 Gateway"
+          )}
         </button>
       </div>
     </section>

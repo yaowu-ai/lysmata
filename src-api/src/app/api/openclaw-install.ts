@@ -311,6 +311,26 @@ async function verifyInstallation(send: SendEvent): Promise<boolean> {
   return false;
 }
 
+async function installGatewayService(send: SendEvent): Promise<void> {
+  send({ log: "$ openclaw gateway install" });
+  const proc = Bun.spawn(["openclaw", "gateway", "install"], {
+    stdout: "pipe",
+    stderr: "pipe",
+    env: spawnEnv(),
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+  if (exitCode === 0) {
+    send({ log: "Gateway 系统服务注册成功" });
+  } else {
+    // 非致命：部分环境（如无 systemd 的 Linux）可能不支持，Gateway 仍可手动运行
+    send({ log: `Gateway 服务注册跳过: ${(stderr || stdout).trim() || "不支持的环境"}` });
+  }
+}
+
 async function installOpenClaw(send: SendEvent): Promise<void> {
   try {
     send({ step: "checking", message: "检查系统环境...", progress: 5 });
@@ -323,6 +343,7 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
 
     // Already installed
     if (env.hasOpenClaw) {
+      await installGatewayService(send);
       send({ step: "success", message: `OpenClaw 已安装 (${env.openclawVersion})`, progress: 100 });
       send({ success: true });
       return;
@@ -352,6 +373,7 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
     // Verify
     const verified = await verifyInstallation(send);
     if (verified) {
+      await installGatewayService(send);
       send({ step: "success", message: "OpenClaw 安装成功！", progress: 100 });
       send({ success: true });
     } else {

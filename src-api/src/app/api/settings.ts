@@ -116,9 +116,49 @@ settings.get("/llm/providers/:providerKey/usage", async (c) => {
 });
 
 settings.post("/gateway-restart", async (c) => {
-  // Gateway restart is handled by the Tauri shell layer in production.
-  // This endpoint acknowledges the request and returns success.
-  return c.json({ success: true });
+  try {
+    // 先尝试 service 模式重启（launchd）
+    const restartProc = Bun.spawn(["openclaw", "gateway", "restart"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [restartStderr, restartCode] = await Promise.all([
+      new Response(restartProc.stderr).text(),
+      restartProc.exited,
+    ]);
+
+    if (restartCode === 0) {
+      return c.json({ success: true });
+    }
+
+    // 降级：Gateway 未注册为系统服务，改用 stop + start
+    console.warn("gateway restart failed (service mode), falling back to stop+start:", restartStderr);
+
+    const stopProc = Bun.spawn(["openclaw", "gateway", "stop"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    await stopProc.exited; // 忽略 stop 的退出码（进程可能已不存在）
+
+    const startProc = Bun.spawn(["openclaw", "gateway", "start"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [startStderr, startCode] = await Promise.all([
+      new Response(startProc.stderr).text(),
+      startProc.exited,
+    ]);
+
+    if (startCode !== 0) {
+      console.error("Gateway start failed:", startStderr);
+      return c.json({ success: false, error: startStderr || "重启失败" }, 500);
+    }
+
+    return c.json({ success: true });
+  } catch (err) {
+    console.error("Gateway restart error:", err);
+    return c.json({ success: false, error: String(err) }, 500);
+  }
 });
 
 const channelEntrySchema = z.object({
