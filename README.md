@@ -26,6 +26,7 @@
 - [🛠 Development Commands](#-development-commands)
 - [⚙️ Configuration](#️-configuration)
 - [🗂 Project Structure](#-project-structure)
+- [Code signing policy](#code-signing-policy)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
@@ -173,6 +174,27 @@ lysmata/
 │   └── src/lib.rs     # Sidecar startup & DB init
 └── design/            # HTML UI mockups
 ```
+
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+### Team Roles
+
+To ensure the integrity and security of the `lysmata` project, the following contributors are authorized for the code signing process:
+
+- **Maintainers & Committers**:
+  - [@joesmart](https://github.com/joesmart) (Project Lead)
+  - [@hiXgb](https://github.com/hiXgb) (Core Developer)
+  - [@p2227](https://github.com/p2227) (Core Developer)
+- **Reviewers**:
+  - All Maintainers listed above.
+- **Approvers**:
+  - [SignPath Foundation](https://signpath.org) (Automated Open Source Signing)
+
+### Privacy policy
+
+Lysmata does not automatically collect, track, or transmit user personal information to any external service by itself. User data remains on the local machine by default (`~/.lysmata/app.db`, `~/.lysmata/logs/`) unless the user explicitly configures and sends data to third-party services (for example, OpenClaw Gateway or LLM provider endpoints).
 
 ## 🤝 Contributing
 
