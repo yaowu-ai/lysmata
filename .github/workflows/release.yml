@@ -8,6 +8,10 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   # ──────────────────────────────────────────
   # macOS arm64 (Apple Silicon) — with signing
@@ -30,10 +34,8 @@ jobs:
       - name: Sync version from Release tag into tauri.conf.json
         run: |
           VERSION="${{ github.event.release.tag_name }}"
-          # 去掉可能存在的 "v" 前缀，如 v1.2.3 → 1.2.3
           VERSION="${VERSION#v}"
           echo "Building version: $VERSION"
-          # 用 bun/node 写入，避免依赖 jq
           node -e "
             const fs = require('fs');
             const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
@@ -77,22 +79,19 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: CI=true bun run tauri build --bundles dmg --target aarch64-apple-darwin
 
-      - name: Upload arm64 DMG
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload arm64 DMG to Release
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_aarch64.dmg
-          asset_name: Lysmata_${{ env.APP_VERSION }}_aarch64.dmg
-          asset_content_type: application/x-apple-diskimage
+          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_aarch64.dmg
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
 
   # ──────────────────────────────────────────
   # macOS x86_64 (Intel) — with signing
   # ──────────────────────────────────────────
   build-macos-x64:
     name: macOS (Intel)
-    runs-on: macos-latest-large
+    runs-on: macos-26-intel
     steps:
       - uses: actions/checkout@v4
 
@@ -153,15 +152,12 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: CI=true bun run tauri build --bundles dmg --target x86_64-apple-darwin
 
-      - name: Upload x64 DMG
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload x64 DMG to Release
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_x64.dmg
-          asset_name: Lysmata_${{ env.APP_VERSION }}_x64.dmg
-          asset_content_type: application/x-apple-diskimage
+          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_x64.dmg
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
 
   # ──────────────────────────────────────────
   # Windows x64 — no signing
@@ -200,12 +196,9 @@ jobs:
       - name: Build Tauri app (Windows NSIS installer)
         run: bun run tauri build --bundles nsis
 
-      - name: Upload Windows installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload Windows installer to Release
+        uses: softprops/action-gh-release@v1
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: src-tauri/target/release/bundle/nsis/Lysmata_${{ env.APP_VERSION }}_x64-setup.exe
-          asset_name: Lysmata_${{ env.APP_VERSION }}_x64-setup.exe
-          asset_content_type: application/octet-stream
+          files: src-tauri/target/release/bundle/nsis/Lysmata_${{ env.APP_VERSION }}_x64-setup.exe
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
