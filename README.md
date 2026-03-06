@@ -26,7 +26,7 @@
 - [🛠 Development Commands](#-development-commands)
 - [⚙️ Configuration](#️-configuration)
 - [🗂 Project Structure](#-project-structure)
-- [Code signing policy](#code-signing-policy)
+- [🔏 Code signing policy](#code-signing-policy)
 - [🤝 Contributing](#-contributing)
 - [📄 License](#-license)
 
