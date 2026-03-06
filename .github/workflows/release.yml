@@ -27,6 +27,21 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Sync version from Release tag into tauri.conf.json
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          # 去掉可能存在的 "v" 前缀，如 v1.2.3 → 1.2.3
+          VERSION="${VERSION#v}"
+          echo "Building version: $VERSION"
+          # 用 bun/node 写入，避免依赖 jq
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = '$VERSION';
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Import Apple certificate
         env:
           APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
@@ -68,8 +83,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ github.event.release.tag_name }}_aarch64.dmg
-          asset_name: Lysmata_${{ github.event.release.tag_name }}_aarch64.dmg
+          asset_path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_aarch64.dmg
+          asset_name: Lysmata_${{ env.APP_VERSION }}_aarch64.dmg
           asset_content_type: application/x-apple-diskimage
 
   # ──────────────────────────────────────────
@@ -77,7 +92,7 @@ jobs:
   # ──────────────────────────────────────────
   build-macos-x64:
     name: macOS (Intel)
-    runs-on: macos-latest-xl
+    runs-on: macos-latest-large
     steps:
       - uses: actions/checkout@v4
 
@@ -89,6 +104,19 @@ jobs:
 
       - name: Install frontend dependencies
         run: bun install
+
+      - name: Sync version from Release tag into tauri.conf.json
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "Building version: $VERSION"
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = '$VERSION';
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
 
       - name: Import Apple certificate
         env:
@@ -131,8 +159,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ github.event.release.tag_name }}_x64.dmg
-          asset_name: Lysmata_${{ github.event.release.tag_name }}_x64.dmg
+          asset_path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_x64.dmg
+          asset_name: Lysmata_${{ env.APP_VERSION }}_x64.dmg
           asset_content_type: application/x-apple-diskimage
 
   # ──────────────────────────────────────────
@@ -150,6 +178,20 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
+      - name: Sync version from Release tag into tauri.conf.json
+        shell: bash
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "Building version: $VERSION"
+          node -e "
+            const fs = require('fs');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = '$VERSION';
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+          "
+          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Build sidecar (Windows x64)
         run: bun run build:sidecar
         env:
@@ -164,6 +206,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: src-tauri/target/release/bundle/nsis/Lysmata_${{ github.event.release.tag_name }}_x64-setup.exe
-          asset_name: Lysmata_${{ github.event.release.tag_name }}_x64-setup.exe
+          asset_path: src-tauri/target/release/bundle/nsis/Lysmata_${{ env.APP_VERSION }}_x64-setup.exe
+          asset_name: Lysmata_${{ env.APP_VERSION }}_x64-setup.exe
           asset_content_type: application/octet-stream

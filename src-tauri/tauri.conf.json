@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Lysmata",
   "version": "0.1.0",
-  "identifier": "com.fxai.lysmata",
+  "identifier": "com.yaowutech.lysmata",
   "build": {
     "beforeDevCommand": "bun run dev:all",
     "devUrl": "http://localhost:1420",
