@@ -12,13 +12,17 @@
     "dev:all": "concurrently \"bun run dev\" \"bun run dev:api\"",
     "build": "tsc && vite build",
     "build:sidecar": "bun run compile-sidecar.ts",
+    "build:sidecar:x64": "SIDECAR_TARGET=x86_64-apple-darwin bun run build:sidecar",
+    "build:cargo:x64": "cargo build --release --target x86_64-apple-darwin --manifest-path src-tauri/Cargo.toml",
+    "build:dmg:x64": "bun run build:sidecar:x64 && bun run build:cargo:x64 && bun run build:dmg:dev -- --target=x86_64-apple-darwin",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "preview": "vite preview",
     "tauri": "tauri",
-    "build:dmg": "CI=true tauri build --bundles dmg"
+    "build:dmg": "CI=true tauri build --bundles dmg",
+    "build:dmg:dev": "TAURI_SKIP_NOTARIZATION=true CI=true tauri build --bundles dmg"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

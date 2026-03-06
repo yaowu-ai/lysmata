@@ -33,6 +33,25 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist",
+      "dmg": {
+        "windowSize": {
+          "width": 440,
+          "height": 340
+        },
+        "appPosition": {
+          "x": 110,
+          "y": 200
+        },
+        "applicationFolderPosition": {
+          "x": 320,
+          "y": 200
+        }
+      }
+    }
   }
 }

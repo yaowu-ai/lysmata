@@ -29,3 +29,8 @@ src-tauri/bin/*
 src-tauri/bin/hono-sidecar-x86_64-apple-darwin
 src-tauri/bin/hono-sidecar-x86_64-apple-darwin
 .worktrees/
+
+# For Packing
+*.p12
+*.bun-build
+/build
