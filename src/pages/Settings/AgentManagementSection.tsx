@@ -39,7 +39,7 @@ export function AgentManagementSection() {
   }
 
   return (
-    <section className="mt-8 pt-8 border-t border-[#E5E7EB]">
+    <section className="bg-white border border-[#E5E7EB] rounded-xl p-6 mb-5">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-base font-semibold text-[#0F172A] flex items-center gap-2">

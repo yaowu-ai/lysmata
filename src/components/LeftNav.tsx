@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { Bot, MessageSquare, Users, Settings, ChevronLeft, ChevronRight, PanelLeft } from "lucide-react";
 import { cn } from "../shared/lib/utils";
+import appIcon from "../../src-tauri/icons/128x128.png";
 
 const mainNavItems = [
   { to: "/bots", icon: Bot, label: "Bot 管理" },
@@ -26,20 +27,8 @@ export function LeftNav() {
     >
       {/* Logo */}
       <div className="flex items-center px-[14px] mb-3.5 h-9 min-w-[220px]">
-        <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0 shadow-[0_2px_8px_rgba(37,99,235,0.30)]">
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-          >
-            <path d="M12 2L4 7l8 5 8-5-8-5z" />
-            <path d="M4 12l8 5 8-5" />
-            <path d="M4 17l8 5 8-5" />
-          </svg>
+        <div className="w-9 h-9 rounded-[10px] overflow-hidden flex items-center justify-center flex-shrink-0 shadow-[0_2px_8px_rgba(15,23,42,0.12)] bg-white">
+          <img src={appIcon} alt="Lysmata" className="w-full h-full object-cover" />
         </div>
         <span
           className={cn(
