@@ -1,0 +1,169 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────
+  # macOS arm64 (Apple Silicon) — with signing
+  # ──────────────────────────────────────────
+  build-macos-arm64:
+    name: macOS (Apple Silicon)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Rust target (aarch64)
+        run: rustup target add aarch64-apple-darwin
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Import Apple certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Build sidecar (aarch64)
+        run: SIDECAR_TARGET=aarch64-apple-darwin bun run build:sidecar
+
+      - name: Build Tauri app (arm64 DMG)
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: CI=true bun run tauri build --bundles dmg --target aarch64-apple-darwin
+
+      - name: Upload arm64 DMG
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ github.event.release.tag_name }}_aarch64.dmg
+          asset_name: Lysmata_${{ github.event.release.tag_name }}_aarch64.dmg
+          asset_content_type: application/x-apple-diskimage
+
+  # ──────────────────────────────────────────
+  # macOS x86_64 (Intel) — with signing
+  # ──────────────────────────────────────────
+  build-macos-x64:
+    name: macOS (Intel)
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Rust target (x86_64)
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Import Apple certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+
+          echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$RUNNER_TEMP/certificate.p12" \
+            -k "$KEYCHAIN_PATH" \
+            -P "$APPLE_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign
+
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Build sidecar (x86_64)
+        run: SIDECAR_TARGET=x86_64-apple-darwin bun run build:sidecar
+
+      - name: Build Tauri app (x64 DMG)
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: CI=true bun run tauri build --bundles dmg --target x86_64-apple-darwin
+
+      - name: Upload x64 DMG
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ github.event.release.tag_name }}_x64.dmg
+          asset_name: Lysmata_${{ github.event.release.tag_name }}_x64.dmg
+          asset_content_type: application/x-apple-diskimage
+
+  # ──────────────────────────────────────────
+  # Windows x64 — no signing
+  # ──────────────────────────────────────────
+  build-windows-x64:
+    name: Windows (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build sidecar (Windows x64)
+        run: bun run build:sidecar
+        env:
+          SIDECAR_TARGET: x86_64-pc-windows-msvc
+
+      - name: Build Tauri app (Windows NSIS installer)
+        run: CI=true bun run tauri build --bundles nsis
+
+      - name: Upload Windows installer
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: src-tauri/target/release/bundle/nsis/Lysmata_${{ github.event.release.tag_name }}_x64-setup.exe
+          asset_name: Lysmata_${{ github.event.release.tag_name }}_x64-setup.exe
+          asset_content_type: application/octet-stream
