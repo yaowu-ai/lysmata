@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../config";
-import { fetch } from "@tauri-apps/plugin-http";
+import { fetchWithEnv } from "./lib/utils";
 
 class ApiError extends Error {
   constructor(
@@ -12,7 +12,7 @@ class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE_URL}${path}`, {
+  const res = await fetchWithEnv(`${API_BASE_URL}${path}`, {
     headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });

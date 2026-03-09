@@ -70,3 +70,22 @@ export function isSameDay(a: string, b: string): boolean {
     da.getDate() === db.getDate()
   );
 }
+
+
+/**
+ * Environment-aware fetch that uses:
+ * - Global fetch in dev mode (npm run dev:all)
+ * - Tauri fetch in production/build mode
+ */
+export async function fetchWithEnv(
+  url: string,
+  options?: RequestInit,
+): Promise<Response> {
+  if (import.meta.env.PROD) {
+    // In production, use Tauri's fetch plugin
+    const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
+    return tauriFetch(url, options);
+  }
+  // In development, use global fetch
+  return fetch(url, options);
+}

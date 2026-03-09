@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { API_BASE_URL } from "../../config";
 import { apiClient } from "../api-client";
 import type { Message, SendMessageInput } from "../types";
-import { fetch } from "@tauri-apps/plugin-http";
+import { fetchWithEnv } from "../lib/utils";
 
 export const msgKeys = {
   list: (convId: string) => ["messages", convId] as const,
@@ -135,7 +135,7 @@ export function useSendMessageStream(conversationId: string) {
     let streamError: string | undefined;
 
     try {
-      const res = await fetch(
+      const res = await fetchWithEnv(
         `${API_BASE_URL}/conversations/${conversationId}/messages/stream?content=${encodeURIComponent(content)}`,
         { signal },
       );
