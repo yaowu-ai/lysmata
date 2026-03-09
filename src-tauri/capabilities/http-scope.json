@@ -8,16 +8,22 @@
       "identifier": "http:default",
       "allow": [
         {
-          "url": "http://127.0.0.1:2620/*"
+          "url": "http://127.0.0.1:2620/**"
         },
         {
-          "url": "http://localhost:2620/*"
+          "url": "http://localhost:2620/**"
         },
         {
-          "url": "http://127.0.0.1:2026/*"
+          "url": "http://127.0.0.1:2026/**"
         },
         {
-          "url": "http://localhost:2026/*"
+          "url": "http://localhost:2026/**"
+        },
+        {
+          "url": "http://127.0.0.1:2620"
+        },
+        {
+          "url": "http://localhost:2620"
         }
       ]
     }

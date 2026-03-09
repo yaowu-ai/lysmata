@@ -27,7 +27,7 @@ async function copyToClipboard(text: string, toast: ReturnType<typeof useToast>)
 }
 
 export default function SettingsPage() {
-  const { data: settings, isLoading } = useLlmSettings();
+  const { data: settings, isLoading, isError, refetch } = useLlmSettings();
   const { mutate: saveSettings } = useUpdateLlmSettings();
   const [editingProvider, setEditingProvider] = useState<{
     key: string;
@@ -125,7 +125,19 @@ export default function SettingsPage() {
     }
   }, [settings, selectedProvider]);
 
-  if (isLoading || !settings) return <div className="p-6 text-sm text-[#64748B]">加载中...</div>;
+  if (isLoading) return <div className="p-6 text-sm text-[#64748B]">加载中...</div>;
+
+  if (isError || !settings) return (
+    <div className="p-6 flex flex-col gap-3">
+      <div className="text-sm text-red-500">无法连接到 API 服务，请检查应用是否正常启动</div>
+      <button
+        onClick={() => refetch()}
+        className="self-start px-4 py-2 rounded-lg border border-[#E5E7EB] text-[14px] text-[#64748B] hover:bg-[#F8FAFC] transition-colors"
+      >
+        重试
+      </button>
+    </div>
+  );
 
   // 当前选中 Provider 的可用模型
   const availableModels = selectedProvider && settings.providers[selectedProvider]

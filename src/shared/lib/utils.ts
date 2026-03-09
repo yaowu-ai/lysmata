@@ -73,19 +73,19 @@ export function isSameDay(a: string, b: string): boolean {
 
 
 /**
- * Environment-aware fetch that uses:
- * - Global fetch in dev mode (npm run dev:all)
- * - Tauri fetch in production/build mode
+ * Always uses native fetch.
+ *
+ * Why not @tauri-apps/plugin-http (tauriFetch) in production?
+ * Tauri's HTTP plugin scope URL pattern matching has known issues with
+ * multi-segment paths (e.g. /settings/llm), causing requests to be silently
+ * blocked before reaching the sidecar. Native fetch works correctly because:
+ *   1. The sidecar CORS config already includes tauri://localhost as allowed origin
+ *   2. Info.plist sets NSTemporaryExceptionAllowsInsecureHTTPLoads for 127.0.0.1
+ *   3. EventSource (global-stream) already uses native browser APIs with no issues
  */
 export async function fetchWithEnv(
   url: string,
   options?: RequestInit,
 ): Promise<Response> {
-  if (import.meta.env.PROD) {
-    // In production, use Tauri's fetch plugin
-    const { fetch: tauriFetch } = await import("@tauri-apps/plugin-http");
-    return tauriFetch(url, options);
-  }
-  // In development, use global fetch
   return fetch(url, options);
 }
