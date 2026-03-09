@@ -12,6 +12,7 @@ import {
 } from "../../core/openclaw-config-file";
 import type { HookEntry } from "../../../../src/shared/types";
 import { getDb } from "../../shared/db";
+import { resolveOpenclawBin } from "../../shared/openclaw-bin";
 
 const settings = new Hono();
 
@@ -117,8 +118,10 @@ settings.get("/llm/providers/:providerKey/usage", async (c) => {
 
 settings.post("/gateway-restart", async (c) => {
   try {
+    const bin = await resolveOpenclawBin();
+
     // 先尝试 service 模式重启（launchd）
-    const restartProc = Bun.spawn(["openclaw", "gateway", "restart"], {
+    const restartProc = Bun.spawn([bin, "gateway", "restart"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -134,13 +137,13 @@ settings.post("/gateway-restart", async (c) => {
     // 降级：Gateway 未注册为系统服务，改用 stop + start
     console.warn("gateway restart failed (service mode), falling back to stop+start:", restartStderr);
 
-    const stopProc = Bun.spawn(["openclaw", "gateway", "stop"], {
+    const stopProc = Bun.spawn([bin, "gateway", "stop"], {
       stdout: "pipe",
       stderr: "pipe",
     });
     await stopProc.exited; // 忽略 stop 的退出码（进程可能已不存在）
 
-    const startProc = Bun.spawn(["openclaw", "gateway", "start"], {
+    const startProc = Bun.spawn([bin, "gateway", "start"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -194,7 +197,8 @@ const hookUpdateSchema = z.object({
 
 settings.get("/hooks", async (c) => {
   try {
-    const proc = Bun.spawn(["openclaw", "hooks", "list", "--json"], {
+    const bin = await resolveOpenclawBin();
+    const proc = Bun.spawn([bin, "hooks", "list", "--json"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -222,10 +226,11 @@ settings.get("/hooks", async (c) => {
 settings.put("/hooks", zValidator("json", z.array(hookUpdateSchema)), async (c) => {
   try {
     const body = c.req.valid("json");
+    const bin = await resolveOpenclawBin();
     await Promise.all(
       body.map(async (hook) => {
         const cmd = hook.enabled ? "enable" : "disable";
-        const proc = Bun.spawn(["openclaw", "hooks", cmd, hook.id], {
+        const proc = Bun.spawn([bin, "hooks", cmd, hook.id], {
           stdout: "pipe",
           stderr: "pipe",
         });
@@ -243,7 +248,8 @@ const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
 
 settings.get("/models", async (c) => {
   try {
-    const proc = Bun.spawn(["openclaw", "models", "list"], {
+    const bin = await resolveOpenclawBin();
+    const proc = Bun.spawn([bin, "models", "list"], {
       stdout: "pipe",
       stderr: "pipe",
     });

@@ -16,6 +16,31 @@ fn get_lysmata_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String>
     Ok(home_dir.join(".lysmata"))
 }
 
+/// Resolve the user's full login-shell PATH on macOS.
+///
+/// GUI apps launched from Finder/Dock receive a minimal PATH (/usr/bin:/bin:…).
+/// Running `zsh -l -c "echo $PATH"` sources the user's login profile and
+/// returns the same PATH the user sees in a terminal, ensuring tools like
+/// `openclaw` (installed in /usr/local/bin or /opt/homebrew/bin) are found.
+fn resolve_login_shell_path() -> String {
+    // Try zsh first (macOS default since Catalina), then bash as fallback.
+    for shell in &["/bin/zsh", "/bin/bash"] {
+        if let Ok(output) = std::process::Command::new(shell)
+            .args(["-l", "-c", "echo $PATH"])
+            .output()
+        {
+            let path = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .to_string();
+            if !path.is_empty() {
+                return path;
+            }
+        }
+    }
+    // Absolute fallback: keep whatever the process already has.
+    std::env::var("PATH").unwrap_or_default()
+}
+
 #[tauri::command]
 async fn start_sidecar(app: tauri::AppHandle) -> Result<(), String> {
     use std::time::SystemTime;
@@ -26,6 +51,11 @@ async fn start_sidecar(app: tauri::AppHandle) -> Result<(), String> {
     let config_dir = lysmata_dir.join("config").to_string_lossy().to_string();
     let logs_dir = lysmata_dir.join("logs");
 
+    // Resolve the user's login-shell PATH so the sidecar (and any child
+    // processes it spawns, e.g. `openclaw`) can find binaries in
+    // /usr/local/bin, /opt/homebrew/bin, etc.
+    let login_path = resolve_login_shell_path();
+
     // Log startup info
     let startup_log = logs_dir.join("sidecar-startup.log");
     let timestamp = SystemTime::now()
@@ -33,8 +63,8 @@ async fn start_sidecar(app: tauri::AppHandle) -> Result<(), String> {
         .unwrap()
         .as_secs();
     let startup_info = format!(
-        "[{}] Starting sidecar\nDB_PATH: {}\nCONFIG_DIR: {}\nPORT: 2620\n",
-        timestamp, db_path, config_dir
+        "[{}] Starting sidecar\nDB_PATH: {}\nCONFIG_DIR: {}\nPORT: 2620\nPATH: {}\n",
+        timestamp, db_path, config_dir, login_path
     );
     let _ = fs::write(&startup_log, startup_info);
 
@@ -54,7 +84,8 @@ async fn start_sidecar(app: tauri::AppHandle) -> Result<(), String> {
         .env("DB_PATH", db_path)
         .env("CONFIG_DIR", config_dir)
         .env("GATEWAY_LOG_PATH", gateway_log_path)
-        .env("LYSMATA_LOG_PATH", lysmata_log_path);
+        .env("LYSMATA_LOG_PATH", lysmata_log_path)
+        .env("PATH", login_path);
 
     let (mut rx, child) = sidecar_command.spawn().map_err(|e| {
         let err_msg = format!("Failed to spawn sidecar: {}", e);

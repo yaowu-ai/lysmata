@@ -13,41 +13,9 @@
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
+import { spawnEnv } from "../../shared/openclaw-bin";
 
 const app = new Hono();
-
-// ── PATH helpers ─────────────────────────────────────────────────────────────
-
-const COMMON_PATH_DIRS = [
-  "/usr/local/bin",
-  "/usr/bin",
-  "/bin",
-  "/usr/sbin",
-  "/sbin",
-  "/opt/homebrew/bin",
-  "/opt/homebrew/sbin",
-];
-
-function getEnrichedPath(): string {
-  const home = process.env.HOME ?? "";
-  const existing = process.env.PATH ?? "";
-  const extra = [
-    `${home}/.nvm/current/bin`,
-    `${home}/.fnm/current/bin`,
-    `${home}/.local/bin`,
-    `${home}/.openclaw/bin`,
-    ...COMMON_PATH_DIRS,
-  ];
-  const parts = existing.split(":");
-  for (const dir of extra) {
-    if (!parts.includes(dir)) parts.push(dir);
-  }
-  return parts.join(":");
-}
-
-function spawnEnv(): Record<string, string> {
-  return { ...process.env, PATH: getEnrichedPath() } as Record<string, string>;
-}
 
 async function which(bin: string): Promise<string | null> {
   try {

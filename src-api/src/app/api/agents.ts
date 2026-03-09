@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Agent, AgentBinding, CreateAgentInput, BindAgentInput } from "../../../../src/shared/types";
 import { AppLogger } from "../../shared/app-logger";
+import { resolveOpenclawBin, spawnEnv } from "../../shared/openclaw-bin";
 
 const app = new Hono();
 
@@ -11,13 +12,14 @@ interface ApiResult<T> {
 }
 
 /**
- * 检查 OpenClaw CLI 是否已安装
+ * 检查 OpenClaw CLI 是否已安装（使用富化后的 PATH）
  */
 async function checkOpenClawCli(): Promise<boolean> {
   try {
     const proc = Bun.spawn(["which", "openclaw"], {
       stdout: "pipe",
       stderr: "pipe",
+      env: spawnEnv(),
     });
     const exitCode = await proc.exited;
     return exitCode === 0;
@@ -131,7 +133,8 @@ app.get("/", async (c) => {
       });
     }
 
-    const proc = Bun.spawn(["openclaw", "agents", "list"], {
+    const bin = await resolveOpenclawBin();
+    const proc = Bun.spawn([bin, "agents", "list"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -174,7 +177,8 @@ app.get("/bindings", async (c) => {
       });
     }
 
-    const proc = Bun.spawn(["openclaw", "agents", "bindings"], {
+    const bin = await resolveOpenclawBin();
+    const proc = Bun.spawn([bin, "agents", "bindings"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -288,7 +292,8 @@ app.delete("/:id", async (c) => {
 
     const id = c.req.param("id");
 
-    const proc = Bun.spawn(["openclaw", "agents", "delete", id, "--force", "--json"], {
+    const bin = await resolveOpenclawBin();
+    const proc = Bun.spawn([bin, "agents", "delete", id, "--force", "--json"], {
       stdout: "pipe",
       stderr: "pipe",
     });
