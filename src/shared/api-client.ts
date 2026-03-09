@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../config";
+import { fetch } from "@tauri-apps/plugin-http";
 
 class ApiError extends Error {
   constructor(

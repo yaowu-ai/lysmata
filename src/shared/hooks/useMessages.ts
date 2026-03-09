@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { API_BASE_URL } from "../../config";
 import { apiClient } from "../api-client";
 import type { Message, SendMessageInput } from "../types";
+import { fetch } from "@tauri-apps/plugin-http";
 
 export const msgKeys = {
   list: (convId: string) => ["messages", convId] as const,

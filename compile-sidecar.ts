@@ -50,7 +50,7 @@ const result = await Bun.spawn({
     bunTarget,
     "./src-api/src/index.ts",
     "--outfile",
-    `./src-tauri/bin/hono-sidecar-${triple}${windows ? ".exe" : ""}`,
+    `./src-tauri/bin/hono-sidecar${windows ? ".exe" : ""}`,
   ],
 }).exited;
 

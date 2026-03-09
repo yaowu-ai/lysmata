@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Download, CheckCircle, XCircle, Loader2, Terminal, RefreshCw } from "lucide-react";
+import { fetch } from '@tauri-apps/plugin-http';
 import { API_BASE_URL } from "../../config";
 
 type InstallStep = "idle" | "checking" | "installing" | "verifying" | "success" | "error";

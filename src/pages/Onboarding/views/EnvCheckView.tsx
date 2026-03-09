@@ -1,6 +1,7 @@
 // src/pages/Onboarding/views/EnvCheckView.tsx
 import { useEffect, useState } from "react";
 import { apiClient } from "../../../shared/api-client";
+import { getSidecarLogs } from "../../../shared/tauri-bridge";
 
 interface EnvCheckResult {
   canInstall: boolean;
@@ -34,11 +35,30 @@ export function EnvCheckView({ onEnvReady }: Props) {
     { label: "网络工具", desc: "curl 用于下载安装包", status: "checking", detail: "检测中..." },
   ]);
   const [envResult, setEnvResult] = useState<EnvCheckResult | null>(null);
+  const [showLogs, setShowLogs] = useState(false);
+  const [logs, setLogs] = useState<string>("");
+
+  const fetchLogs = async () => {
+    if (import.meta.env.PROD) {
+      try {
+        const logContent = await getSidecarLogs();
+        setLogs(logContent);
+        setShowLogs(true);
+      } catch (e) {
+        setLogs(`无法获取日志: ${e}`);
+        setShowLogs(true);
+      }
+    }
+  };
 
   useEffect(() => {
+    console.log("[EnvCheck] Starting environment check...");
+    console.log("[EnvCheck] API Base URL:", import.meta.env.PROD ? "http://127.0.0.1:2620" : "http://127.0.0.1:2026");
+    
     apiClient
       .get<EnvCheckResult>("/openclaw/check-environment")
       .then((res) => {
+        console.log("[EnvCheck] API response:", res);
         setEnvResult(res);
 
         const openclawItem: CheckItem = res.hasOpenClaw
@@ -66,11 +86,33 @@ export function EnvCheckView({ onEnvReady }: Props) {
         setItems([openclawItem, nodeItem, curlItem]);
         onEnvReady?.({ canInstall: res.canInstall, hasOpenClaw: res.hasOpenClaw });
       })
-      .catch(() => {
+      .catch(async (error) => {
+        console.error("[EnvCheck] API connection failed:", error);
+        console.error("[EnvCheck] Error details:", {
+          message: error.message,
+          status: error.status,
+          stack: error.stack
+        });
+        
+        // Try to fetch directly to see what's happening
+        try {
+          const directFetch = await fetch("http://127.0.0.1:2620/health");
+          console.log("[EnvCheck] Direct health check status:", directFetch.status);
+          const healthData = await directFetch.json();
+          console.log("[EnvCheck] Direct health check data:", healthData);
+        } catch (e) {
+          console.error("[EnvCheck] Direct health check also failed:", e);
+        }
+        
         setItems((prev) =>
           prev.map((i) => ({ ...i, status: "fail" as ItemStatus, detail: "API 连接失败" })),
         );
         onEnvReady?.({ canInstall: false, hasOpenClaw: false });
+        
+        // Auto-fetch logs on error in production
+        if (import.meta.env.PROD) {
+          await fetchLogs();
+        }
       });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -83,6 +125,7 @@ export function EnvCheckView({ onEnvReady }: Props) {
 
   const canProceed = envResult?.canInstall ?? false;
   const allPass = items.every((i) => i.status === "pass");
+  const hasFailed = items.some((i) => i.status === "fail");
 
   return (
     <div>
@@ -140,6 +183,32 @@ export function EnvCheckView({ onEnvReady }: Props) {
               </code>
             </>
           )}
+        </div>
+      )}
+
+      {hasFailed && import.meta.env.PROD && (
+        <div className="mt-4">
+          <button
+            onClick={fetchLogs}
+            className="text-sm text-blue-600 hover:text-blue-800 underline"
+          >
+            {showLogs ? "刷新日志" : "查看诊断日志"}
+          </button>
+        </div>
+      )}
+
+      {showLogs && (
+        <div className="mt-4 bg-black text-green-400 p-4 rounded-lg text-xs font-mono overflow-auto max-h-[300px]">
+          <div className="flex justify-between items-center mb-2">
+            <span className="text-white font-semibold">Sidecar 诊断日志</span>
+            <button
+              onClick={() => setShowLogs(false)}
+              className="text-gray-400 hover:text-white"
+            >
+              关闭
+            </button>
+          </div>
+          <pre className="whitespace-pre-wrap">{logs}</pre>
         </div>
       )}
     </div>

@@ -15,6 +15,20 @@ import { WizardPage } from "./pages/Onboarding/WizardPage";
 import { isOnboardingComplete } from "./shared/store/wizard-store";
 import "./index.css";
 
+// Add devtools toggle support
+if (import.meta.env.PROD) {
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I")) {
+      e.preventDefault();
+      // @ts-ignore - Tauri API
+      if (window.__TAURI__) {
+        // @ts-ignore
+        window.__TAURI__.event.emit("toggle-devtools");
+      }
+    }
+  });
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { staleTime: 30_000, retry: 1 },
@@ -26,16 +40,42 @@ const queryClient = new QueryClient({
 async function initSidecar() {
   if (import.meta.env.PROD) {
     try {
+      console.log("[sidecar] Starting sidecar...");
       await startSidecar();
+      console.log("[sidecar] Sidecar started successfully");
+      
+      // Wait for sidecar to be ready (max 10 seconds)
+      const maxRetries = 20;
+      const retryDelay = 500;
+      for (let i = 0; i < maxRetries; i++) {
+        try {
+          const response = await fetch("http://127.0.0.1:2620/health");
+          if (response.ok) {
+            console.log(`[sidecar] Health check passed after ${i * retryDelay}ms`);
+            return true;
+          }
+        } catch (e) {
+          // Retry
+        }
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+      }
+      console.error("[sidecar] Health check timeout after 10 seconds");
+      return false;
     } catch (e) {
-      console.warn("[sidecar] start_sidecar failed (may already be running):", e);
+      console.error("[sidecar] Failed to start sidecar:", e);
+      return false;
     }
   }
+  return true; // In dev mode, assume sidecar is already running
 }
 
-initSidecar();
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
+// Wait for sidecar to be ready before rendering
+initSidecar().then((ready) => {
+  if (!ready && import.meta.env.PROD) {
+    console.error("[sidecar] Failed to initialize, but rendering anyway");
+  }
+  
+  ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -66,4 +106,5 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       </BrowserRouter>
     </QueryClientProvider>
   </React.StrictMode>,
-);
+  );
+});
