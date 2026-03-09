@@ -79,10 +79,16 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: CI=true bun run tauri build --bundles dmg --target aarch64-apple-darwin
 
+      - name: Rename Apple Silicon DMG
+        run: |
+          cp \
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_aarch64.dmg \
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_apple-silicon.dmg
+
       - name: Upload arm64 DMG to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_aarch64.dmg
+          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_apple-silicon.dmg
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
 
@@ -152,10 +158,16 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: CI=true bun run tauri build --bundles dmg --target x86_64-apple-darwin
 
+      - name: Rename Intel DMG
+        run: |
+          cp \
+            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_x64.dmg \
+            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_intel.dmg
+
       - name: Upload x64 DMG to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_x64.dmg
+          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_intel.dmg
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
 
