@@ -1,6 +1,5 @@
 /// <reference types="bun-types" />
-import { build } from "bun";
-import { chmod } from "node:fs/promises";
+import { copyFile } from "node:fs/promises";
 
 const TRIPLE_TO_BUN_TARGET: Record<string, string> = {
   "x86_64-apple-darwin": "bun-darwin-x64",
@@ -34,11 +33,13 @@ const triple = process.env.SIDECAR_TARGET ?? resolveTauriTargetTriple();
 const bunTarget = TRIPLE_TO_BUN_TARGET[triple];
 if (!bunTarget) {
   throw new Error(
-    `Unsupported SIDECAR_TARGET: ${triple}. Supported: ${Object.keys(TRIPLE_TO_BUN_TARGET).join(", ")}`
+    `Unsupported SIDECAR_TARGET: ${triple}. Supported: ${Object.keys(TRIPLE_TO_BUN_TARGET).join(", ")}`,
   );
 }
 
 const windows = triple.includes("windows");
+const outputName = `./src-tauri/bin/hono-sidecar${windows ? ".exe" : ""}`;
+const tauriAliasName = `./src-tauri/bin/hono-sidecar-${triple}${windows ? ".exe" : ""}`;
 
 const result = await Bun.spawn({
   cmd: [
@@ -50,10 +51,14 @@ const result = await Bun.spawn({
     bunTarget,
     "./src-api/src/index.ts",
     "--outfile",
-    `./src-tauri/bin/hono-sidecar${windows ? ".exe" : ""}`,
+    outputName,
   ],
 }).exited;
 
 if (result !== 0) {
   throw new Error("Failed to build sidecar binary");
 }
+
+// Keep a stable runtime filename for the main process, while also
+// generating the target-specific alias that Tauri expects at bundle time.
+await copyFile(outputName, tauriAliasName);
