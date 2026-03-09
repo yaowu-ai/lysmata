@@ -209,7 +209,7 @@ export function WizardPage() {
         </div>
 
         {/* Footer — hidden on done view */}
-        {step.id !== "done" && (
+        {(step.id !== "done" && step.id !== "intro") && (
           <WizardFooter
             {...footerProps}
             onNext={handleNext}
