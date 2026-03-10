@@ -126,6 +126,7 @@ export async function connectWS(url: string, token?: string): Promise<PoolEntry>
     pendingRequests: new Map(),
     activeRuns: new Map(),
     pushRuns: new Map(),
+    recentlyCompletedRuns: new Set(),
     heartbeatTimer: null,
     ready: false,
     readyWaiters: [],

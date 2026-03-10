@@ -4,6 +4,12 @@ import { API_BASE_URL } from "../../config";
 import { msgKeys, fetchSingleMessage } from "./useMessages";
 import type { Message } from "../types";
 
+type InfiniteCache = { pages: Message[][]; pageParams: unknown[] };
+
+function hasMessageInPages(pages: Message[][], id: string): boolean {
+  return pages.some((page) => page.some((m) => m.id === id));
+}
+
 /**
  * Subscribe to bot-initiated (push) messages for a conversation via SSE.
  *
@@ -32,19 +38,21 @@ export function usePushStream(conversationId: string | null | undefined) {
       const { msgId } = data;
       if (!msgId) return;
 
-      // 1. Insert placeholder to avoid list jump
-      qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
-        if (old.some((m) => m.id === msgId)) return old;
-        return [
-          ...old,
-          {
-            id: msgId,
-            conversation_id: conversationId,
-            sender_type: "bot",
-            content: "",
-            created_at: new Date().toISOString(),
-          } as Message,
-        ];
+      // 1. Insert placeholder into the last page to avoid list jump
+      qc.setQueryData<InfiniteCache>(msgKeys.list(conversationId), (old) => {
+        if (!old) return old;
+        if (hasMessageInPages(old.pages, msgId)) return old;
+        const pages = [...old.pages];
+        const lastPage = [...(pages[pages.length - 1] ?? [])];
+        lastPage.push({
+          id: msgId,
+          conversation_id: conversationId,
+          sender_type: "bot",
+          content: "",
+          created_at: new Date().toISOString(),
+        } as Message);
+        pages[pages.length - 1] = lastPage;
+        return { ...old, pages };
       });
 
       // 2. Fetch full message and replace placeholder.
@@ -54,14 +62,27 @@ export function usePushStream(conversationId: string | null | undefined) {
       fetchSingleMessage(conversationId, msgId)
         .then((msg) => {
           if (!isActive) return;
-          qc.setQueryData<Message[]>(msgKeys.list(conversationId), (old = []) => {
-            // Replace placeholder if still present
-            if (old.some((m) => m.id === msgId)) {
-              return old.map((m) => (m.id === msgId ? msg : m));
+          qc.setQueryData<InfiniteCache>(msgKeys.list(conversationId), (old) => {
+            if (!old) return old;
+            const pages = [...old.pages];
+
+            // Replace placeholder if still present in any page
+            const placeholderPageIdx = pages.findIndex((page) =>
+              page.some((m) => m.id === msgId),
+            );
+            if (placeholderPageIdx !== -1) {
+              pages[placeholderPageIdx] = pages[placeholderPageIdx].map((m) =>
+                m.id === msgId ? msg : m,
+              );
+              return { ...old, pages };
             }
+
             // Placeholder evicted — only append if refetch didn't already include it
-            if (old.some((m) => m.id === msg.id)) return old;
-            return [...old, msg];
+            if (hasMessageInPages(pages, msg.id)) return old;
+            const lastPage = [...(pages[pages.length - 1] ?? [])];
+            lastPage.push(msg);
+            pages[pages.length - 1] = lastPage;
+            return { ...old, pages };
           });
         })
         .catch(() => {

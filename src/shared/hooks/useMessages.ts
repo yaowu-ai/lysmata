@@ -197,19 +197,12 @@ export function useSendMessageStream(conversationId: string) {
             if (!old) return old;
             const pages = [...old.pages];
             const lastPage = [...(pages[pages.length - 1] ?? [])];
-            // Replace optimistic user msg + append real bot msg
+            // Remove optimistic user msg placeholder; real user msg comes from invalidateQueries refetch
             const withoutOptimistic = lastPage.filter((m) => m.id !== optimisticId);
-            const userMsg: Message = {
-              id: optimisticId,
-              conversation_id: conversationId,
-              sender_type: "user",
-              content,
-              created_at: new Date().toISOString(),
-            } as Message;
             const hasBotMsg = lastPage.some((m) => m.id === botMsg!.id);
             pages[pages.length - 1] = hasBotMsg
               ? withoutOptimistic
-              : [...withoutOptimistic, userMsg, botMsg!];
+              : [...withoutOptimistic, botMsg!];
             return { ...old, pages };
           },
         );

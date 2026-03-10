@@ -326,9 +326,18 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
     if (stream === "lifecycle") {
       const phase = typeof data?.phase === "string" ? data.phase : null;
       if (phase === "end") {
+        // Mark as recently completed BEFORE deleting from activeRuns so that
+        // any duplicate/delayed frames arriving in the same tick are rejected
+        // by the push path below instead of being treated as new push runs.
+        entry.recentlyCompletedRuns ??= new Set();
+        entry.recentlyCompletedRuns.add(runId);
+        setTimeout(() => entry.recentlyCompletedRuns?.delete(runId), 5_000);
         entry.activeRuns.delete(runId);
         run.onDone();
       } else if (phase === "error") {
+        entry.recentlyCompletedRuns ??= new Set();
+        entry.recentlyCompletedRuns.add(runId);
+        setTimeout(() => entry.recentlyCompletedRuns?.delete(runId), 5_000);
         entry.activeRuns.delete(runId);
         run.onError(new Error((data?.error as string | undefined) ?? "Agent error"));
       }
@@ -337,6 +346,12 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   }
 
   // ── Bot-initiated push run (runId unknown to this client) ──
+  // Skip runs that just completed as client-initiated — they may send duplicate
+  // frames after activeRuns.delete() due to Gateway retransmits or race conditions.
+  // Guard against entries created before this field existed (e.g. live connections).
+  entry.recentlyCompletedRuns ??= new Set();
+  if (entry.recentlyCompletedRuns.has(runId)) return;
+
   // Buffer the accumulated text; on lifecycle.end deliver via onPushMessage.
   if (stream === "assistant") {
     const text = typeof data?.text === "string" ? data.text : "";

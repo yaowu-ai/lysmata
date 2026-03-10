@@ -114,6 +114,13 @@ export interface PoolEntry {
    * even if the final frame omits it (some Gateway versions).
    */
   pushRuns: Map<string, PushRunEntry>;
+  /**
+   * Run IDs that just completed as client-initiated runs (activeRuns).
+   * Kept briefly so that any duplicate/delayed Gateway frames arriving after
+   * activeRuns.delete() are not mistakenly treated as new push runs.
+   * Entries are auto-evicted after a short TTL.
+   */
+  recentlyCompletedRuns: Set<string>;
   heartbeatTimer: ReturnType<typeof setInterval> | null;
   ready: boolean;
   readyWaiters: Array<{ resolve: () => void; reject: (e: Error) => void }>;
