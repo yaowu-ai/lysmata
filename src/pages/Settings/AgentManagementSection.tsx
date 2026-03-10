@@ -1,31 +1,50 @@
 import { useState } from "react";
-import { Plus, AlertCircle, Trash2, Link, Sparkles, FolderOpen, Cpu } from "lucide-react";
+import { Plus, AlertCircle, Trash2, Link, Sparkles, FolderOpen, Cpu, Pencil } from "lucide-react";
 import { useAgents, useAgentBindings, useDeleteAgent } from "../../shared/hooks/useAgents";
+import { useToast } from "../../components/Toast";
 import type { Agent } from "../../shared/types";
 import { AgentFormDrawer } from "./AgentFormDrawer";
 import { AgentBindingsDrawer } from "./AgentBindingsDrawer";
 
 export function AgentManagementSection() {
-  const { data: agentsData, isLoading } = useAgents();
+  const { data: agentsData, isLoading, isFetching } = useAgents();
   const { data: bindingsData } = useAgentBindings();
   const deleteMut = useDeleteAgent();
+  const toast = useToast();
 
   const [formDrawerOpen, setFormDrawerOpen] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<Agent | null>(null);
   const [bindingsDrawerOpen, setBindingsDrawerOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+  const [recentlyEditedId, setRecentlyEditedId] = useState<string | null>(null);
 
   const agents = agentsData?.data ?? [];
   const bindings = bindingsData?.data ?? [];
 
   function handleDelete(agent: Agent) {
-    if (
-      !window.confirm(
-        `确认删除 Agent "${agent.id}"？\n\n此操作将删除工作区和状态文件。`
-      )
-    ) {
-      return;
+    if (confirmingDelete === agent.id) {
+      deleteMut.mutate(agent.id, {
+        onSuccess: (result) => {
+          setConfirmingDelete(null);
+          if (result.success) {
+            toast.success(result.message ?? "Agent 已删除");
+          } else {
+            toast.error(result.message ?? "删除失败");
+          }
+        },
+        onError: (err) => {
+          setConfirmingDelete(null);
+          toast.error(String(err));
+        },
+      });
+    } else {
+      setConfirmingDelete(agent.id);
+      setTimeout(
+        () => setConfirmingDelete((prev) => (prev === agent.id ? null : prev)),
+        3000,
+      );
     }
-    deleteMut.mutate(agent.id);
   }
 
   function handleOpenBindings(agent: Agent) {
@@ -33,7 +52,6 @@ export function AgentManagementSection() {
     setBindingsDrawerOpen(true);
   }
 
-  // 获取某个 Agent 的绑定数量
   function getBindingCount(agentId: string): number {
     return bindings.filter((b) => b.agent === agentId).length;
   }
@@ -45,13 +63,25 @@ export function AgentManagementSection() {
           <h2 className="text-base font-semibold text-[#0F172A] flex items-center gap-2">
             <Sparkles size={18} className="text-[#2563EB]" />
             OpenClaw Agents
+            {isFetching && !isLoading && (
+              <span className="inline-flex items-center gap-1 text-xs font-normal text-[#64748B]">
+                <svg className="animate-spin w-3 h-3 text-[#2563EB]" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                </svg>
+                刷新中
+              </span>
+            )}
           </h2>
           <p className="text-xs text-[#64748B] mt-1">
             管理本地 Agent 配置和 Gateway 绑定关系
           </p>
         </div>
         <button
-          onClick={() => setFormDrawerOpen(true)}
+          onClick={() => {
+            setEditingAgent(null);
+            setFormDrawerOpen(true);
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-[#2563EB] hover:bg-blue-700 rounded-lg transition-colors shadow-sm"
         >
           <Plus size={16} /> 添加 Agent
@@ -60,7 +90,10 @@ export function AgentManagementSection() {
 
       {!agentsData?.success && agentsData?.message && (() => {
         const msg = agentsData.message.toLowerCase();
-        const isConfigError = msg.includes("config invalid") || msg.includes("invalid option") || msg.includes("invalid config");
+        const isConfigError =
+          msg.includes("config invalid") ||
+          msg.includes("invalid option") ||
+          msg.includes("invalid config");
         return (
           <div className="mb-4 flex items-start gap-3 text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
             <AlertCircle size={18} className="flex-shrink-0 mt-0.5" />
@@ -71,7 +104,12 @@ export function AgentManagementSection() {
               <div className="text-xs text-amber-700">{agentsData.message}</div>
               {isConfigError && (
                 <div className="text-xs text-amber-600 mt-1">
-                  请检查 <code className="bg-amber-100 px-1 rounded">~/.openclaw/openclaw.json</code> 中 <code className="bg-amber-100 px-1 rounded">models.providers</code> 的 <code className="bg-amber-100 px-1 rounded">api</code> 字段，或在下方「LLM 供应商」面板中重新保存 Provider。
+                  请检查{" "}
+                  <code className="bg-amber-100 px-1 rounded">~/.openclaw/openclaw.json</code>{" "}
+                  中{" "}
+                  <code className="bg-amber-100 px-1 rounded">models.providers</code> 的{" "}
+                  <code className="bg-amber-100 px-1 rounded">api</code>{" "}
+                  字段，或在下方「LLM 供应商」面板中重新保存 Provider。
                 </div>
               )}
             </div>
@@ -102,15 +140,29 @@ export function AgentManagementSection() {
         {agents.map((agent) => (
           <div
             key={agent.id}
-            className="group relative bg-white border border-[#E5E7EB] rounded-xl p-5 hover:border-[#2563EB] hover:shadow-md transition-all duration-200"
+            className={`group relative bg-white border rounded-xl p-5 hover:shadow-md transition-all duration-200 ${
+              recentlyEditedId === agent.id && isFetching
+                ? "border-[#2563EB] shadow-[0_0_0_2px_rgba(37,99,235,0.15)]"
+                : "border-[#E5E7EB] hover:border-[#2563EB]"
+            }`}
           >
+            {/* 刷新遮罩 */}
+            {recentlyEditedId === agent.id && isFetching && (
+              <div className="absolute inset-0 rounded-xl bg-white/70 flex items-center justify-center z-10">
+                <div className="flex items-center gap-2 text-sm text-[#2563EB] font-medium">
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                  </svg>
+                  正在加载最新配置...
+                </div>
+              </div>
+            )}
             {/* 顶部：标题和操作按钮 */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1.5">
-                  <h3 className="text-base font-semibold text-[#0F172A]">
-                    {agent.id}
-                  </h3>
+                  <h3 className="text-base font-semibold text-[#0F172A]">{agent.id}</h3>
                   {agent.isDefault && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md">
                       <Sparkles size={12} />
@@ -118,20 +170,27 @@ export function AgentManagementSection() {
                     </span>
                   )}
                   {agent.displayName && (
-                    <span className="text-sm text-[#64748B]">
-                      {agent.displayName}
-                    </span>
+                    <span className="text-sm text-[#64748B]">{agent.displayName}</span>
                   )}
                 </div>
-
                 {agent.identity && (
-                  <div className="text-sm text-[#64748B] mb-3">
-                    {agent.identity}
-                  </div>
+                  <div className="text-sm text-[#64748B] mb-3">{agent.identity}</div>
                 )}
               </div>
 
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {/* 编辑模型 */}
+                <button
+                  onClick={() => {
+                    setEditingAgent(agent);
+                    setFormDrawerOpen(true);
+                  }}
+                  className="p-2 text-[#64748B] hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors"
+                  title="编辑模型"
+                >
+                  <Pencil size={16} />
+                </button>
+                {/* 管理绑定 */}
                 <button
                   onClick={() => handleOpenBindings(agent)}
                   className="p-2 text-[#64748B] hover:text-[#2563EB] hover:bg-blue-50 rounded-lg transition-colors"
@@ -139,20 +198,28 @@ export function AgentManagementSection() {
                 >
                   <Link size={18} />
                 </button>
+                {/* 删除（两次点击确认） */}
                 <button
                   onClick={() => handleDelete(agent)}
                   disabled={deleteMut.isPending}
-                  className="p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                  title="删除 Agent"
+                  className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 ${
+                    confirmingDelete === agent.id
+                      ? "text-white bg-red-500 hover:bg-red-600"
+                      : "p-2 text-[#64748B] hover:text-red-600 hover:bg-red-50"
+                  }`}
+                  title={confirmingDelete === agent.id ? "再次点击确认删除" : "删除 Agent"}
                 >
-                  <Trash2 size={18} />
+                  {confirmingDelete === agent.id ? (
+                    "确认删除？"
+                  ) : (
+                    <Trash2 size={18} />
+                  )}
                 </button>
               </div>
             </div>
 
-            {/* 详细信息网格 */}
+            {/* 详细信息 */}
             <div className="grid grid-cols-1 gap-3">
-              {/* 工作区 */}
               <div className="flex items-start gap-3 text-sm">
                 <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0">
                   <FolderOpen size={16} className="text-[#64748B]" />
@@ -165,7 +232,6 @@ export function AgentManagementSection() {
                 </div>
               </div>
 
-              {/* 模型 */}
               {agent.model && (
                 <div className="flex items-start gap-3 text-sm">
                   <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center flex-shrink-0">
@@ -173,9 +239,7 @@ export function AgentManagementSection() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-[#64748B] mb-0.5">模型</div>
-                    <div className="text-sm text-[#0F172A] font-mono truncate">
-                      {agent.model}
-                    </div>
+                    <div className="text-sm text-[#0F172A] font-mono truncate">{agent.model}</div>
                   </div>
                 </div>
               )}
@@ -198,7 +262,22 @@ export function AgentManagementSection() {
         ))}
       </div>
 
-      <AgentFormDrawer open={formDrawerOpen} onClose={() => setFormDrawerOpen(false)} />
+      <AgentFormDrawer
+        open={formDrawerOpen}
+        agent={editingAgent}
+        onClose={() => {
+          setFormDrawerOpen(false);
+          setEditingAgent(null);
+        }}
+        onSaved={(agentId) => {
+          setRecentlyEditedId(agentId);
+          setFormDrawerOpen(false);
+          setEditingAgent(null);
+          // Clear highlight once refetch settles
+          setTimeout(() => setRecentlyEditedId(null), 3000);
+        }}
+      />
+
       {selectedAgent && (
         <AgentBindingsDrawer
           open={bindingsDrawerOpen}

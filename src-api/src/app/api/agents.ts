@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Agent, AgentBinding, CreateAgentInput, BindAgentInput } from "../../../../src/shared/types";
 import { AppLogger } from "../../shared/app-logger";
 import { resolveOpenclawBin, spawnEnv } from "../../shared/openclaw-bin";
+import { updateAgentModel } from "../../core/openclaw-config-file";
 
 const app = new Hono();
 
@@ -274,6 +275,25 @@ app.post("/", async (c) => {
     return c.json<ApiResult<void>>({ success: true, message: `Agent "${input.name}" 创建成功` });
   } catch (err) {
     AppLogger.error("agent.create: exception", { error: String(err) });
+    return c.json<ApiResult<void>>({ success: false, message: String(err) });
+  }
+});
+
+/**
+ * PATCH /agents/:id - 更新 Agent 模型（直接写入 openclaw.json）
+ */
+app.patch("/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json<{ model?: string }>();
+
+    if (!body.model?.trim()) {
+      return c.json<ApiResult<void>>({ success: false, message: "model 不能为空" });
+    }
+
+    await updateAgentModel(id, body.model.trim());
+    return c.json<ApiResult<void>>({ success: true, message: `Agent "${id}" 模型已更新` });
+  } catch (err) {
     return c.json<ApiResult<void>>({ success: false, message: String(err) });
   }
 });

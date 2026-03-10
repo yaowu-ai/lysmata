@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { X, ChevronDown, Check, Search } from "lucide-react";
+import { X, ChevronDown, Check, Search, Info } from "lucide-react";
 import { OPENCLAW_API_TYPES } from "../../shared/types";
 import type { ProviderConfig, OpenClawApiType } from "../../shared/types";
 import { PROVIDER_GROUPS, ALL_PRESETS, findPreset } from "./provider-presets";
@@ -173,7 +173,12 @@ export default function ProviderFormDrawer({
       setApiKey(provider.apiKey ?? "");
       setBaseUrl(provider.baseUrl ?? "");
       setApiType(provider.api ?? "openai-completions");
-      setUseCustomUrl(!!provider.baseUrl && !!ALL_PRESETS.find((p) => p.id === providerKey) && provider.baseUrl !== ALL_PRESETS.find((p) => p.id === providerKey)?.baseUrl);
+      const matchedPreset = ALL_PRESETS.find((p) => p.id === providerKey);
+      setUseCustomUrl(
+        !!provider.baseUrl &&
+        !!matchedPreset?.baseUrl &&
+        provider.baseUrl !== matchedPreset.baseUrl,
+      );
     } else {
       setSelectedPresetId("");
       setSelectedModelIds([]);
@@ -198,6 +203,9 @@ export default function ProviderFormDrawer({
     ? findPreset(selectedPresetId)
     : undefined;
 
+  const isBuiltin = currentPreset?.builtin === true;
+  const isCustomProvider = selectedPresetId === "__custom__";
+
   function handleProviderChange(presetId: string) {
     setSelectedPresetId(presetId);
     setSelectedModelIds([]);
@@ -209,9 +217,9 @@ export default function ProviderFormDrawer({
       setUseCustomUrl(false);
     } else {
       const preset = findPreset(presetId);
-      if (preset) {
-        setBaseUrl(preset.baseUrl);
-        setApiType(preset.api);
+      if (preset && !preset.builtin) {
+        setBaseUrl(preset.baseUrl ?? "");
+        setApiType(preset.api ?? "openai-completions");
         setUseCustomUrl(false);
       }
     }
@@ -228,10 +236,15 @@ export default function ProviderFormDrawer({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    const isCustom = selectedPresetId === "__custom__";
-    const key = isCustom ? baseUrl.replace(/https?:\/\//, "").split("/")[0].replace(/\./g, "-") : selectedPresetId;
+    if (!selectedPresetId) return;
 
-    if (!key) return;
+    const isCustom = isCustomProvider;
+
+    // For built-in providers: key = preset.id, no baseUrl/apiKey stored in providers
+    // For custom providers: key = preset.id or derived from baseUrl
+    const key = isCustom
+      ? (baseUrl.replace(/https?:\/\//, "").split("/")[0].replace(/\./g, "-") || "custom")
+      : selectedPresetId;
 
     const models = [];
 
@@ -254,12 +267,12 @@ export default function ProviderFormDrawer({
 
     if (models.length === 0) return;
 
-    const effectiveUrl = useCustomUrl || isCustom ? baseUrl : currentPreset?.baseUrl ?? baseUrl;
-
     const config: ProviderConfig = {
-      baseUrl: effectiveUrl || undefined,
+      // Built-in providers: no baseUrl in models.providers, but apiKey is passed
+      // through so the backend can store it in auth.profiles["{provider}:default"].
+      baseUrl: isBuiltin ? undefined : (useCustomUrl || isCustom ? baseUrl : currentPreset?.baseUrl) || undefined,
       apiKey: apiKey || undefined,
-      api: apiType,
+      api: isBuiltin ? undefined : (isCustom ? apiType : currentPreset?.api),
       models,
     };
 
@@ -276,10 +289,10 @@ export default function ProviderFormDrawer({
         group: g.label,
       })),
     ),
-    { value: "__custom__", label: "自定义 Provider", group: "其他" },
+    { value: "__custom__", label: "完全自定义 Provider", group: "其他" },
   ];
 
-  const isCustomProvider = selectedPresetId === "__custom__";
+  const hasModels = selectedModelIds.length > 0 || customModelInput.trim().length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -289,11 +302,7 @@ export default function ProviderFormDrawer({
           <h2 className="text-sm font-semibold text-[#0F172A]">
             {isEditing ? "编辑 Provider" : "添加 Provider"}
           </h2>
-          <button
-            aria-label="关闭"
-            onClick={onClose}
-            className="text-[#94A3B8] hover:text-[#0F172A]"
-          >
+          <button aria-label="关闭" onClick={onClose} className="text-[#94A3B8] hover:text-[#0F172A]">
             <X size={16} />
           </button>
         </div>
@@ -310,6 +319,18 @@ export default function ProviderFormDrawer({
               disabled={isEditing}
             />
           </div>
+
+          {/* 内置 provider 说明 */}
+          {isBuiltin && (
+            <div className="flex items-start gap-2 px-3 py-2.5 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+              <Info size={13} className="shrink-0 mt-0.5" />
+              <span>
+                这是 openclaw 内置供应商。可在下方直接填写 API Key，或通过命令行
+                <code className="font-mono bg-blue-100 px-1 rounded mx-0.5">openclaw models auth login --provider {selectedPresetId}</code>
+                完成认证。
+              </span>
+            </div>
+          )}
 
           {/* 模型选择 - 预设供应商 */}
           {currentPreset && (
@@ -333,7 +354,9 @@ export default function ProviderFormDrawer({
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-sm text-[#0F172A] font-medium">{m.name}</div>
-                        <div className="text-[11px] text-[#94A3B8] font-mono truncate">{m.id}</div>
+                        <div className="text-[11px] text-[#94A3B8] font-mono truncate">
+                          {selectedPresetId}/{m.id}
+                        </div>
                       </div>
                     </label>
                   );
@@ -351,7 +374,7 @@ export default function ProviderFormDrawer({
             </div>
           )}
 
-          {/* 模型选择 - 自定义供应商 */}
+          {/* 模型选择 - 完全自定义供应商 */}
           {isCustomProvider && (
             <div>
               <label className="block text-xs text-[#64748B] mb-1">模型 ID（逗号分隔）</label>
@@ -365,20 +388,27 @@ export default function ProviderFormDrawer({
             </div>
           )}
 
-          {/* API Key */}
-          <div>
-            <label className="block text-xs text-[#64748B] mb-1">API Key</label>
-            <input
-              type="password"
-              className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="sk-..."
-            />
-          </div>
+          {/* API Key（所有 provider 均可填写） */}
+          {selectedPresetId && (
+            <div>
+              <label className="block text-xs text-[#64748B] mb-1">
+                API Key
+                {isBuiltin && (
+                  <span className="ml-1 text-[#94A3B8] font-normal">（可选，留空则使用 CLI 认证）</span>
+                )}
+              </label>
+              <input
+                type="password"
+                className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={isBuiltin ? "留空则使用 CLI 认证" : "sk-..."}
+              />
+            </div>
+          )}
 
-          {/* Base URL 自定义 */}
-          {currentPreset && (
+          {/* 非内置预设 provider 的 Base URL 自定义 */}
+          {!isBuiltin && currentPreset && currentPreset.baseUrl && (
             <div>
               <label className="flex items-center gap-2 text-xs text-[#64748B] cursor-pointer select-none">
                 <input
@@ -386,13 +416,12 @@ export default function ProviderFormDrawer({
                   checked={useCustomUrl}
                   onChange={(e) => {
                     setUseCustomUrl(e.target.checked);
-                    if (!e.target.checked && currentPreset) {
-                      setBaseUrl(currentPreset.baseUrl);
-                    }
+                    if (!e.target.checked) setBaseUrl(currentPreset.baseUrl ?? "");
                   }}
                   className="rounded border-[#D1D5DB] text-[#2563EB] focus:ring-[#2563EB] focus:ring-offset-0"
                 />
                 自定义 Base URL
+                <span className="text-[#C0C7D0] font-mono">{currentPreset.baseUrl}</span>
               </label>
               {useCustomUrl && (
                 <input
@@ -406,7 +435,7 @@ export default function ProviderFormDrawer({
             </div>
           )}
 
-          {/* 自定义 Provider 的 Base URL 和 API 类型 */}
+          {/* 完全自定义 Provider 的 Base URL 和 API 类型 */}
           {isCustomProvider && (
             <>
               <div>
@@ -439,10 +468,7 @@ export default function ProviderFormDrawer({
           <div className="pt-4 flex gap-3">
             <button
               type="submit"
-              disabled={
-                !selectedPresetId ||
-                (selectedModelIds.length === 0 && !customModelInput.trim())
-              }
+              disabled={!selectedPresetId || !hasModels}
               className="flex-1 rounded bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#93C5FD] disabled:cursor-not-allowed text-white px-4 py-2 text-sm font-medium transition-colors"
             >
               保存

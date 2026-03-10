@@ -4,6 +4,9 @@ import { z } from "zod";
 import {
   readLlmSettings,
   updateLlmSettings,
+  deleteProviderSettings,
+  readProviderApiKey,
+  writeProviderApiKey,
   readGatewaySettings,
   updateGatewayConfig,
   readChannelSettings,
@@ -134,11 +137,35 @@ settings.delete("/llm/providers", async (c) => {
         ? { primary: "", fallbacks: [] }
         : current.defaultModel;
 
-    await updateLlmSettings({ providers: remaining, defaultModel });
+    await deleteProviderSettings(providerKey, { providers: remaining, defaultModel });
     return c.json({ success: true });
   } catch (err) {
     console.error("Failed to delete provider:", err);
     return c.json({ error: "Failed to delete provider" }, 500);
+  }
+});
+
+// GET /llm/provider-apikey?key=zai  → returns { apiKey: "..." | null }
+settings.get("/llm/provider-apikey", async (c) => {
+  const providerKey = c.req.query("key");
+  if (!providerKey) return c.json({ error: "Missing ?key= parameter" }, 400);
+  try {
+    const apiKey = await readProviderApiKey(providerKey);
+    return c.json({ apiKey: apiKey ?? null });
+  } catch (err) {
+    return c.json({ error: String(err) }, 500);
+  }
+});
+
+// PUT /llm/provider-apikey  { key: "zai", apiKey: "sk-..." }
+settings.put("/llm/provider-apikey", async (c) => {
+  const body = await c.req.json<{ key: string; apiKey: string }>();
+  if (!body.key || !body.apiKey) return c.json({ error: "key and apiKey required" }, 400);
+  try {
+    await writeProviderApiKey(body.key, body.apiKey);
+    return c.json({ success: true });
+  } catch (err) {
+    return c.json({ error: String(err) }, 500);
   }
 });
 

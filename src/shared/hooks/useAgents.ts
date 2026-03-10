@@ -45,6 +45,17 @@ export function useCreateAgent() {
   });
 }
 
+export function useUpdateAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, model }: { id: string; model: string }) =>
+      apiClient.patch<ApiResult<void>>(`/agents/${id}`, { model }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: agentKeys.all });
+    },
+  });
+}
+
 export function useDeleteAgent() {
   const qc = useQueryClient();
   return useMutation({

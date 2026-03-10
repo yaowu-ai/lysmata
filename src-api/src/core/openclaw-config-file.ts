@@ -44,9 +44,17 @@ export interface OpenClawAuthProfile {
   expires?: number;
 }
 
+export interface OpenClawAgentEntry {
+  id: string;
+  name?: string;
+  workspace?: string;
+  agentDir?: string;
+  model?: string;
+}
+
 export interface OpenClawConfig {
   meta?: { lastTouchedVersion?: string; lastTouchedAt?: string };
-  agents?: { defaults?: OpenClawAgentDefaults };
+  agents?: { defaults?: OpenClawAgentDefaults; list?: OpenClawAgentEntry[] };
   auth?: { profiles?: Record<string, OpenClawAuthProfile> };
   gateway?: {
     port?: number;
@@ -215,8 +223,32 @@ export interface LlmSettings {
 
 export async function readLlmSettings(): Promise<LlmSettings> {
   const config = await readOpenClawConfig();
+
+  // Start with explicitly configured providers (custom providers with baseUrl)
+  const providers: Record<string, OpenClawProvider> = {
+    ...(config?.models?.providers ?? {}),
+  };
+
+  // Reconstruct built-in providers from the alias table (agents.defaults.models).
+  // Built-in providers are NOT written to models.providers (openclaw rejects them
+  // without a baseUrl), but their models are stored as aliases:
+  //   { "zai/glm-4.7": { alias: "GLM-4.7" }, ... }
+  const aliasTable = config?.agents?.defaults?.models ?? {};
+  for (const [fullId, entry] of Object.entries(aliasTable)) {
+    const slashIdx = fullId.indexOf("/");
+    if (slashIdx < 1) continue;
+    const providerKey = fullId.slice(0, slashIdx);
+    const modelId = fullId.slice(slashIdx + 1);
+    if (!providers[providerKey]) {
+      providers[providerKey] = { models: [] };
+    }
+    if (!providers[providerKey].models.some((m) => m.id === modelId)) {
+      providers[providerKey].models.push({ id: modelId, name: entry.alias ?? modelId });
+    }
+  }
+
   return {
-    providers: config?.models?.providers ?? {},
+    providers,
     defaultModel: {
       primary: config?.agents?.defaults?.model?.primary ?? "",
       fallbacks: config?.agents?.defaults?.model?.fallbacks ?? [],
@@ -228,9 +260,27 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   const existing = (await readOpenClawConfig()) ?? {};
   const updated: OpenClawConfig = structuredClone(existing);
 
-  // Write providers
+  // Only write providers that have a non-empty baseUrl to models.providers.
+  // Built-in openclaw providers (openai, zai, etc.) must NOT be written here —
+  // openclaw schema requires baseUrl to be a string and rejects undefined/missing.
+  const customProviders: Record<string, OpenClawProvider> = {};
+  for (const [key, provider] of Object.entries(settings.providers)) {
+    const hasBaseUrl = typeof provider.baseUrl === "string" && provider.baseUrl.trim().length > 0;
+    if (hasBaseUrl) {
+      customProviders[key] = {
+        baseUrl: provider.baseUrl,
+        apiKey: provider.apiKey || undefined,
+        api: provider.api,
+        models: provider.models,
+      };
+    }
+    // Built-in providers (no baseUrl): only alias table entry needed (handled below).
+    // API keys for built-in providers are stored in agent auth-profiles.json files,
+    // NOT in openclaw.json — see writeAgentAuthKey().
+  }
+
   updated.models ??= { mode: "merge", providers: {} };
-  updated.models.providers = settings.providers;
+  updated.models.providers = customProviders;
 
   // Write default model
   updated.agents ??= {};
@@ -240,8 +290,10 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
     fallbacks: settings.defaultModel.fallbacks,
   };
 
-  // Sync agents.defaults.models alias table from providers
-  const aliasTable: Record<string, { alias?: string }> = {};
+  // Sync agents.defaults.models alias table from ALL providers (including built-in).
+  // Merge with existing aliases so models not managed by our UI are preserved.
+  const existingAliases = updated.agents.defaults.models ?? {};
+  const aliasTable: Record<string, { alias?: string }> = { ...existingAliases };
   for (const [providerKey, provider] of Object.entries(settings.providers)) {
     for (const model of provider.models) {
       aliasTable[`${providerKey}/${model.id}`] = { alias: model.name };
@@ -250,6 +302,120 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   updated.agents.defaults.models = aliasTable;
 
   await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+}
+
+// ── Agent auth-profiles.json helpers ────────────────────────────────────────
+//
+// API keys for built-in providers (zai, openai, etc.) are stored per-agent at:
+//   ~/.openclaw/agents/{agentId}/agent/auth-profiles.json
+// Structure: { profiles: { "zai:default": { type, provider, key } }, lastGood, usageStats }
+
+const OPENCLAW_AGENTS_DIR = join(homedir(), ".openclaw", "agents");
+
+interface AgentAuthProfiles {
+  version?: number;
+  profiles?: Record<string, { type?: string; provider?: string; key?: string }>;
+  lastGood?: Record<string, string>;
+  usageStats?: Record<string, unknown>;
+}
+
+async function readAgentAuthProfiles(agentId: string): Promise<AgentAuthProfiles> {
+  try {
+    const path = join(OPENCLAW_AGENTS_DIR, agentId, "agent", "auth-profiles.json");
+    const file = Bun.file(path);
+    if (!(await file.exists())) return {};
+    return (await file.json()) as AgentAuthProfiles;
+  } catch {
+    return {};
+  }
+}
+
+async function writeAgentAuthProfiles(agentId: string, data: AgentAuthProfiles): Promise<void> {
+  const path = join(OPENCLAW_AGENTS_DIR, agentId, "agent", "auth-profiles.json");
+  await Bun.write(path, JSON.stringify(data, null, 2));
+}
+
+/** List all agent IDs that have an agent directory. */
+export async function listAgentIds(): Promise<string[]> {
+  try {
+    const glob = new Bun.Glob("*/agent/auth-profiles.json");
+    const ids: string[] = [];
+    for await (const match of glob.scan(OPENCLAW_AGENTS_DIR)) {
+      ids.push(match.split("/")[0]);
+    }
+    return ids;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Read the API key for a provider from all agents' auth-profiles.json.
+ * Returns the key from the first agent that has it (they should all be the same).
+ */
+export async function readProviderApiKey(providerKey: string): Promise<string | undefined> {
+  const agentIds = await listAgentIds();
+  const profileKey = `${providerKey}:default`;
+  for (const agentId of agentIds) {
+    const profiles = await readAgentAuthProfiles(agentId);
+    const key = profiles.profiles?.[profileKey]?.key;
+    if (key) return key;
+  }
+  return undefined;
+}
+
+/**
+ * Write an API key for a provider to all agents' auth-profiles.json.
+ * This mirrors what `openclaw models auth login` does for api_key providers.
+ */
+export async function writeProviderApiKey(providerKey: string, apiKey: string): Promise<void> {
+  const agentIds = await listAgentIds();
+  if (agentIds.length === 0) return;
+  const profileKey = `${providerKey}:default`;
+  await Promise.all(
+    agentIds.map(async (agentId) => {
+      const existing = await readAgentAuthProfiles(agentId);
+      const updated: AgentAuthProfiles = structuredClone(existing);
+      updated.profiles ??= {};
+      updated.profiles[profileKey] = {
+        type: "api_key",
+        provider: providerKey,
+        key: apiKey,
+      };
+      updated.lastGood ??= {};
+      updated.lastGood[providerKey] = profileKey;
+      await writeAgentAuthProfiles(agentId, updated);
+    }),
+  );
+}
+
+/**
+ * Delete a provider: removes it from models.providers AND clears its alias
+ * entries from agents.defaults.models (used by built-in providers).
+ */
+export async function deleteProviderSettings(
+  providerKey: string,
+  remaining: LlmSettings,
+): Promise<void> {
+  // updateLlmSettings writes the remaining providers and rebuilds the alias table.
+  // We need to first call it, then strip the deleted provider's alias entries.
+  await updateLlmSettings(remaining);
+
+  // Strip alias entries for the deleted provider (built-in providers live here)
+  const raw = (await readOpenClawConfig()) ?? {};
+  if (raw.agents?.defaults?.models) {
+    const prefix = `${providerKey}/`;
+    let changed = false;
+    for (const k of Object.keys(raw.agents.defaults.models)) {
+      if (k.startsWith(prefix)) {
+        delete raw.agents.defaults.models[k];
+        changed = true;
+      }
+    }
+    if (changed) {
+      await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(raw, null, 2));
+    }
+  }
 }
 
 export interface GatewaySettings {
@@ -335,6 +501,28 @@ export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<
       ...(update.authMode !== undefined && { mode: update.authMode }),
       ...(update.authToken !== undefined && { token: update.authToken }),
     };
+  }
+
+  updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
+  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+}
+
+/**
+ * Update the model of a specific agent in agents.list[].
+ * If the agent entry doesn't exist in the list yet, it is appended.
+ */
+export async function updateAgentModel(agentId: string, model: string): Promise<void> {
+  const existing = (await readOpenClawConfig()) ?? {};
+  const updated: OpenClawConfig = structuredClone(existing);
+
+  updated.agents ??= {};
+  updated.agents.list ??= [];
+
+  const entry = updated.agents.list.find((a) => a.id === agentId);
+  if (entry) {
+    entry.model = model;
+  } else {
+    updated.agents.list.push({ id: agentId, model });
   }
 
   updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };

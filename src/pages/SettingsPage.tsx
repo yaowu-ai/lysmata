@@ -204,16 +204,24 @@ export default function SettingsPage() {
                 <div className="flex-1">
                   <div className="text-[14px] font-medium text-[#0F172A] mb-1">{key}</div>
                   <div className="text-[12px] text-[#64748B]">
-                    {provider.models.length} 个模型 • API Key: {maskApiKey(provider.apiKey)}
-                    {provider.apiKey && (
-                      <button
-                        onClick={() => copyToClipboard(provider.apiKey!, toast)}
-                        className="ml-2 text-[#94A3B8] hover:text-[#0F172A] inline-flex items-center"
-                        title="复制 API Key"
-                      >
-                        <Copy size={12} />
-                      </button>
+                    {provider.models.length} 个模型
+                    {provider.baseUrl && (
+                      <span> • {provider.baseUrl}</span>
                     )}
+                    {provider.apiKey ? (
+                      <>
+                        <span> • API Key: {maskApiKey(provider.apiKey)}</span>
+                        <button
+                          onClick={() => copyToClipboard(provider.apiKey!, toast)}
+                          className="ml-2 text-[#94A3B8] hover:text-[#0F172A] inline-flex items-center"
+                          title="复制 API Key"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </>
+                    ) : !provider.baseUrl ? (
+                      <span> • 内置供应商（CLI 认证）</span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex gap-2">
