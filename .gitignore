@@ -32,4 +32,4 @@ src-tauri/bin/*
 *.p12
 *.bun-build
 /build
-./tweet
+tweet/*/*
