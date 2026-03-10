@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Copy } from "lucide-react";
-import { useLlmSettings, useUpdateLlmSettings, useDeleteProvider } from "../shared/hooks/useLlmSettings";
+import { Copy, KeyRound } from "lucide-react";
+import { useLlmSettings, useUpdateLlmSettings, useDeleteProvider, useProviderApiKey } from "../shared/hooks/useLlmSettings";
 import type { ProviderConfig } from "../shared/types";
 import ProviderFormDrawer from "./Settings/ProviderFormDrawer";
 import { AgentManagementSection } from "./Settings/AgentManagementSection";
@@ -13,6 +13,38 @@ import { useToast } from "../components/Toast";
 function maskApiKey(key: string | undefined): string {
   if (!key || key.length < 8) return "***";
   return `${key.slice(0, 3)}...${key.slice(-6)}`;
+}
+
+// 显示 provider 的 API Key 状态（内置 provider 从 agent auth-profiles 读取）
+function ProviderApiKeyBadge({
+  providerKey,
+  inlineKey,
+  onCopy,
+}: {
+  providerKey: string;
+  inlineKey?: string; // custom providers have key in models.providers
+  onCopy: (key: string) => void;
+}) {
+  // Only fetch from agent auth-profiles if there's no inline key (i.e. built-in provider)
+  const { data } = useProviderApiKey(inlineKey ? null : providerKey);
+  const key = inlineKey || data?.apiKey || undefined;
+
+  if (!key) {
+    return <span className="text-[#94A3B8]">未配置 API Key</span>;
+  }
+  return (
+    <>
+      <KeyRound size={11} className="inline mr-1 text-green-500" />
+      <span>API Key: {maskApiKey(key)}</span>
+      <button
+        onClick={() => onCopy(key)}
+        className="ml-1.5 text-[#94A3B8] hover:text-[#0F172A] inline-flex items-center"
+        title="复制 API Key"
+      >
+        <Copy size={11} />
+      </button>
+    </>
+  );
 }
 
 // 工具函数：复制到剪贴板
@@ -203,25 +235,17 @@ export default function SettingsPage() {
               >
                 <div className="flex-1">
                   <div className="text-[14px] font-medium text-[#0F172A] mb-1">{key}</div>
-                  <div className="text-[12px] text-[#64748B]">
-                    {provider.models.length} 个模型
+                  <div className="text-[12px] text-[#64748B] flex items-center gap-1 flex-wrap">
+                    <span>{provider.models.length} 个模型</span>
                     {provider.baseUrl && (
-                      <span> • {provider.baseUrl}</span>
+                      <span className="text-[#94A3B8]">• {provider.baseUrl}</span>
                     )}
-                    {provider.apiKey ? (
-                      <>
-                        <span> • API Key: {maskApiKey(provider.apiKey)}</span>
-                        <button
-                          onClick={() => copyToClipboard(provider.apiKey!, toast)}
-                          className="ml-2 text-[#94A3B8] hover:text-[#0F172A] inline-flex items-center"
-                          title="复制 API Key"
-                        >
-                          <Copy size={12} />
-                        </button>
-                      </>
-                    ) : !provider.baseUrl ? (
-                      <span> • 内置供应商（CLI 认证）</span>
-                    ) : null}
+                    <span>•</span>
+                    <ProviderApiKeyBadge
+                      providerKey={key}
+                      inlineKey={provider.apiKey}
+                      onCopy={(k) => copyToClipboard(k, toast)}
+                    />
                   </div>
                 </div>
                 <div className="flex gap-2">

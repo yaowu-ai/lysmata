@@ -1,8 +1,9 @@
 import { useEffect, useState, useRef } from "react";
-import { X, ChevronDown, Check, Search, Info } from "lucide-react";
+import { X, ChevronDown, Check, Search, Info, Eye, EyeOff } from "lucide-react";
 import { OPENCLAW_API_TYPES } from "../../shared/types";
 import type { ProviderConfig, OpenClawApiType } from "../../shared/types";
 import { PROVIDER_GROUPS, ALL_PRESETS, findPreset } from "./provider-presets";
+import { useProviderApiKey, useSaveProviderApiKey } from "../../shared/hooks/useLlmSettings";
 
 interface Props {
   open: boolean;
@@ -150,9 +151,15 @@ export default function ProviderFormDrawer({
   const [selectedModelIds, setSelectedModelIds] = useState<string[]>([]);
   const [customModelInput, setCustomModelInput] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
   const [baseUrl, setBaseUrl] = useState("");
   const [apiType, setApiType] = useState<OpenClawApiType>("openai-completions");
   const [useCustomUrl, setUseCustomUrl] = useState(false);
+
+  // Load existing API key from agent auth-profiles when editing a built-in provider
+  const editingBuiltinKey = isEditing && open ? providerKey : null;
+  const { data: existingKeyData } = useProviderApiKey(editingBuiltinKey);
+  const { mutateAsync: saveApiKey, isPending: isSavingKey } = useSaveProviderApiKey();
 
   useEffect(() => {
     if (!open) return;
@@ -170,6 +177,8 @@ export default function ProviderFormDrawer({
         setSelectedPresetId("__custom__");
         setCustomModelInput(provider.models.map((m) => m.id).join(", "));
       }
+      // For custom providers, apiKey is in provider.apiKey
+      // For built-in providers, apiKey is loaded from agent auth-profiles (see effect below)
       setApiKey(provider.apiKey ?? "");
       setBaseUrl(provider.baseUrl ?? "");
       setApiType(provider.api ?? "openai-completions");
@@ -184,11 +193,19 @@ export default function ProviderFormDrawer({
       setSelectedModelIds([]);
       setCustomModelInput("");
       setApiKey("");
+      setShowApiKey(false);
       setBaseUrl("");
       setApiType("openai-completions");
       setUseCustomUrl(false);
     }
   }, [open, providerKey, provider, isEditing]);
+
+  // When editing a built-in provider, pre-fill API key from agent auth-profiles
+  useEffect(() => {
+    if (existingKeyData?.apiKey) {
+      setApiKey(existingKeyData.apiKey);
+    }
+  }, [existingKeyData]);
 
   useEffect(() => {
     if (!open) return;
@@ -233,15 +250,12 @@ export default function ProviderFormDrawer({
     );
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     if (!selectedPresetId) return;
 
     const isCustom = isCustomProvider;
-
-    // For built-in providers: key = preset.id, no baseUrl/apiKey stored in providers
-    // For custom providers: key = preset.id or derived from baseUrl
     const key = isCustom
       ? (baseUrl.replace(/https?:\/\//, "").split("/")[0].replace(/\./g, "-") || "custom")
       : selectedPresetId;
@@ -267,11 +281,16 @@ export default function ProviderFormDrawer({
 
     if (models.length === 0) return;
 
+    // For built-in providers: save API key to agent auth-profiles.json (not openclaw.json)
+    if (isBuiltin && apiKey.trim()) {
+      await saveApiKey({ key: isEditing ? providerKey : key, apiKey: apiKey.trim() });
+    }
+
     const config: ProviderConfig = {
-      // Built-in providers: no baseUrl in models.providers, but apiKey is passed
-      // through so the backend can store it in auth.profiles["{provider}:default"].
       baseUrl: isBuiltin ? undefined : (useCustomUrl || isCustom ? baseUrl : currentPreset?.baseUrl) || undefined,
-      apiKey: apiKey || undefined,
+      // For custom providers: apiKey goes into models.providers
+      // For built-in providers: apiKey is handled above via agent auth-profiles
+      apiKey: isBuiltin ? undefined : (apiKey || undefined),
       api: isBuiltin ? undefined : (isCustom ? apiType : currentPreset?.api),
       models,
     };
@@ -388,7 +407,7 @@ export default function ProviderFormDrawer({
             </div>
           )}
 
-          {/* API Key（所有 provider 均可填写） */}
+          {/* API Key */}
           {selectedPresetId && (
             <div>
               <label className="block text-xs text-[#64748B] mb-1">
@@ -397,13 +416,24 @@ export default function ProviderFormDrawer({
                   <span className="ml-1 text-[#94A3B8] font-normal">（可选，留空则使用 CLI 认证）</span>
                 )}
               </label>
-              <input
-                type="password"
-                className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder={isBuiltin ? "留空则使用 CLI 认证" : "sk-..."}
-              />
+              <div className="relative">
+                <input
+                  type={showApiKey ? "text" : "password"}
+                  className="w-full rounded border border-[#E5E7EB] bg-white px-3 py-2 pr-9 text-sm text-[#0F172A] focus:outline-none focus:border-blue-500 font-mono"
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  placeholder={isBuiltin ? "留空则使用 CLI 认证" : "sk-..."}
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey((v) => !v)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
+                  tabIndex={-1}
+                >
+                  {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
             </div>
           )}
 
@@ -468,10 +498,10 @@ export default function ProviderFormDrawer({
           <div className="pt-4 flex gap-3">
             <button
               type="submit"
-              disabled={!selectedPresetId || !hasModels}
+              disabled={!selectedPresetId || !hasModels || isSavingKey}
               className="flex-1 rounded bg-[#2563EB] hover:bg-[#1D4ED8] disabled:bg-[#93C5FD] disabled:cursor-not-allowed text-white px-4 py-2 text-sm font-medium transition-colors"
             >
-              保存
+              {isSavingKey ? "保存中..." : "保存"}
             </button>
             <button
               type="button"

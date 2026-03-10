@@ -1,72 +1,77 @@
 import { useEffect, useState } from "react";
+import { Eye, EyeOff, Info } from "lucide-react";
 import { apiClient } from "../../../shared/api-client";
-import { useLlmSettings } from "../../../shared/hooks/useLlmSettings";
+import { useLlmSettings, useProviderApiKey, useSaveProviderApiKey } from "../../../shared/hooks/useLlmSettings";
+import { PROVIDER_GROUPS, ALL_PRESETS, findPreset } from "../../Settings/provider-presets";
 
-const BUILTIN_PROVIDERS = [
-  {
-    id: "openai",
-    label: "OpenAI",
-    icon: "🚀",
-    defaultModel: "gpt-4o",
-    baseUrl: "https://api.openai.com/v1",
-    api: "openai-completions",
-  },
-  {
-    id: "anthropic",
-    label: "Anthropic",
-    icon: "🧠",
-    defaultModel: "claude-opus-4-6",
-    baseUrl: "https://api.anthropic.com",
-    api: "anthropic-messages",
-  },
-  {
-    id: "groq",
-    label: "Groq",
-    icon: "⚡",
-    defaultModel: "llama-3.1-70b",
-    baseUrl: "https://api.groq.com/openai/v1",
-    api: "openai-completions",
-  },
-  {
-    id: "moonshot",
-    label: "Moonshot",
-    icon: "🌙",
-    defaultModel: "moonshot-v1-8k",
-    baseUrl: "https://api.moonshot.cn/v1",
-    api: "openai-completions",
-  },
-] as const;
+const MASKED_PLACEHOLDER = "•••••••••••";
 
-const TEMPLATES: Record<string, { id: string; url: string; model: string }> = {
-  ollama: { id: "local-ollama", url: "http://127.0.0.1:11434/v1", model: "llama3" },
-  vllm: { id: "local-vllm", url: "http://127.0.0.1:8000/v1", model: "meta-llama-3-8b" },
-  lmstudio: { id: "local-lmstudio", url: "http://127.0.0.1:1234/v1", model: "local-model" },
-  moonshot: { id: "moonshot", url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
+// Provider icons keyed by preset id
+const PROVIDER_ICONS: Record<string, string> = {
+  openai: "🚀", anthropic: "🧠", google: "✨", openrouter: "🔀",
+  groq: "⚡", xai: "𝕏", mistral: "🌬️", cerebras: "🔬", minimax: "🎯",
+  zai: "🤖", "kimi-coding": "🌙", "minimax-cn": "🎯",
+  deepseek: "🐋", moonshot: "🌕", qwen: "☁️", doubao: "🫘",
+  baichuan: "🏔️", siliconflow: "💎", ollama: "🦙", lmstudio: "🖥️",
 };
 
-// Sentinel value placed in the API Key field when a key already exists in the
-// backend but we intentionally do not re-expose it in plaintext.
-const MASKED_PLACEHOLDER = "•••••••••••";
+const CUSTOM_TEMPLATES = [
+  { name: "Ollama", id: "ollama", url: "http://127.0.0.1:11434/v1", model: "llama3", api: "openai-completions" as const },
+  { name: "LM Studio", id: "lmstudio", url: "http://127.0.0.1:1234/v1", model: "local-model", api: "openai-completions" as const },
+  { name: "vLLM", id: "vllm", url: "http://127.0.0.1:8000/v1", model: "meta-llama-3-8b", api: "openai-completions" as const },
+];
 
 interface Props {
   onRegisterSubmit: (fn: () => Promise<void>) => void;
   onDone: () => void;
 }
 
+// Sub-component: loads existing API key for a built-in provider
+function ExistingKeyLoader({
+  providerKey,
+  onLoaded,
+}: {
+  providerKey: string;
+  onLoaded: (key: string | null) => void;
+}) {
+  const { data } = useProviderApiKey(providerKey);
+  useEffect(() => {
+    if (data !== undefined) onLoaded(data.apiKey);
+  }, [data, onLoaded]);
+  return null;
+}
+
 export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   const { data: llmSettings, isLoading } = useLlmSettings();
+  const { mutateAsync: saveApiKey } = useSaveProviderApiKey();
 
   const [activeTab, setActiveTab] = useState<"builtin" | "custom" | "market">("builtin");
-  const [selectedId, setSelectedId] = useState("openai");
+
+  // Built-in provider selection
+  const [selectedId, setSelectedId] = useState("zai");
   const [apiKey, setApiKey] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState("");
+
+  // Custom provider fields
   const [cId, setCId] = useState("");
   const [cUrl, setCUrl] = useState("");
   const [cModel, setCModel] = useState("");
   const [cName, setCName] = useState("");
   const [cApiKey, setCApiKey] = useState("");
+  const [showCApiKey, setShowCApiKey] = useState(false);
   const [cApi, setCApi] = useState<"openai-completions" | "anthropic-messages">("openai-completions");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [initialized, setInitialized] = useState(false);
+
+  const selectedPreset = findPreset(selectedId);
+
+  // When provider changes, reset model selection to first model of that preset
+  useEffect(() => {
+    if (selectedPreset?.models.length) {
+      setSelectedModelId(selectedPreset.models[0].id);
+    }
+  }, [selectedId, selectedPreset]);
 
   // Prefill from backend on first load
   useEffect(() => {
@@ -75,18 +80,14 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
       if (primary) {
         const slashIdx = primary.indexOf("/");
         const provider = slashIdx > 0 ? primary.slice(0, slashIdx) : primary;
-        const builtin = BUILTIN_PROVIDERS.find((p) => p.id === provider);
+        const model = slashIdx > 0 ? primary.slice(slashIdx + 1) : "";
+        const preset = findPreset(provider);
 
-        if (builtin) {
+        if (preset) {
           setActiveTab("builtin");
           setSelectedId(provider);
-          // Show masked placeholder when API key already exists
-          const providerConfig = llmSettings.providers[provider];
-          if (providerConfig?.apiKey) {
-            setApiKey(MASKED_PLACEHOLDER);
-          }
+          if (model) setSelectedModelId(model);
         } else if (provider) {
-          // Custom provider
           const providerConfig = llmSettings.providers[provider];
           if (providerConfig) {
             setActiveTab("custom");
@@ -95,10 +96,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
             setCApi((providerConfig.api as "openai-completions" | "anthropic-messages") ?? "openai-completions");
             if (providerConfig.apiKey) setCApiKey(MASKED_PLACEHOLDER);
             const firstModel = providerConfig.models?.[0];
-            if (firstModel) {
-              setCModel(firstModel.id);
-              setCName(firstModel.name ?? "");
-            }
+            if (firstModel) { setCModel(firstModel.id); setCName(firstModel.name ?? ""); }
           }
         }
       }
@@ -107,73 +105,62 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   }, [llmSettings, initialized]);
 
   async function handleSave() {
-    if (activeTab === "custom") {
+    if (activeTab === "builtin") {
+      if (!selectedPreset) throw new Error("请选择供应商");
+      if (!selectedModelId) throw new Error("请选择模型");
+
+      // Save API key to agent auth-profiles (not openclaw.json)
+      const keyToSave = apiKey && apiKey !== MASKED_PLACEHOLDER ? apiKey.trim() : null;
+      if (keyToSave) {
+        await saveApiKey({ key: selectedId, apiKey: keyToSave });
+      }
+
+      // Save model selection to alias table only (no models.providers entry for built-in)
+      const model = selectedPreset.models.find((m) => m.id === selectedModelId);
+      await apiClient.put("/settings/llm", {
+        providers: {
+          [selectedId]: {
+            // No baseUrl/apiKey — built-in provider
+            models: [{ id: selectedModelId, name: model?.name ?? selectedModelId }],
+          },
+        },
+        defaultModel: { primary: `${selectedId}/${selectedModelId}` },
+      });
+    } else {
       const errs: Record<string, boolean> = {};
       if (!cId.trim()) errs.cId = true;
       if (!cUrl.trim()) errs.cUrl = true;
       if (!cModel.trim()) errs.cModel = true;
-      if (Object.keys(errs).length > 0) {
-        setErrors(errs);
-        throw new Error("请填写必填字段");
-      }
-      const customKeyToSave = cApiKey === MASKED_PLACEHOLDER ? undefined : cApiKey || undefined;
+      if (Object.keys(errs).length > 0) { setErrors(errs); throw new Error("请填写必填字段"); }
+
+      const keyToSave = cApiKey === MASKED_PLACEHOLDER ? undefined : cApiKey || undefined;
       await apiClient.put("/settings/llm", {
         providers: {
           [cId]: {
             baseUrl: cUrl,
             api: cApi,
-            ...(customKeyToSave !== undefined && { apiKey: customKeyToSave }),
+            ...(keyToSave !== undefined && { apiKey: keyToSave }),
             models: [{ id: cModel, name: cName || cModel }],
           },
         },
         defaultModel: { primary: `${cId}/${cModel}` },
       });
-    } else if (activeTab === "builtin") {
-      const p = BUILTIN_PROVIDERS.find((b) => b.id === selectedId)!;
-      // Skip updating API key if user left the masked placeholder unchanged
-      const keyToSave = apiKey === MASKED_PLACEHOLDER ? undefined : apiKey;
-      await apiClient.put("/settings/llm", {
-        providers: {
-          [p.id]: {
-            baseUrl: p.baseUrl,
-            api: p.api,
-            ...(keyToSave !== undefined && { apiKey: keyToSave }),
-            models: [{ id: p.defaultModel, name: p.defaultModel }],
-          },
-        },
-        defaultModel: { primary: `${p.id}/${p.defaultModel}` },
-      });
     }
     onDone();
   }
 
-  // Register submit handler synchronously so parent always holds the latest closure.
   onRegisterSubmit(handleSave);
-
-  function fillTemplate(name: string) {
-    const t = TEMPLATES[name];
-    if (!t) return;
-    setCId(t.id);
-    setCUrl(t.url);
-    setCModel(t.model);
-  }
 
   if (isLoading) {
     return (
       <div>
-        <div className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] mb-2.5">
-          step 2 / 6 · 必填
-        </div>
+        <StepBadge />
         <h2 className="text-[20px] font-bold mb-1.5">LLM Provider 配置</h2>
         <p className="text-sm text-[#64748B] mb-4">选择并配置你的主要大模型服务提供商。</p>
-        <div className="animate-pulse space-y-4">
+        <div className="animate-pulse space-y-3">
           <div className="h-8 bg-[#F1F5F9] rounded-lg w-2/3" />
-          <div className="grid grid-cols-4 gap-2.5">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-20 bg-[#F1F5F9] rounded-[10px]" />
-            ))}
-          </div>
-          <div className="h-[52px] bg-[#F1F5F9] rounded-lg" />
+          <div className="grid grid-cols-4 gap-2 h-32 bg-[#F1F5F9] rounded-lg" />
+          <div className="h-12 bg-[#F1F5F9] rounded-lg" />
         </div>
       </div>
     );
@@ -183,92 +170,164 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
 
   return (
     <div>
-      <div className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] mb-2.5">
-        step 2 / 6 · 必填
-      </div>
+      <StepBadge />
       <h2 className="text-[20px] font-bold mb-1.5">LLM Provider 配置</h2>
       <p className="text-sm text-[#64748B] mb-4">选择并配置你的主要大模型服务提供商。</p>
 
       {hasExistingConfig && (
         <div className="flex items-center gap-1.5 text-[12px] text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-2 mb-3">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
-          </svg>
+          <Info size={12} />
           已加载当前配置，修改 API Key 时请重新输入（出于安全原因不显示原始值）
         </div>
       )}
 
+      {/* Tabs */}
       <div className="flex border-b border-[#E5E7EB] mb-4">
-        {(
-          [
-            ["builtin", "内置 Provider"],
-            ["custom", "自定义 Provider"],
-            ["market", "Marketplace 🛒"],
-          ] as const
-        ).map(([id, label]) => (
+        {([["builtin", "内置 Provider"], ["custom", "自定义 Provider"], ["market", "Marketplace 🛒"]] as const).map(([id, label]) => (
           <div
             key={id}
             onClick={() => setActiveTab(id)}
-            className={`px-3.5 py-2 text-[13px] font-medium cursor-pointer border-b-2 transition-colors whitespace-nowrap ${activeTab === id ? "text-[#2563EB] border-[#2563EB]" : "text-[#64748B] border-transparent hover:text-[#0F172A]"}`}
+            className={`px-3.5 py-2 text-[13px] font-medium cursor-pointer border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === id ? "text-[#2563EB] border-[#2563EB]" : "text-[#64748B] border-transparent hover:text-[#0F172A]"
+            }`}
           >
             {label}
           </div>
         ))}
       </div>
 
+      {/* ── Built-in providers ── */}
       {activeTab === "builtin" && (
-        <div>
-          <div className="grid grid-cols-4 gap-2.5 mb-4">
-            {BUILTIN_PROVIDERS.map((p) => (
-              <div
-                key={p.id}
-                onClick={() => setSelectedId(p.id)}
-                className={`bg-white border rounded-[10px] p-3.5 cursor-pointer text-center transition-all hover:-translate-y-0.5 hover:shadow-lg ${selectedId === p.id ? "border-[#2563EB] bg-[#F0F7FF] shadow-[0_0_0_2px_rgba(37,99,235,0.1)]" : "border-[#E5E7EB] hover:border-[#93C5FD]"}`}
-              >
-                <div className="text-[22px] mb-1.5">{p.icon}</div>
-                <div className="font-semibold text-[13px]">{p.label}</div>
-                <div className="text-[11px] text-[#64748B] mt-0.5">{p.defaultModel}</div>
+        <div className="space-y-4">
+          {PROVIDER_GROUPS.filter((g) => g.providers.some((p) => p.builtin)).map((group) => (
+            <div key={group.label}>
+              <div className="text-[11px] font-semibold text-[#94A3B8] uppercase tracking-wide mb-2">
+                {group.label}
               </div>
-            ))}
-          </div>
-          <div>
-            <label className="block text-[13px] font-medium mb-1.5">
-              API Key <span className="text-[#DC2626]">*</span>
-            </label>
-            <input
-              type="password"
-              value={apiKey}
-              placeholder={apiKey === MASKED_PLACEHOLDER ? undefined : "sk-..."}
-              onChange={(e) => setApiKey(e.target.value)}
-              onFocus={() => {
-                // Clear mask on focus so user can type a new key
-                if (apiKey === MASKED_PLACEHOLDER) setApiKey("");
-              }}
-              className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD]"
-            />
-            <p className="text-xs text-[#64748B] mt-1">
-              {apiKey === MASKED_PLACEHOLDER
-                ? "已配置 API Key，点击输入框可重新设置"
-                : "安全提示：Key 将加密存储，不上传云端"}
-            </p>
-          </div>
+              <div className="grid grid-cols-4 gap-2">
+                {group.providers.filter((p) => p.builtin).map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setSelectedId(p.id)}
+                    className={`bg-white border rounded-[10px] p-3 text-center transition-all hover:-translate-y-0.5 hover:shadow-md ${
+                      selectedId === p.id
+                        ? "border-[#2563EB] bg-[#F0F7FF] shadow-[0_0_0_2px_rgba(37,99,235,0.1)]"
+                        : "border-[#E5E7EB] hover:border-[#93C5FD]"
+                    }`}
+                  >
+                    <div className="text-[20px] mb-1">{PROVIDER_ICONS[p.id] ?? "🔌"}</div>
+                    <div className="font-semibold text-[12px] leading-tight">{p.label}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Selected provider details */}
+          {selectedPreset && (
+            <div className="border border-[#E5E7EB] rounded-xl p-4 space-y-3 bg-[#FAFAFA]">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{PROVIDER_ICONS[selectedPreset.id] ?? "🔌"}</span>
+                <span className="font-semibold text-sm">{selectedPreset.label}</span>
+                <span className="text-[11px] text-[#94A3B8] font-mono ml-auto">id: {selectedPreset.id}</span>
+              </div>
+
+              {/* Load existing key from agent auth-profiles */}
+              {initialized && (
+                <ExistingKeyLoader
+                  providerKey={selectedId}
+                  onLoaded={(key) => {
+                    if (key && !apiKey) setApiKey(MASKED_PLACEHOLDER);
+                  }}
+                />
+              )}
+
+              {/* Model selection */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#64748B] mb-1.5">默认模型</label>
+                <select
+                  value={selectedModelId}
+                  onChange={(e) => setSelectedModelId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#93C5FD]"
+                >
+                  {selectedPreset.models.map((m) => (
+                    <option key={m.id} value={m.id}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* API Key */}
+              <div>
+                <label className="block text-[12px] font-medium text-[#64748B] mb-1.5">
+                  API Key
+                  <span className="ml-1 font-normal text-[#94A3B8]">（可选，留空则使用 CLI 认证）</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showApiKey ? "text" : "password"}
+                    value={apiKey}
+                    placeholder={apiKey === MASKED_PLACEHOLDER ? undefined : "粘贴 API Key..."}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    onFocus={() => { if (apiKey === MASKED_PLACEHOLDER) setApiKey(""); }}
+                    className="w-full px-3 py-2 pr-9 text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] font-mono bg-white"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((v) => !v)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
+                    tabIndex={-1}
+                  >
+                    {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+                  </button>
+                </div>
+                {apiKey === MASKED_PLACEHOLDER && (
+                  <p className="text-[11px] text-[#64748B] mt-1">已配置 API Key，点击输入框可重新设置</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
+      {/* ── Custom provider ── */}
       {activeTab === "custom" && (
-        <div>
-          <div className="flex gap-2 mb-3.5 flex-wrap">
-            {Object.keys(TEMPLATES).map((name) => (
-              <button
-                key={name}
-                onClick={() => fillTemplate(name)}
-                className="bg-transparent text-[#64748B] border border-[#E5E7EB] px-2.5 py-1 rounded-lg text-[12px] font-medium cursor-pointer hover:bg-[#F8FAFC]"
-              >
-                {name}
-              </button>
-            ))}
+        <div className="space-y-4">
+          {/* Quick-fill templates */}
+          <div>
+            <div className="text-[12px] text-[#64748B] mb-2">快速填充模板：</div>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                ...CUSTOM_TEMPLATES,
+                ...ALL_PRESETS.filter((p) => !p.builtin).map((p) => ({
+                  name: p.label,
+                  id: p.id,
+                  url: p.baseUrl ?? "",
+                  model: p.models[0]?.id ?? "",
+                  api: (p.api ?? "openai-completions") as "openai-completions" | "anthropic-messages",
+                })),
+              ]
+                .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i)
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => {
+                      setCId(t.id);
+                      setCUrl(t.url);
+                      setCModel(t.model);
+                      setCApi(t.api);
+                    }}
+                    className="text-[#64748B] border border-[#E5E7EB] px-2.5 py-1 rounded-lg text-[12px] hover:bg-[#F8FAFC]"
+                  >
+                    {t.name}
+                  </button>
+                ))}
+            </div>
           </div>
-          <div className="flex gap-4 mb-[18px]">
+
+          <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-[13px] font-medium mb-1.5">
                 Provider ID <span className="text-[#DC2626]">*</span>
@@ -277,7 +336,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
                 value={cId}
                 onChange={(e) => setCId(e.target.value)}
                 placeholder="例如: local-ollama"
-                className={`w-full px-3 py-[9px] text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cId ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+                className={`w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cId ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
               />
             </div>
             <div className="flex-1">
@@ -286,36 +345,47 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
                 value={cName}
                 onChange={(e) => setCName(e.target.value)}
                 placeholder="例如: Ollama Local"
-                className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD]"
+                className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD]"
               />
             </div>
           </div>
-          <div className="mb-[18px]">
+
+          <div>
             <label className="block text-[13px] font-medium mb-1.5">
               Base URL <span className="text-[#DC2626]">*</span>
             </label>
             <input
               value={cUrl}
               onChange={(e) => setCUrl(e.target.value)}
-              placeholder="http://127.0.0.1:11434/v1"
-              className={`w-full px-3 py-[9px] text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cUrl ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+              placeholder="https://api.example.com/v1"
+              className={`w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cUrl ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
             />
           </div>
-          <div className="mb-[18px]">
+
+          <div>
             <label className="block text-[13px] font-medium mb-1.5">API Key</label>
-            <input
-              type="password"
-              value={cApiKey}
-              onChange={(e) => setCApiKey(e.target.value)}
-              onFocus={() => { if (cApiKey === MASKED_PLACEHOLDER) setCApiKey(""); }}
-              placeholder="sk-... 或留空（本地无鉴权服务）"
-              className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] focus:ring-[3px] focus:ring-[rgba(147,197,253,0.25)]"
-            />
-            <p className="text-xs text-[#64748B] mt-1">
-              支持环境变量引用，如 <span className="font-mono">${"{MY_API_KEY}"}</span>；本地服务可留空
-            </p>
+            <div className="relative">
+              <input
+                type={showCApiKey ? "text" : "password"}
+                value={cApiKey}
+                onChange={(e) => setCApiKey(e.target.value)}
+                onFocus={() => { if (cApiKey === MASKED_PLACEHOLDER) setCApiKey(""); }}
+                placeholder="sk-... 或留空（本地无鉴权服务）"
+                className="w-full px-3 py-2 pr-9 text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] font-mono"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCApiKey((v) => !v)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#94A3B8] hover:text-[#64748B]"
+                tabIndex={-1}
+              >
+                {showCApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
+              </button>
+            </div>
           </div>
-          <div className="flex gap-4">
+
+          <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-[13px] font-medium mb-1.5">
                 Model ID <span className="text-[#DC2626]">*</span>
@@ -324,7 +394,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
                 value={cModel}
                 onChange={(e) => setCModel(e.target.value)}
                 placeholder="例如: llama3"
-                className={`w-full px-3 py-[9px] text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cModel ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
+                className={`w-full px-3 py-2 text-sm border rounded-lg outline-none focus:border-[#93C5FD] ${errors.cModel ? "border-[#DC2626]" : "border-[#E5E7EB]"}`}
               />
             </div>
             <div className="flex-1">
@@ -332,7 +402,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
               <select
                 value={cApi}
                 onChange={(e) => setCApi(e.target.value as "openai-completions" | "anthropic-messages")}
-                className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none"
+                className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none"
               >
                 <option value="openai-completions">OpenAI Compatible</option>
                 <option value="anthropic-messages">Anthropic Compatible</option>
@@ -342,6 +412,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
         </div>
       )}
 
+      {/* ── Marketplace ── */}
       {activeTab === "market" && (
         <div className="bg-[#FAFAFA] border border-dashed border-[#E5E7EB] rounded-[10px] py-9 px-6 text-center text-[#64748B]">
           <div className="text-[36px] mb-3">🛒</div>
@@ -354,6 +425,14 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function StepBadge() {
+  return (
+    <div className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] mb-2.5">
+      step 2 / 6 · 必填
     </div>
   );
 }
