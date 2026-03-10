@@ -55,6 +55,7 @@ jobs:
           echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
@@ -65,25 +66,18 @@ jobs:
 
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           security set-key-partition-list \
-            -S apple-tool:,apple: \
+            -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-      - name: Build sidecar (aarch64)
-        run: SIDECAR_TARGET=aarch64-apple-darwin bun run build:sidecar
-
-      - name: Build Tauri app (arm64 DMG)
+      - name: Package signed macOS app (arm64)
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: CI=true bun run tauri build --bundles dmg --target aarch64-apple-darwin
-
-      - name: Rename Apple Silicon DMG
-        run: |
-          cp \
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_aarch64.dmg \
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_apple-silicon.dmg
+          TARGET_TRIPLE: aarch64-apple-darwin
+          DMG_ARCH_SUFFIX: apple-silicon
+        run: bash scripts/package-macos-release.sh
 
       - name: Upload arm64 DMG to Release
         uses: softprops/action-gh-release@v1
@@ -134,6 +128,7 @@ jobs:
           echo "$APPLE_CERTIFICATE" | base64 --decode > $RUNNER_TEMP/certificate.p12
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
@@ -144,25 +139,18 @@ jobs:
 
           security list-keychain -d user -s "$KEYCHAIN_PATH"
           security set-key-partition-list \
-            -S apple-tool:,apple: \
+            -S apple-tool:,apple:,codesign: \
             -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-      - name: Build sidecar (x86_64)
-        run: SIDECAR_TARGET=x86_64-apple-darwin bun run build:sidecar
-
-      - name: Build Tauri app (x64 DMG)
+      - name: Package signed macOS app (x64)
         env:
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: CI=true bun run tauri build --bundles dmg --target x86_64-apple-darwin
-
-      - name: Rename Intel DMG
-        run: |
-          cp \
-            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_x64.dmg \
-            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_intel.dmg
+          TARGET_TRIPLE: x86_64-apple-darwin
+          DMG_ARCH_SUFFIX: intel
+        run: bash scripts/package-macos-release.sh
 
       - name: Upload x64 DMG to Release
         uses: softprops/action-gh-release@v1
