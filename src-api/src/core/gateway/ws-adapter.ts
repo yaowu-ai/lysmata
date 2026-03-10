@@ -385,10 +385,24 @@ export const GatewayWSAdapter = {
 
     const runId = res.payload?.runId as string | undefined;
     if (!runId) throw new Error("Gateway did not return a runId");
+    const conversationId = sessionId?.split(":").at(-1) ?? sessionId ?? "unknown";
+    GatewayLogger.logStreamEvent({
+      phase: "accepted",
+      url,
+      conversationId,
+      runId,
+    });
 
     return new Promise<void>((resolve, reject) => {
       const t = setTimeout(() => {
         entry.activeRuns.delete(runId);
+        GatewayLogger.logStreamEvent({
+          phase: "error",
+          url,
+          conversationId,
+          runId,
+          error: `Agent stream timeout (${GATEWAY.STREAM_TIMEOUT_MS}ms)`,
+        });
         reject(new Error("Agent stream timeout (120s)"));
       }, GATEWAY.STREAM_TIMEOUT_MS);
 

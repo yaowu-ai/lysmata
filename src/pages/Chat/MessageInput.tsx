@@ -190,7 +190,7 @@ export function MessageInput({ bots, onSend, onStop, disabled, placeholder }: Pr
                 onClick={handleAtButtonClick}
                 className="inline-flex items-center gap-1 text-[12px] font-medium text-[#64748B] bg-[#F1F5F9] border-none px-2.5 py-1 rounded-[6px] cursor-pointer hover:bg-[#E2E8F0] transition-colors"
               >
-                <AtSign size={13} /> @提及 Bot
+                <AtSign size={13} /> 提及 Bot
               </button>
               {routingHint && (
                 <span

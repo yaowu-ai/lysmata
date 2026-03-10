@@ -20,14 +20,14 @@ const app = new Hono();
 app.use("*", logger());
 app.use(
   "*",
-  cors({ 
+  cors({
     origin: [
-      "http://localhost:1420", 
-      "http://127.0.0.1:1420", 
+      "http://localhost:1420",
+      "http://127.0.0.1:1420",
       "tauri://localhost",
       "http://tauri.localhost",
-      "https://tauri.localhost"
-    ] 
+      "https://tauri.localhost",
+    ],
   }),
 );
 

@@ -8,6 +8,7 @@ import { AgentManagementSection } from "./Settings/AgentManagementSection";
 import { GatewayConfigSection } from "./Settings/GatewayConfigSection";
 import { ONBOARDING_KEY } from "../shared/store/wizard-store";
 import { useToast } from "../components/Toast";
+import { copyToClipboard } from "../shared/lib/client";
 
 // 工具函数：API Key 遮码
 function maskApiKey(key: string | undefined): string {
@@ -45,16 +46,6 @@ function ProviderApiKeyBadge({
       </button>
     </>
   );
-}
-
-// 工具函数：复制到剪贴板
-async function copyToClipboard(text: string, toast: ReturnType<typeof useToast>) {
-  try {
-    await navigator.clipboard.writeText(text);
-    toast.success("API Key 已复制到剪贴板");
-  } catch {
-    toast.error("复制失败");
-  }
 }
 
 export default function SettingsPage() {

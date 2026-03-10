@@ -4,6 +4,7 @@ import { OpenClawProxy } from "./openclaw-proxy";
 import { getDb } from "../shared/db";
 import { randomUUID } from "crypto";
 import { ApiError, notFound } from "../shared/errors";
+import { GatewayLogger } from "../shared/gateway-logger";
 
 export interface Message {
   id: string;
@@ -18,10 +19,7 @@ export interface Message {
 }
 
 export const MessageRouter = {
-  listMessages(
-    conversationId: string,
-    opts?: { limit?: number; before?: string },
-  ): Message[] {
+  listMessages(conversationId: string, opts?: { limit?: number; before?: string }): Message[] {
     const db = getDb();
     const limit = opts?.limit ?? 50;
 
@@ -32,9 +30,10 @@ export const MessageRouter = {
         .get(opts.before);
       if (cursor) {
         return db
-          .query<Message, [string, string, number]>(
-            "SELECT * FROM messages WHERE conversation_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?",
-          )
+          .query<
+            Message,
+            [string, string, number]
+          >("SELECT * FROM messages WHERE conversation_id = ? AND created_at < ? ORDER BY created_at DESC LIMIT ?")
           .all(conversationId, cursor.created_at, limit)
           .reverse();
       }
@@ -42,9 +41,10 @@ export const MessageRouter = {
 
     // Default: latest N messages (returned oldest→newest)
     return db
-      .query<Message, [string, number]>(
-        "SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?",
-      )
+      .query<
+        Message,
+        [string, number]
+      >("SELECT * FROM messages WHERE conversation_id = ? ORDER BY created_at DESC LIMIT ?")
       .all(conversationId, limit)
       .reverse();
   },
@@ -73,6 +73,13 @@ export const MessageRouter = {
       "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, created_at) VALUES (?,?,?,?,?,?,?)",
       [userMsgId, conversationId, "user", null, userContent, null, now],
     );
+    GatewayLogger.logMessageRoute({
+      phase: "received",
+      conversationId,
+      conversationType: conv.type,
+      userMsgId,
+      userContentLength: userContent.length,
+    });
 
     // Determine target bot
     const mentionMatch = userContent.match(/@(\S+)/);
@@ -121,25 +128,59 @@ export const MessageRouter = {
     }
 
     // Forward to OpenClaw and collect reply
-    const normalizedAgentId = (targetBot.openclaw_agent_id ?? "main").trim().toLowerCase() || "main";
+    const normalizedAgentId =
+      (targetBot.openclaw_agent_id ?? "main").trim().toLowerCase() || "main";
     // Gateway expects sessionKey in `agent:{agentId}:{sessionId}` shape for agent binding.
     const gatewaySessionKey = `agent:${normalizedAgentId}:${conversationId}`;
     let replyContent = "";
-    await OpenClawProxy.sendMessage(
-      targetBot.openclaw_ws_url,
-      targetBot.openclaw_ws_token ?? undefined,
-      normalizedAgentId,
-      enrichedContent,
-      (chunk) => {
-        // Gateway pushes accumulated text (not deltas), so each chunk is the
-        // full content up to that point. Assign instead of append to avoid
-        // concatenating repeated prefixes into the final stored message.
-        replyContent = chunk;
-        onChunk(chunk, targetBot!.id);
-      },
-      gatewaySessionKey, // explicit gateway session key keeps agent binding consistent
-      signal,
-    );
+    GatewayLogger.logMessageRoute({
+      phase: "target_selected",
+      conversationId,
+      conversationType: conv.type,
+      userMsgId,
+      targetBotId: targetBot.id,
+      targetBotName: targetBot.name,
+      targetBotUrl: targetBot.openclaw_ws_url,
+      agentId: normalizedAgentId,
+      sessionKey: gatewaySessionKey,
+      mentionedBotId,
+      userContentLength: userContent.length,
+      enrichedContentLength: enrichedContent.length,
+    });
+    try {
+      await OpenClawProxy.sendMessage(
+        targetBot.openclaw_ws_url,
+        targetBot.openclaw_ws_token ?? undefined,
+        normalizedAgentId,
+        enrichedContent,
+        (chunk) => {
+          // Gateway pushes accumulated text (not deltas), so each chunk is the
+          // full content up to that point. Assign instead of append to avoid
+          // concatenating repeated prefixes into the final stored message.
+          replyContent = chunk;
+          onChunk(chunk, targetBot!.id);
+        },
+        gatewaySessionKey, // explicit gateway session key keeps agent binding consistent
+        signal,
+      );
+    } catch (err) {
+      GatewayLogger.logMessageRoute({
+        phase: "error",
+        conversationId,
+        conversationType: conv.type,
+        userMsgId,
+        targetBotId: targetBot.id,
+        targetBotName: targetBot.name,
+        targetBotUrl: targetBot.openclaw_ws_url,
+        agentId: normalizedAgentId,
+        sessionKey: gatewaySessionKey,
+        mentionedBotId,
+        userContentLength: userContent.length,
+        enrichedContentLength: enrichedContent.length,
+        error: String(err),
+      });
+      throw err;
+    }
 
     // Persist bot reply
     const botMsgId = randomUUID();
@@ -157,6 +198,20 @@ export const MessageRouter = {
     // directly and writes the bot reply into the React Query cache.
     // Broadcasting would create a duplicate write via usePushStream and cause
     // a race condition that drops the message bubble on slow Gateway responses.
+
+    GatewayLogger.logMessageRoute({
+      phase: "completed",
+      conversationId,
+      conversationType: conv.type,
+      userMsgId,
+      targetBotId: targetBot.id,
+      targetBotName: targetBot.name,
+      targetBotUrl: targetBot.openclaw_ws_url,
+      agentId: normalizedAgentId,
+      sessionKey: gatewaySessionKey,
+      mentionedBotId,
+      botReplyLength: replyContent.length,
+    });
 
     return {
       id: botMsgId,

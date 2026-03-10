@@ -161,6 +161,50 @@ export const GatewayLogger = {
   },
 
   /**
+   * Log sidecar-level routing decisions for user-initiated messages.
+   * This bridges the gap between the HTTP /messages/stream request and the
+   * lower-level Gateway WS log so we can tell which bot/agent/session was selected.
+   */
+  logMessageRoute(opts: {
+    phase: "received" | "target_selected" | "completed" | "error";
+    conversationId: string;
+    conversationType?: string;
+    userMsgId?: string;
+    targetBotId?: string;
+    targetBotName?: string;
+    targetBotUrl?: string;
+    agentId?: string;
+    sessionKey?: string;
+    mentionedBotId?: string | null;
+    userContentLength?: number;
+    enrichedContentLength?: number;
+    botReplyLength?: number;
+    error?: string;
+  }): void {
+    write({
+      ts: new Date().toISOString(),
+      dir: "SYS",
+      type: "message_route",
+      phase: opts.phase,
+      conversationId: opts.conversationId,
+      ...(opts.conversationType !== undefined && { conversationType: opts.conversationType }),
+      ...(opts.userMsgId !== undefined && { userMsgId: opts.userMsgId }),
+      ...(opts.targetBotId !== undefined && { targetBotId: opts.targetBotId }),
+      ...(opts.targetBotName !== undefined && { targetBotName: opts.targetBotName }),
+      ...(opts.targetBotUrl !== undefined && { targetBotUrl: opts.targetBotUrl }),
+      ...(opts.agentId !== undefined && { agentId: opts.agentId }),
+      ...(opts.sessionKey !== undefined && { sessionKey: opts.sessionKey }),
+      ...(opts.mentionedBotId !== undefined && { mentionedBotId: opts.mentionedBotId }),
+      ...(opts.userContentLength !== undefined && { userContentLength: opts.userContentLength }),
+      ...(opts.enrichedContentLength !== undefined && {
+        enrichedContentLength: opts.enrichedContentLength,
+      }),
+      ...(opts.botReplyLength !== undefined && { botReplyLength: opts.botReplyLength }),
+      ...(opts.error !== undefined && { error: opts.error }),
+    });
+  },
+
+  /**
    * Log streaming bubble lifecycle events (sidecar-level, not WS-level).
    * These entries bridge the gap between WS agent events and the HTTP SSE
    * stream seen by the frontend — useful for diagnosing "message bubble vanished" issues.
