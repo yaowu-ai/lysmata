@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Agent, AgentBinding, CreateAgentInput, BindAgentInput } from "../../../../src/shared/types";
 import { AppLogger } from "../../shared/app-logger";
-import { resolveOpenclawBin, spawnEnv } from "../../shared/openclaw-bin";
+import { resolveBinary, resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
 import { updateAgentModel } from "../../core/openclaw-config-file";
 
 const app = new Hono();
@@ -17,13 +17,7 @@ interface ApiResult<T> {
  */
 async function checkOpenClawCli(): Promise<boolean> {
   try {
-    const proc = Bun.spawn(["which", "openclaw"], {
-      stdout: "pipe",
-      stderr: "pipe",
-      env: spawnEnv(),
-    });
-    const exitCode = await proc.exited;
-    return exitCode === 0;
+    return !!(await resolveBinary("openclaw"));
   } catch {
     return false;
   }
@@ -135,7 +129,7 @@ app.get("/", async (c) => {
     }
 
     const bin = await resolveOpenclawBin();
-    const proc = Bun.spawn([bin, "agents", "list"], {
+    const proc = spawnWithPath([bin, "agents", "list"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -179,7 +173,7 @@ app.get("/bindings", async (c) => {
     }
 
     const bin = await resolveOpenclawBin();
-    const proc = Bun.spawn([bin, "agents", "bindings"], {
+    const proc = spawnWithPath([bin, "agents", "bindings"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -236,9 +230,11 @@ app.post("/", async (c) => {
       return c.json<ApiResult<void>>({ success: false, message: "Agent ID 不能为空" });
     }
 
-    const args = ["openclaw", "agents", "add", input.name];
+    const bin = await resolveOpenclawBin();
+    const args = [bin, "agents", "add", input.name];
     // --json 触发非交互模式，此模式强制要求 --workspace；用户未填时使用默认路径
-    const workspace = input.workspace?.trim() || `${process.env.HOME ?? "~"}/.openclaw/workspace-${input.name}`;
+    const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "~";
+    const workspace = input.workspace?.trim() || `${homeDir}/.openclaw/workspace-${input.name}`;
     args.push("--workspace", workspace);
     if (input.agentDir) args.push("--agent-dir", input.agentDir);
     if (input.model) args.push("--model", input.model);
@@ -249,7 +245,7 @@ app.post("/", async (c) => {
 
     AppLogger.info("agent.create: spawning CLI", { cmd: args.join(" ") });
 
-    const proc = Bun.spawn(args, { stdout: "pipe", stderr: "pipe" });
+    const proc = spawnWithPath(args, { stdout: "pipe", stderr: "pipe" });
 
     const [stdout, stderr, exitCode] = await Promise.all([
       new Response(proc.stdout).text(),
@@ -313,7 +309,7 @@ app.delete("/:id", async (c) => {
     const id = c.req.param("id");
 
     const bin = await resolveOpenclawBin();
-    const proc = Bun.spawn([bin, "agents", "delete", id, "--force", "--json"], {
+    const proc = spawnWithPath([bin, "agents", "delete", id, "--force", "--json"], {
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -364,12 +360,13 @@ app.post("/:id/bind", async (c) => {
       });
     }
 
-    const args = ["openclaw", "agents", "bind", "--agent", id];
+    const bin = await resolveOpenclawBin();
+    const args = [bin, "agents", "bind", "--agent", id];
     for (const binding of input.bindings) {
       args.push("--bind", binding);
     }
 
-    const proc = Bun.spawn(args, {
+    const proc = spawnWithPath(args, {
       stdout: "pipe",
       stderr: "pipe",
     });

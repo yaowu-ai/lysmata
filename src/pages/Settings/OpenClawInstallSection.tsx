@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Download, CheckCircle, XCircle, Loader2, Terminal, RefreshCw } from "lucide-react";
-import { fetch } from '@tauri-apps/plugin-http';
 import { API_BASE_URL } from "../../config";
+import { apiClient } from "../../shared/api-client";
 
 type InstallStep = "idle" | "checking" | "installing" | "verifying" | "success" | "error";
 
@@ -17,10 +17,16 @@ interface EnvCheckResult {
   message: string;
   hasOpenClaw: boolean;
   openclawVersion?: string;
+  openclawPath?: string;
   hasNode: boolean;
   nodeVersion?: string;
+  nodePath?: string;
+  hasNpm?: boolean;
+  npmPath?: string;
   hasCurl: boolean;
   platform: string;
+  windowsShell?: string;
+  windowsShellOptions?: Array<{ id: string; label: string }>;
 }
 
 export function OpenClawInstallSection() {
@@ -38,6 +44,19 @@ export function OpenClawInstallSection() {
     return () => esRef.current?.close();
   }, []);
 
+  const loadEnvInfo = useCallback(async () => {
+    const env = await apiClient.get<EnvCheckResult>("/openclaw/check-environment");
+    setEnvInfo(env);
+    return env;
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadEnvInfo();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadEnvInfo]);
+
   const handleInstall = async () => {
     try {
       setStatus({ step: "checking", message: "检查系统环境..." });
@@ -45,9 +64,7 @@ export function OpenClawInstallSection() {
       setShowLogs(true);
       addLog("开始检查环境");
 
-      const checkRes = await fetch(`${API_BASE_URL}/openclaw/check-environment`);
-      const env: EnvCheckResult = await checkRes.json();
-      setEnvInfo(env);
+      const env = await loadEnvInfo();
 
       if (env.hasOpenClaw) {
         setStatus({ step: "success", message: `OpenClaw 已安装 (${env.openclawVersion})` });
@@ -108,6 +125,12 @@ export function OpenClawInstallSection() {
       setStatus({ step: "error", message: "安装失败", error: message });
       addLog(`错误: ${message}`);
     }
+  };
+
+  const handleWindowsShellChange = async (value: string) => {
+    await apiClient.put("/openclaw/shell-preferences", { windowsShell: value });
+    await loadEnvInfo();
+    addLog(`Windows shell 已切换为: ${value}`);
   };
 
   const getStepIcon = () => {
@@ -203,6 +226,27 @@ export function OpenClawInstallSection() {
           )}
         </div>
 
+        {envInfo?.platform === "win32" && (envInfo.windowsShellOptions?.length ?? 0) > 0 && (
+          <div className="mt-3 rounded-md border border-[#E5E7EB] bg-[#FAFAFA] p-3">
+            <div className="text-xs font-medium text-[#0F172A] mb-1">Windows Shell</div>
+            <p className="text-xs text-[#64748B] mb-2">
+              用选定的 shell 解析 `node`、`npm`、`openclaw`，切换后会重新检测环境。
+            </p>
+            <select
+              value={envInfo.windowsShell ?? "auto"}
+              onChange={(e) => void handleWindowsShellChange(e.target.value)}
+              disabled={isInstalling}
+              className="w-full rounded-md border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#0F172A] disabled:bg-[#F8FAFC]"
+            >
+              {envInfo.windowsShellOptions?.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         {showLogs && logs.length > 0 && (
           <div className="mt-3 bg-[#0F172A] rounded p-3">
             <div className="flex items-center gap-2 mb-2">
@@ -244,11 +288,40 @@ export function OpenClawInstallSection() {
         </details>
 
         {envInfo && (
-          <div className="mt-3 text-xs text-[#94A3B8]">
-            <span>
-              {envInfo.platform} · Node {envInfo.hasNode ? envInfo.nodeVersion : "未检测到"} · curl{" "}
-              {envInfo.hasCurl ? "可用" : "不可用"}
-            </span>
+          <div className="mt-3 rounded-md border border-[#E5E7EB] bg-[#FAFAFA] p-3">
+            <div className="text-xs font-medium text-[#0F172A] mb-2">当前解析结果</div>
+            <div className="space-y-2 text-xs">
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <span className="text-[#64748B]">OpenClaw</span>
+                <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                  {envInfo.openclawPath ?? "未解析到"}
+                </code>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <span className="text-[#64748B]">Node.js</span>
+                <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                  {envInfo.nodePath ?? "未解析到"}
+                </code>
+              </div>
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <span className="text-[#64748B]">npm</span>
+                <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                  {envInfo.npmPath ?? "未解析到"}
+                </code>
+              </div>
+              {envInfo.platform === "win32" && (
+                <div className="grid grid-cols-[92px_1fr] gap-2">
+                  <span className="text-[#64748B]">Windows Shell</span>
+                  <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                    {envInfo.windowsShell ?? "auto"}
+                  </code>
+                </div>
+              )}
+            </div>
+            <div className="mt-3 text-xs text-[#94A3B8]">
+              {envInfo.platform} · Node {envInfo.hasNode ? envInfo.nodeVersion : "未检测到"} · npm{" "}
+              {envInfo.hasNpm ? "可用" : "不可用"} · curl {envInfo.hasCurl ? "可用" : "不可用"}
+            </div>
           </div>
         )}
       </div>

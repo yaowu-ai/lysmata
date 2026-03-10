@@ -3,16 +3,27 @@ import { useEffect, useState } from "react";
 import { apiClient } from "../../../shared/api-client";
 import { getSidecarLogs } from "../../../shared/tauri-bridge";
 
+interface WindowsShellOption {
+  id: string;
+  label: string;
+}
+
 interface EnvCheckResult {
   canInstall: boolean;
   message: string;
   hasOpenClaw: boolean;
   openclawVersion?: string;
+  openclawPath?: string;
   hasNode: boolean;
   nodeVersion?: string;
   nodeMajor?: number;
+  nodePath?: string;
+  hasNpm?: boolean;
+  npmPath?: string;
   hasCurl: boolean;
   platform: string;
+  windowsShell?: string;
+  windowsShellOptions?: WindowsShellOption[];
 }
 
 type ItemStatus = "checking" | "pass" | "warn" | "fail";
@@ -37,6 +48,7 @@ export function EnvCheckView({ onEnvReady }: Props) {
   const [envResult, setEnvResult] = useState<EnvCheckResult | null>(null);
   const [showLogs, setShowLogs] = useState(false);
   const [logs, setLogs] = useState<string>("");
+  const [checking, setChecking] = useState(true);
 
   const fetchLogs = async () => {
     if (import.meta.env.PROD) {
@@ -51,14 +63,11 @@ export function EnvCheckView({ onEnvReady }: Props) {
     }
   };
 
-  useEffect(() => {
-    console.log("[EnvCheck] Starting environment check...");
-    console.log("[EnvCheck] API Base URL:", import.meta.env.PROD ? "http://127.0.0.1:2620" : "http://127.0.0.1:2026");
-    
+  const runEnvCheck = async () => {
+    setChecking(true);
     apiClient
       .get<EnvCheckResult>("/openclaw/check-environment")
       .then((res) => {
-        console.log("[EnvCheck] API response:", res);
         setEnvResult(res);
 
         const openclawItem: CheckItem = res.hasOpenClaw
@@ -86,24 +95,7 @@ export function EnvCheckView({ onEnvReady }: Props) {
         setItems([openclawItem, nodeItem, curlItem]);
         onEnvReady?.({ canInstall: res.canInstall, hasOpenClaw: res.hasOpenClaw });
       })
-      .catch(async (error) => {
-        console.error("[EnvCheck] API connection failed:", error);
-        console.error("[EnvCheck] Error details:", {
-          message: error.message,
-          status: error.status,
-          stack: error.stack
-        });
-        
-        // Try to fetch directly to see what's happening
-        try {
-          const directFetch = await fetch("http://127.0.0.1:2620/health");
-          console.log("[EnvCheck] Direct health check status:", directFetch.status);
-          const healthData = await directFetch.json();
-          console.log("[EnvCheck] Direct health check data:", healthData);
-        } catch (e) {
-          console.error("[EnvCheck] Direct health check also failed:", e);
-        }
-        
+      .catch(async () => {
         setItems((prev) =>
           prev.map((i) => ({ ...i, status: "fail" as ItemStatus, detail: "API 连接失败" })),
         );
@@ -113,8 +105,24 @@ export function EnvCheckView({ onEnvReady }: Props) {
         if (import.meta.env.PROD) {
           await fetchLogs();
         }
+      })
+      .finally(() => {
+        setChecking(false);
       });
+  };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void runEnvCheck();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWindowsShellChange = async (value: string) => {
+    setChecking(true);
+    await apiClient.put("/openclaw/shell-preferences", { windowsShell: value });
+    await runEnvCheck();
+  };
 
   const statusStyle: Record<ItemStatus, { dot: string; text: string }> = {
     checking: { dot: "bg-[#F59E0B] animate-pulse", text: "text-[#F59E0B]" },
@@ -153,6 +161,27 @@ export function EnvCheckView({ onEnvReady }: Props) {
         })}
       </div>
 
+      {envResult?.platform === "win32" && (envResult.windowsShellOptions?.length ?? 0) > 0 && (
+        <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3">
+          <div className="text-sm font-medium text-[#0F172A]">Windows Shell</div>
+          <div className="text-xs text-[#64748B] mt-1 mb-3">
+            用选定的 shell 解析 `node`、`npm`、`openclaw` 的实际路径；切换后会重新检测环境。
+          </div>
+          <select
+            value={envResult.windowsShell ?? "auto"}
+            onChange={(e) => void handleWindowsShellChange(e.target.value)}
+            disabled={checking}
+            className="w-full rounded-md border border-[#CBD5E1] bg-white px-3 py-2 text-sm text-[#0F172A] disabled:bg-[#F8FAFC]"
+          >
+            {envResult.windowsShellOptions?.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {envResult && (
         <div
           className={`mt-5 px-4 py-3 rounded-lg border text-[13px] leading-normal ${
@@ -183,6 +212,43 @@ export function EnvCheckView({ onEnvReady }: Props) {
               </code>
             </>
           )}
+        </div>
+      )}
+
+      {envResult && (
+        <div className="mt-4 rounded-lg border border-[#E5E7EB] bg-[#FAFAFA] px-4 py-3">
+          <div className="text-sm font-medium text-[#0F172A]">检测结果</div>
+          <div className="text-xs text-[#64748B] mt-1 mb-3">
+            下面显示的是应用当前实际解析到的可执行文件路径。
+          </div>
+          <div className="space-y-2 text-xs">
+            <div className="grid grid-cols-[92px_1fr] gap-2">
+              <span className="text-[#64748B]">OpenClaw</span>
+              <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                {envResult.openclawPath ?? "未解析到"}
+              </code>
+            </div>
+            <div className="grid grid-cols-[92px_1fr] gap-2">
+              <span className="text-[#64748B]">Node.js</span>
+              <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                {envResult.nodePath ?? "未解析到"}
+              </code>
+            </div>
+            <div className="grid grid-cols-[92px_1fr] gap-2">
+              <span className="text-[#64748B]">npm</span>
+              <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                {envResult.npmPath ?? "未解析到"}
+              </code>
+            </div>
+            {envResult.platform === "win32" && (
+              <div className="grid grid-cols-[92px_1fr] gap-2">
+                <span className="text-[#64748B]">Windows Shell</span>
+                <code className="break-all rounded bg-white px-2 py-1 text-[#0F172A] border border-[#E5E7EB]">
+                  {envResult.windowsShell ?? "auto"}
+                </code>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
