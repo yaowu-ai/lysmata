@@ -23,6 +23,7 @@ export function WizardPage() {
 
   const submitRef = useRef<(() => Promise<void>) | null>(null);
   const [envCheck, setEnvCheck] = useState<{ canInstall: boolean; hasOpenClaw: boolean } | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const isConfigStep = step.type === "config";
 
@@ -39,10 +40,13 @@ export function WizardPage() {
     }
 
     if ((step.type === "config" || step.id === "step6") && submitRef.current) {
+      setSubmitting(true);
       try {
         await submitRef.current();
       } catch {
         /* validation error shown in view */
+      } finally {
+        setSubmitting(false);
       }
       return;
     }
@@ -86,22 +90,26 @@ export function WizardPage() {
     if (isConfigStep) {
       if (step.id === "step6") {
         return {
-          nextLabel: "应用配置",
+          nextLabel: submitting ? "应用中..." : "应用配置",
+          nextDisabled: submitting,
           showPrev: true,
           showSkip: false,
           showCancel: true,
           onCancel: handleExitWizard,
+          submitting,
         };
       }
       return {
-        nextLabel: "下一步",
+        nextLabel: submitting ? "保存中..." : "下一步",
+        nextDisabled: submitting,
         showPrev: true,
         showSkip: !!step.skippable,
         showCancel: true,
         onCancel: handleExitWizard,
+        submitting,
       };
     }
-    return { nextLabel: "下一步", showPrev: false, showSkip: false, showCancel: false };
+    return { nextLabel: "下一步", showPrev: false, showSkip: false, showCancel: false, submitting: false };
   };
 
   const footerProps = getFooterProps();
