@@ -1,14 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Copy } from "lucide-react";
-import { useLlmSettings, useUpdateLlmSettings } from "../shared/hooks/useLlmSettings";
-import type { LlmSettings, ProviderConfig } from "../shared/types";
+import { useLlmSettings, useUpdateLlmSettings, useDeleteProvider } from "../shared/hooks/useLlmSettings";
+import type { ProviderConfig } from "../shared/types";
 import ProviderFormDrawer from "./Settings/ProviderFormDrawer";
 import { AgentManagementSection } from "./Settings/AgentManagementSection";
 import { GatewayConfigSection } from "./Settings/GatewayConfigSection";
 import { ONBOARDING_KEY } from "../shared/store/wizard-store";
 import { useToast } from "../components/Toast";
-import { apiClient } from "../shared/api-client";
 
 // 工具函数：API Key 遮码
 function maskApiKey(key: string | undefined): string {
@@ -29,6 +28,7 @@ async function copyToClipboard(text: string, toast: ReturnType<typeof useToast>)
 export default function SettingsPage() {
   const { data: settings, isLoading, isError, refetch } = useLlmSettings();
   const { mutate: saveSettings } = useUpdateLlmSettings();
+  const { mutate: deleteProvider } = useDeleteProvider();
   const [editingProvider, setEditingProvider] = useState<{
     key: string;
     provider: ProviderConfig;
@@ -41,38 +41,24 @@ export default function SettingsPage() {
   const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("");
 
-  async function handleDeleteProvider(key: string) {
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+
+  function handleDeleteProvider(key: string) {
     if (!settings) return;
-
-    try {
-      // 检查是否有 Bot 正在使用
-      const usage = await apiClient.get<{
-        inUse: boolean;
-        count: number;
-        bots: Array<{ id: string; name: string }>;
-      }>(`/settings/llm/providers/${key}/usage`);
-
-      if (usage.inUse) {
-        toast.error(
-          `无法删除：${usage.count} 个 Bot 正在使用此 Provider\n` +
-            `请先修改这些 Bot 的配置：${usage.bots.map((b) => b.name).join(", ")}`
-        );
-        return;
-      }
-
-      if (!window.confirm(`确认删除 Provider "${key}"？`)) return;
-
-      const updated: LlmSettings = {
-        ...settings,
-        providers: Object.fromEntries(Object.entries(settings.providers).filter(([k]) => k !== key)),
-      };
-
-      saveSettings(updated, {
-        onSuccess: () => toast.success("Provider 已删除"),
-        onError: () => toast.error("删除失败"),
+    if (confirmingDelete === key) {
+      deleteProvider(key, {
+        onSuccess: () => {
+          toast.success("Provider 已删除");
+          setConfirmingDelete(null);
+        },
+        onError: () => {
+          toast.error("删除失败");
+          setConfirmingDelete(null);
+        },
       });
-    } catch (err) {
-      toast.error("检查使用情况失败");
+    } else {
+      setConfirmingDelete(key);
+      setTimeout(() => setConfirmingDelete((prev) => (prev === key ? null : prev)), 3000);
     }
   }
 
@@ -242,9 +228,13 @@ export default function SettingsPage() {
                   </button>
                   <button
                     onClick={() => handleDeleteProvider(key)}
-                    className="px-3 py-1.5 text-[13px] text-[#64748B] hover:bg-white rounded transition-colors"
+                    className={`px-3 py-1.5 text-[13px] rounded transition-colors ${
+                      confirmingDelete === key
+                        ? "text-white bg-red-500 hover:bg-red-600"
+                        : "text-[#64748B] hover:bg-white"
+                    }`}
                   >
-                    删除
+                    {confirmingDelete === key ? "确认删除？" : "删除"}
                   </button>
                 </div>
               </div>

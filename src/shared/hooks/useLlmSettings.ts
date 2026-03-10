@@ -20,3 +20,23 @@ export function useUpdateLlmSettings() {
     onSuccess: () => qc.invalidateQueries({ queryKey: llmSettingsKeys.all }),
   });
 }
+
+export function useDeleteProvider() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (providerKey: string) =>
+      apiClient.delete<void>(`/settings/llm/providers?key=${encodeURIComponent(providerKey)}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: llmSettingsKeys.all }),
+  });
+}
+
+export function useCheckProviderUsage() {
+  return {
+    check: (providerKey: string) =>
+      apiClient.get<{
+        inUse: boolean;
+        count: number;
+        bots: Array<{ id: string; name: string }>;
+      }>(`/settings/llm/provider-usage?key=${encodeURIComponent(providerKey)}`),
+  };
+}

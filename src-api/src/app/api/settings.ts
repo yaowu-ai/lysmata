@@ -94,25 +94,51 @@ settings.put("/gateway", zValidator("json", gatewayUpdateSchema), async (c) => {
   }
 });
 
-settings.get("/llm/providers/:providerKey/usage", async (c) => {
-  const providerKey = c.req.param("providerKey");
-  const db = getDb();
+settings.get("/llm/provider-usage", async (c) => {
+  const providerKey = c.req.query("key");
+  if (!providerKey) return c.json({ error: "Missing ?key= parameter" }, 400);
 
+  const db = getDb();
   try {
-    // 查询 llm_config 字段中包含该 provider 的 Bot
     const stmt = db.query<{ id: string; name: string }, [string]>(
-      `SELECT id, name FROM bots WHERE llm_config LIKE ? AND is_active = 1`
+      `SELECT id, name FROM bots WHERE llm_config LIKE ? AND is_active = 1`,
     );
     const bots = stmt.all(`%"provider":"${providerKey}"%`);
 
     return c.json({
       inUse: bots.length > 0,
       count: bots.length,
-      bots: bots.map(b => ({ id: b.id, name: b.name }))
+      bots: bots.map((b) => ({ id: b.id, name: b.name })),
     });
   } catch (err) {
     console.error("Failed to check provider usage:", err);
     return c.json({ error: "Failed to check provider usage" }, 500);
+  }
+});
+
+settings.delete("/llm/providers", async (c) => {
+  const providerKey = c.req.query("key");
+  if (!providerKey) return c.json({ error: "Missing ?key= parameter" }, 400);
+
+  try {
+    const current = await readLlmSettings();
+    if (!(providerKey in current.providers)) {
+      return c.json({ error: "Provider not found" }, 404);
+    }
+
+    const { [providerKey]: _removed, ...remaining } = current.providers;
+
+    const primaryProvider = current.defaultModel.primary?.split("/")[0];
+    const defaultModel =
+      primaryProvider === providerKey
+        ? { primary: "", fallbacks: [] }
+        : current.defaultModel;
+
+    await updateLlmSettings({ providers: remaining, defaultModel });
+    return c.json({ success: true });
+  } catch (err) {
+    console.error("Failed to delete provider:", err);
+    return c.json({ error: "Failed to delete provider" }, 500);
   }
 });
 
