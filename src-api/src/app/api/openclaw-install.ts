@@ -12,16 +12,28 @@
 
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
+import { readdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
-import { spawnEnv } from "../../shared/openclaw-bin";
+import { resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
 
 const app = new Hono();
+const MIN_NODE_MAJOR = 22;
+
+async function readSpawnOutput(
+  output: number | ReadableStream<Uint8Array> | undefined,
+): Promise<string> {
+  if (!output || typeof output === "number") return "";
+  return await new Response(output).text();
+}
 
 async function which(bin: string): Promise<string | null> {
   try {
-    const proc = Bun.spawn(["which", bin], { stdout: "pipe", stderr: "pipe", env: spawnEnv() });
-    const path = (await new Response(proc.stdout).text()).trim();
+    const lookupCmd = process.platform === "win32" ? "where" : "which";
+    const proc = spawnWithPath([lookupCmd, bin], { stdout: "pipe", stderr: "pipe" });
+    const output = (await readSpawnOutput(proc.stdout)).trim();
     const code = await proc.exited;
+    const path = output.split(/\r?\n/).find(Boolean)?.trim();
     return code === 0 && path ? path : null;
   } catch {
     return null;
@@ -32,15 +44,14 @@ async function exec(
   cmd: string[],
   opts?: { cwd?: string },
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  const proc = Bun.spawn(cmd, {
+  const proc = spawnWithPath(cmd, {
     stdout: "pipe",
     stderr: "pipe",
-    env: spawnEnv(),
     cwd: opts?.cwd,
   });
   const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
+    readSpawnOutput(proc.stdout),
+    readSpawnOutput(proc.stderr),
     proc.exited,
   ]);
   return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode };
@@ -75,6 +86,143 @@ interface EnvCheckResult {
   platform: string;
 }
 
+interface NodeTooling {
+  nodePath: string;
+  nodeVersion?: string;
+  nodeMajor?: number;
+  npmPath?: string;
+  source: string;
+  priority: number;
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    return await Bun.file(path).exists();
+  } catch {
+    return false;
+  }
+}
+
+function parseNodeMajor(version?: string): number | undefined {
+  const match = version?.match(/^v?(\d+)/);
+  return match ? parseInt(match[1], 10) : undefined;
+}
+
+function compareVersionDesc(a?: string, b?: string): number {
+  const parse = (value?: string) =>
+    (value ?? "")
+      .replace(/^v/i, "")
+      .split(".")
+      .map((part) => parseInt(part, 10) || 0);
+  const av = parse(a);
+  const bv = parse(b);
+  const len = Math.max(av.length, bv.length);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (bv[i] ?? 0) - (av[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
+function compareNodeTooling(a: NodeTooling, b: NodeTooling): number {
+  if (a.priority !== b.priority) return a.priority - b.priority;
+  return compareVersionDesc(a.nodeVersion, b.nodeVersion);
+}
+
+async function findSiblingNpm(nodePath: string): Promise<string | undefined> {
+  const binDir = dirname(nodePath);
+  const names = process.platform === "win32"
+    ? ["npm.cmd", "npm.exe", "npm"]
+    : ["npm"];
+  for (const name of names) {
+    const candidate = join(binDir, name);
+    if (await fileExists(candidate)) return candidate;
+  }
+  return undefined;
+}
+
+async function getNvmNodePaths(home: string): Promise<string[]> {
+  if (!home) return [];
+  const root = `${home}/.nvm/versions/node`;
+  try {
+    const entries = await readdir(root, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort(compareVersionDesc)
+      .map((name) => join(root, name, "bin", process.platform === "win32" ? "node.exe" : "node"));
+  } catch {
+    return [];
+  }
+}
+
+async function inspectNodeTooling(): Promise<NodeTooling[]> {
+  const home = process.env.HOME ?? "";
+  const pathNode = await which("node");
+  const pathNpm = await which("npm");
+  const candidates: Array<Pick<NodeTooling, "nodePath" | "source" | "priority">> = [];
+  const seen = new Set<string>();
+  const add = (nodePath: string | null | undefined, source: string, priority: number) => {
+    const trimmed = nodePath?.trim();
+    if (!trimmed || seen.has(trimmed)) return;
+    seen.add(trimmed);
+    candidates.push({ nodePath: trimmed, source, priority });
+  };
+
+  add(pathNode, "path", 0);
+
+  const staticDirs = [
+    { dir: "/opt/homebrew/bin", source: "homebrew", priority: 10 },
+    { dir: "/usr/local/bin", source: "usr-local", priority: 11 },
+    { dir: `${home}/.volta/bin`, source: "volta", priority: 20 },
+    { dir: `${home}/.fnm/current/bin`, source: "fnm", priority: 21 },
+    { dir: `${home}/.nvm/current/bin`, source: "nvm-current", priority: 22 },
+    { dir: `${home}/.asdf/shims`, source: "asdf", priority: 23 },
+    { dir: `${home}/.local/bin`, source: "local", priority: 24 },
+  ];
+
+  for (const { dir, source, priority } of staticDirs) {
+    add(join(dir, process.platform === "win32" ? "node.exe" : "node"), source, priority);
+  }
+  for (const nodePath of await getNvmNodePaths(home)) {
+    add(nodePath, "nvm-version", 25);
+  }
+
+  const inspected = await Promise.all(
+    candidates.map(async ({ nodePath, source, priority }) => {
+      if (!(await fileExists(nodePath))) return null;
+      const versionResult = await exec([nodePath, "--version"]);
+      if (versionResult.exitCode !== 0 || !versionResult.stdout) return null;
+
+      const npmPath = (await findSiblingNpm(nodePath))
+        ?? (source === "path" ? pathNpm ?? undefined : undefined);
+
+      return {
+        nodePath,
+        nodeVersion: versionResult.stdout,
+        nodeMajor: parseNodeMajor(versionResult.stdout),
+        npmPath,
+        source,
+        priority,
+      } satisfies NodeTooling;
+    }),
+  );
+
+  const filtered: NodeTooling[] = [];
+  for (const item of inspected) {
+    if (item) filtered.push(item);
+  }
+  return filtered.sort(compareNodeTooling);
+}
+
+async function resolveNodeTooling(): Promise<NodeTooling | null> {
+  const inspected = await inspectNodeTooling();
+  const compatible = inspected.filter(
+    (candidate) => (candidate.nodeMajor ?? 0) >= MIN_NODE_MAJOR && candidate.npmPath,
+  );
+  return compatible[0] ?? inspected[0] ?? null;
+}
+
 async function checkEnvironment(): Promise<EnvCheckResult> {
   const platform = process.platform;
 
@@ -86,27 +234,18 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     if (r.exitCode === 0) openclawVersion = r.stdout;
   }
 
-  // Detect Node.js
-  const nodePath = await which("node");
-  let nodeVersion: string | undefined;
-  let nodeMajor: number | undefined;
-  if (nodePath) {
-    const r = await exec([nodePath, "--version"]);
-    if (r.exitCode === 0) {
-      nodeVersion = r.stdout;
-      const m = nodeVersion.match(/^v?(\d+)/);
-      if (m) nodeMajor = parseInt(m[1], 10);
-    }
-  }
-
-  // Detect npm
-  const npmPath = await which("npm");
+  // Detect Node.js / npm across common install layouts.
+  const nodeTooling = await resolveNodeTooling();
+  const nodePath = nodeTooling?.nodePath ?? null;
+  const nodeVersion = nodeTooling?.nodeVersion;
+  const nodeMajor = nodeTooling?.nodeMajor;
+  const npmPath = nodeTooling?.npmPath ?? null;
 
   // Detect curl
   const hasCurl = !!(await which("curl"));
 
   const hasOpenClaw = !!openclawPath;
-  const hasNode = !!nodePath && (nodeMajor ?? 0) >= 22;
+  const hasNode = !!nodePath && (nodeMajor ?? 0) >= MIN_NODE_MAJOR;
   const hasNpm = !!npmPath;
 
   let canInstall = true;
@@ -116,8 +255,13 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     message = `OpenClaw 已安装 (${openclawVersion ?? "unknown"})`;
   } else if (hasNode && hasNpm) {
     message = `Node.js ${nodeVersion} 就绪，可以安装 OpenClaw`;
+  } else if (hasNode && !hasNpm && hasCurl && platform !== "win32") {
+    message = `检测到 Node.js ${nodeVersion}，但未找到 npm，将通过官方安装脚本处理`;
   } else if (hasCurl && platform !== "win32") {
     message = "将通过官方安装脚本自动安装（含 Node.js）";
+  } else if (hasNode && !hasNpm) {
+    canInstall = false;
+    message = "检测到 Node.js 22+，但未找到 npm，请先安装 npm";
   } else if (!hasNode) {
     canInstall = false;
     message = "未检测到 Node.js 22+，请先安装 Node.js";
@@ -149,18 +293,17 @@ async function runNpmInstall(send: SendEvent, npmPath: string): Promise<boolean>
   send({ log: `npm path: ${npmPath}` });
   send({ log: "$ npm install -g openclaw@latest" });
 
-  const proc = Bun.spawn([npmPath, "install", "-g", "openclaw@latest"], {
+  const proc = spawnWithPath([npmPath, "install", "-g", "openclaw@latest"], {
     stdout: "pipe",
     stderr: "pipe",
     env: {
-      ...spawnEnv(),
       SHARP_IGNORE_GLOBAL_LIBVIPS: "1",
     },
   });
 
   const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
+    readSpawnOutput(proc.stdout),
+    readSpawnOutput(proc.stderr),
     proc.exited,
   ]);
 
@@ -189,13 +332,12 @@ async function runInstallScript(send: SendEvent): Promise<boolean> {
   send({ step: "installing", message: "正在执行官方安装脚本...", progress: 30 });
   send({ log: "$ curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard" });
 
-  const proc = Bun.spawn(
+  const proc = spawnWithPath(
     ["bash", "-c", "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard"],
     {
       stdout: "pipe",
       stderr: "pipe",
       env: {
-        ...spawnEnv(),
         NONINTERACTIVE: "1",
       },
     },
@@ -223,8 +365,8 @@ async function runInstallScript(send: SendEvent): Promise<boolean> {
   };
 
   await Promise.all([
-    streamOutput(proc.stdout),
-    streamOutput(proc.stderr, ""),
+    streamOutput(proc.stdout as ReadableStream<Uint8Array>),
+    streamOutput(proc.stderr as ReadableStream<Uint8Array>, ""),
   ]);
 
   const exitCode = await proc.exited;
@@ -242,34 +384,15 @@ async function verifyInstallation(send: SendEvent): Promise<boolean> {
   send({ step: "verifying", message: "验证安装结果...", progress: 85 });
 
   // Give PATH a moment to settle, then re-detect
-  const openclawPath = await which("openclaw");
-  if (!openclawPath) {
-    // Try common known locations directly
-    const home = process.env.HOME ?? "";
-    const candidates = [
-      `${home}/.openclaw/bin/openclaw`,
-      "/usr/local/bin/openclaw",
-      `${home}/.npm-global/bin/openclaw`,
-    ];
-    for (const p of candidates) {
-      try {
-        const f = Bun.file(p);
-        if (await f.exists()) {
-          const r = await exec([p, "--version"]);
-          if (r.exitCode === 0) {
-            send({ log: `找到 openclaw: ${p} (${r.stdout})` });
-            send({ step: "verifying", message: "安装验证通过", progress: 95 });
-            return true;
-          }
-        }
-      } catch { /* skip */ }
-    }
+  const openclawPath = await resolveOpenclawBin();
+  if (!openclawPath || openclawPath === "openclaw") {
     send({ log: "未找到 openclaw 可执行文件" });
     return false;
   }
 
   const r = await exec([openclawPath, "--version"]);
   if (r.exitCode === 0) {
+    send({ log: `找到 openclaw: ${openclawPath}` });
     send({ log: `openclaw 版本: ${r.stdout}` });
     send({ step: "verifying", message: "安装验证通过", progress: 95 });
     return true;
@@ -280,15 +403,15 @@ async function verifyInstallation(send: SendEvent): Promise<boolean> {
 }
 
 async function installGatewayService(send: SendEvent): Promise<void> {
-  send({ log: "$ openclaw gateway install" });
-  const proc = Bun.spawn(["openclaw", "gateway", "install"], {
+  const openclawPath = await resolveOpenclawBin();
+  send({ log: `$ ${openclawPath} gateway install` });
+  const proc = spawnWithPath([openclawPath, "gateway", "install"], {
     stdout: "pipe",
     stderr: "pipe",
-    env: spawnEnv(),
   });
   const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(proc.stdout).text(),
-    new Response(proc.stderr).text(),
+    readSpawnOutput(proc.stdout),
+    readSpawnOutput(proc.stderr),
     proc.exited,
   ]);
   if (exitCode === 0) {
