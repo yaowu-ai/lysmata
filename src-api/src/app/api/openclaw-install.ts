@@ -386,7 +386,8 @@ async function runInstallScript(send: SendEvent): Promise<boolean> {
 async function verifyInstallation(send: SendEvent): Promise<boolean> {
   send({ step: "verifying", message: "验证安装结果...", progress: 85 });
 
-  // Give PATH a moment to settle, then re-detect
+  // Clear stale cache so resolveOpenclawBin() rescans after fresh install
+  resetOpenclawBinCache();
   const openclawPath = await resolveOpenclawBin();
   if (!openclawPath || openclawPath === "openclaw") {
     send({ log: "未找到 openclaw 可执行文件" });
