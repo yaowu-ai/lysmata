@@ -137,7 +137,7 @@ export function BotManagementPage() {
                   bot={bot}
                   onEdit={() => openEdit(bot)}
                   onDelete={() => requestDelete(bot)}
-                  onTest={() => testMut.mutate(bot.id)}
+                  onTest={() => testMut.mutate({ id: bot.id })}
                   isTesting={testMut.isPending}
                 />
               ))}

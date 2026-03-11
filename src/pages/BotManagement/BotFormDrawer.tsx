@@ -22,9 +22,22 @@ import {
   useBotRemoteConfig,
 } from "../../shared/hooks/useBots";
 import { useAgents } from "../../shared/hooks/useAgents";
+import { useGatewaySettings } from "../../shared/hooks/useGatewaySettings";
 import type { Bot, SkillConfig } from "../../shared/types";
 import type { RemoteConfigResult } from "../../shared/hooks/useBots";
 import { cn } from "../../shared/lib/utils";
+
+function isLocalGatewayUrl(gatewayUrl: string, gatewayPort: number): boolean {
+  try {
+    const httpUrl = gatewayUrl.replace(/^ws(s?):/, "http$1:");
+    const u = new URL(httpUrl);
+    const host = u.hostname;
+    const port = parseInt(u.port, 10) || (u.protocol === "https:" ? 443 : 80);
+    return (host === "localhost" || host === "127.0.0.1") && port === gatewayPort;
+  } catch {
+    return false;
+  }
+}
 
 const TABS = ["基础", "MCP", "Skills", "连接"] as const;
 type Tab = (typeof TABS)[number];
@@ -54,6 +67,9 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
 
   // Remote config: auto-fetch when editing an existing Bot
   const remoteConfig = useBotRemoteConfig(bot?.id ?? "", isEdit && open);
+
+  // Gateway settings: used to auto-fill wsToken for new bots
+  const { data: gatewaySettings } = useGatewaySettings();
 
   // Fetch available agents
   const { data: agentsData } = useAgents();
@@ -120,13 +136,21 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       setMcpJson("{}");
       setMcpJsonError("");
       setSkills([]);
-      setGatewayUrl("ws://localhost:18789/ws");
+      const defaultUrl = "ws://localhost:18789/ws";
+      setGatewayUrl(defaultUrl);
       setAgentId("main");
-      setWsToken("");
+      const autoToken =
+        gatewaySettings?.authMode === "token" &&
+        gatewaySettings.authToken &&
+        isLocalGatewayUrl(defaultUrl, gatewaySettings.port)
+          ? gatewaySettings.authToken
+          : "";
+      setWsToken(autoToken);
     }
     setTab("基础");
     setTestResult(null);
     setApplyResult(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bot, open]);
 
   // ── Step 2: merge remote config when it arrives ────────────────────────────
@@ -177,7 +201,11 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
 
   async function handleTest() {
     if (!bot) return;
-    const r = await testMut.mutateAsync(bot.id);
+    const r = await testMut.mutateAsync({
+      id: bot.id,
+      openclaw_ws_url: gatewayUrl,
+      openclaw_ws_token: wsToken || undefined,
+    });
     setTestResult(r);
   }
 
