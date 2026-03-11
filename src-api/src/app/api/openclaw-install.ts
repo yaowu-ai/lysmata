@@ -15,7 +15,21 @@ import { stream } from "hono/streaming";
 import { readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
-import { resetOpenclawBinCache, resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
+import {
+  getAvailableWindowsShellOptions,
+  resetOpenclawBinCache,
+  resolveBinary,
+  resolveOpenclawBin,
+  spawnInUserShell,
+  spawnWithPath,
+  type WindowsShellOption,
+} from "../../shared/openclaw-bin";
+import {
+  readRuntimePreferences,
+  writeRuntimePreferences,
+  type WindowsShellPreference,
+} from "../../shared/runtime-preferences";
+import { AppLogger } from "../../shared/app-logger";
 
 const app = new Hono();
 const MIN_NODE_MAJOR = 22;
@@ -29,12 +43,7 @@ async function readSpawnOutput(
 
 async function which(bin: string): Promise<string | null> {
   try {
-    const lookupCmd = process.platform === "win32" ? "where" : "which";
-    const proc = spawnWithPath([lookupCmd, bin], { stdout: "pipe", stderr: "pipe" });
-    const output = (await readSpawnOutput(proc.stdout)).trim();
-    const code = await proc.exited;
-    const path = output.split(/\r?\n/).find(Boolean)?.trim();
-    return code === 0 && path ? path : null;
+    return await resolveBinary(bin);
   } catch {
     return null;
   }
@@ -84,6 +93,8 @@ interface EnvCheckResult {
   npmPath?: string;
   hasCurl: boolean;
   platform: string;
+  windowsShell?: WindowsShellPreference;
+  windowsShellOptions?: WindowsShellOption[];
 }
 
 interface NodeTooling {
@@ -131,9 +142,7 @@ function compareNodeTooling(a: NodeTooling, b: NodeTooling): number {
 
 async function findSiblingNpm(nodePath: string): Promise<string | undefined> {
   const binDir = dirname(nodePath);
-  const names = process.platform === "win32"
-    ? ["npm.cmd", "npm.exe", "npm"]
-    : ["npm"];
+  const names = process.platform === "win32" ? ["npm.cmd", "npm.exe", "npm"] : ["npm"];
   for (const name of names) {
     const candidate = join(binDir, name);
     if (await fileExists(candidate)) return candidate;
@@ -157,9 +166,19 @@ async function getNvmNodePaths(home: string): Promise<string[]> {
 }
 
 async function inspectNodeTooling(): Promise<NodeTooling[]> {
-  const home = process.env.HOME ?? "";
+  const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   const pathNode = await which("node");
   const pathNpm = await which("npm");
+  
+  // 记录初始检测结果
+  AppLogger.info("开始检测 Node.js 工具链", {
+    module: "inspectNodeTooling",
+    home,
+    pathNode,
+    pathNpm,
+    platform: process.platform,
+  });
+
   const candidates: Array<Pick<NodeTooling, "nodePath" | "source" | "priority">> = [];
   const seen = new Set<string>();
   const add = (nodePath: string | null | undefined, source: string, priority: number) => {
@@ -188,16 +207,43 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
     add(nodePath, "nvm-version", 25);
   }
 
+  // 记录所有候选路径
+  AppLogger.info("Node.js 候选路径", {
+    module: "inspectNodeTooling",
+    candidateCount: candidates.length,
+    candidates: candidates.map(c => ({ path: c.nodePath, source: c.source, priority: c.priority })),
+  });
+
   const inspected = await Promise.all(
     candidates.map(async ({ nodePath, source, priority }) => {
-      if (!(await fileExists(nodePath))) return null;
+      if (!(await fileExists(nodePath))) {
+        AppLogger.info("候选路径不存在", {
+          module: "inspectNodeTooling",
+          nodePath,
+          source,
+          priority,
+        });
+        return null;
+      }
+      
       const versionResult = await exec([nodePath, "--version"]);
-      if (versionResult.exitCode !== 0 || !versionResult.stdout) return null;
+      if (versionResult.exitCode !== 0 || !versionResult.stdout) {
+        AppLogger.warn("无法获取 Node.js 版本", {
+          module: "inspectNodeTooling",
+          nodePath,
+          source,
+          priority,
+          exitCode: versionResult.exitCode,
+          stderr: versionResult.stderr,
+        });
+        return null;
+      }
 
-      const npmPath = (await findSiblingNpm(nodePath))
-        ?? (source === "path" ? pathNpm ?? undefined : undefined);
+      const npmPath =
+        (await findSiblingNpm(nodePath)) ??
+        (source === "path" ? (pathNpm ?? undefined) : undefined);
 
-      return {
+      const tooling = {
         nodePath,
         nodeVersion: versionResult.stdout,
         nodeMajor: parseNodeMajor(versionResult.stdout),
@@ -205,6 +251,13 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
         source,
         priority,
       } satisfies NodeTooling;
+
+      AppLogger.info("检测到 Node.js 工具", {
+        module: "inspectNodeTooling",
+        ...tooling,
+      });
+
+      return tooling;
     }),
   );
 
@@ -212,6 +265,23 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
   for (const item of inspected) {
     if (item) filtered.push(item);
   }
+
+  // 记录最终结果
+  AppLogger.info("Node.js 工具链检测完成", {
+    module: "inspectNodeTooling",
+    totalCandidates: candidates.length,
+    validTools: filtered.length,
+    tools: filtered.map(t => ({
+      path: t.nodePath,
+      version: t.nodeVersion,
+      major: t.nodeMajor,
+      source: t.source,
+      priority: t.priority,
+      hasNpm: !!t.npmPath,
+    })),
+    sortedOrder: filtered.sort(compareNodeTooling).map(t => t.source),
+  });
+
   return filtered.sort(compareNodeTooling);
 }
 
@@ -220,11 +290,42 @@ async function resolveNodeTooling(): Promise<NodeTooling | null> {
   const compatible = inspected.filter(
     (candidate) => (candidate.nodeMajor ?? 0) >= MIN_NODE_MAJOR && candidate.npmPath,
   );
-  return compatible[0] ?? inspected[0] ?? null;
+  
+  const result = compatible[0] ?? inspected[0] ?? null;
+  
+  AppLogger.info("解析 Node.js 工具链结果", {
+    module: "resolveNodeTooling",
+    totalInspected: inspected.length,
+    compatibleCount: compatible.length,
+    minNodeMajor: MIN_NODE_MAJOR,
+    selectedTool: result ? {
+      path: result.nodePath,
+      version: result.nodeVersion,
+      major: result.nodeMajor,
+      source: result.source,
+      hasNpm: !!result.npmPath,
+    } : null,
+    allTools: inspected.map(t => ({
+      path: t.nodePath,
+      version: t.nodeVersion,
+      major: t.nodeMajor,
+      source: t.source,
+      hasNpm: !!t.npmPath,
+      priority: t.priority,
+    })),
+  });
+  
+  return result;
 }
 
 async function checkEnvironment(): Promise<EnvCheckResult> {
   const platform = process.platform;
+  
+  AppLogger.info("开始环境检查", {
+    module: "checkEnvironment",
+    platform,
+    minNodeMajor: MIN_NODE_MAJOR,
+  });
 
   // Detect OpenClaw – use resolveOpenclawBin() which scans NVM version dirs,
   // ~/.openclaw/bin, and other managed locations that plain `which` misses.
@@ -250,6 +351,16 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
   const hasOpenClaw = !!openclawPath;
   const hasNode = !!nodePath && (nodeMajor ?? 0) >= MIN_NODE_MAJOR;
   const hasNpm = !!npmPath;
+  const windowsShellOptions =
+    platform === "win32" ? await getAvailableWindowsShellOptions() : undefined;
+  const preferences = platform === "win32" ? await readRuntimePreferences() : {};
+  const preferredShell = preferences.windowsShell ?? "auto";
+  const windowsShell =
+    platform === "win32"
+      ? windowsShellOptions?.some((option) => option.id === preferredShell)
+        ? preferredShell
+        : "auto"
+      : undefined;
 
   let canInstall = true;
   let message = "环境检查通过";
@@ -267,10 +378,13 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     message = "检测到 Node.js 22+，但未找到 npm，请先安装 npm";
   } else if (!hasNode) {
     canInstall = false;
-    message = "未检测到 Node.js 22+，请先安装 Node.js";
+    message =
+      platform === "win32"
+        ? "未检测到 Node.js 22+，请先安装 Node.js，然后再使用 npm 安装 OpenClaw"
+        : "未检测到 Node.js 22+，请先安装 Node.js";
   }
 
-  return {
+  const result = {
     canInstall,
     message,
     hasOpenClaw,
@@ -284,7 +398,19 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     npmPath: npmPath ?? undefined,
     hasCurl,
     platform,
+    windowsShell,
+    windowsShellOptions,
   };
+
+  AppLogger.info("环境检查完成", {
+    module: "checkEnvironment",
+    ...result,
+    processEnvPath: process.env.PATH,
+    processEnvHome: process.env.HOME,
+    processEnvUser: process.env.USER,
+  });
+
+  return result;
 }
 
 // ── Install logic ────────────────────────────────────────────────────────────
@@ -331,12 +457,12 @@ async function runNpmInstall(send: SendEvent, npmPath: string): Promise<boolean>
   return true;
 }
 
-async function runInstallScript(send: SendEvent): Promise<boolean> {
+async function runPosixInstallScript(send: SendEvent): Promise<boolean> {
   send({ step: "installing", message: "正在执行官方安装脚本...", progress: 30 });
   send({ log: "$ curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard" });
 
-  const proc = spawnWithPath(
-    ["bash", "-c", "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard"],
+  const proc = spawnInUserShell(
+    "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard",
     {
       stdout: "pipe",
       stderr: "pipe",
@@ -348,10 +474,7 @@ async function runInstallScript(send: SendEvent): Promise<boolean> {
 
   const decoder = new TextDecoder();
 
-  const streamOutput = async (
-    reader: ReadableStream<Uint8Array>,
-    prefix?: string,
-  ) => {
+  const streamOutput = async (reader: ReadableStream<Uint8Array>, prefix?: string) => {
     const r = reader.getReader();
     let buf = "";
     while (true) {
@@ -452,15 +575,18 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
       installed = await runNpmInstall(send, env.npmPath);
     }
 
-    // Path 2: Fall back to official install.sh (macOS/Linux)
+    // Path 2: Fall back to official install.sh only on macOS/Linux.
     if (!installed && env.hasCurl && env.platform !== "win32") {
       send({ log: "使用官方安装脚本安装..." });
-      installed = await runInstallScript(send);
+      installed = await runPosixInstallScript(send);
     }
 
     if (!installed) {
       send({
-        error: "自动安装失败。请手动在终端运行：curl -fsSL https://openclaw.ai/install.sh | bash",
+        error:
+          env.platform === "win32"
+            ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
+            : "自动安装失败。请手动在终端运行：curl -fsSL https://openclaw.ai/install.sh | bash",
       });
       return;
     }
@@ -489,6 +615,33 @@ app.get("/check-environment", async (c) => {
   return c.json(result);
 });
 
+app.get("/shell-preferences", async (c) => {
+  const preferences = await readRuntimePreferences();
+  const windowsShellOptions =
+    process.platform === "win32" ? await getAvailableWindowsShellOptions() : [];
+  const preferred = preferences.windowsShell ?? "auto";
+  return c.json({
+    windowsShell: windowsShellOptions.some((option) => option.id === preferred)
+      ? preferred
+      : "auto",
+    windowsShellOptions,
+  });
+});
+
+app.put("/shell-preferences", async (c) => {
+  const body = await c.req.json<{ windowsShell?: WindowsShellPreference }>();
+  const next = await writeRuntimePreferences({ windowsShell: body.windowsShell ?? "auto" });
+  const windowsShellOptions =
+    process.platform === "win32" ? await getAvailableWindowsShellOptions() : [];
+  const preferred = next.windowsShell ?? "auto";
+  return c.json({
+    windowsShell: windowsShellOptions.some((option) => option.id === preferred)
+      ? preferred
+      : "auto",
+    windowsShellOptions,
+  });
+});
+
 app.get("/install", async (c) => {
   c.header("Content-Type", "text/event-stream");
   c.header("Cache-Control", "no-cache");
@@ -500,13 +653,17 @@ app.get("/install", async (c) => {
     const send: SendEvent = (event) => {
       try {
         s.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-      } catch { /* stream closed */ }
+      } catch {
+        /* stream closed */
+      }
     };
 
     const keepalive = setInterval(() => {
       try {
         s.write(encoder.encode(": keepalive\n\n"));
-      } catch { /* stream closed */ }
+      } catch {
+        /* stream closed */
+      }
     }, 5000);
 
     try {
