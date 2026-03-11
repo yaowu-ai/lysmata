@@ -419,6 +419,8 @@ export async function deleteProviderSettings(
 }
 
 export interface GatewaySettings {
+  /** "local" = 本地模式；"remote" = 远程模式 */
+  mode: "local" | "remote";
   port: number;
   /** "loopback" = 127.0.0.1（仅本地）；"lan" = 0.0.0.0（局域网共享） */
   bind: "loopback" | "lan";
@@ -428,6 +430,7 @@ export interface GatewaySettings {
 }
 
 export interface GatewayConfigUpdate {
+  mode?: "local" | "remote";
   port?: number;
   bind?: "loopback" | "lan";
   authMode?: "none" | "token";
@@ -439,7 +442,9 @@ export async function readGatewaySettings(): Promise<GatewaySettings> {
   const gw = config?.gateway as Record<string, unknown> | undefined;
   const auth = gw?.auth as { mode?: string; token?: string } | undefined;
   const rawBind = gw?.bind;
+  const rawMode = gw?.mode;
   return {
+    mode: rawMode === "remote" ? "remote" : "local",
     port: typeof gw?.port === "number" ? gw.port : 18789,
     bind: rawBind === "lan" ? "lan" : "loopback",
     authMode: auth?.mode === "token" ? "token" : "none",
@@ -493,6 +498,7 @@ export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<
   delete gw.bindAddress;
   delete gw.autostart;
 
+  if (update.mode !== undefined) updated.gateway.mode = update.mode;
   if (update.port !== undefined) updated.gateway.port = update.port;
   if (update.bind !== undefined) updated.gateway.bind = update.bind;
   if (update.authMode !== undefined || update.authToken !== undefined) {

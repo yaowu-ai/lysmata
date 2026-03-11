@@ -16,17 +16,14 @@
  *   const proc = spawnWithPath([bin, "gateway", "restart"], { stdout: "pipe" });
  */
 
+import { readdirSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { basename, delimiter, dirname, join } from "node:path";
 import { readRuntimePreferences, type WindowsShellPreference } from "./runtime-preferences";
 
 const IS_WINDOWS = process.platform === "win32";
 const PATH_DELIMITER = delimiter;
-const UNIX_EXTRA_DIRS = [
-  "/usr/local/bin",
-  "/opt/homebrew/bin",
-  "/opt/homebrew/sbin",
-];
+const UNIX_EXTRA_DIRS = ["/usr/local/bin", "/opt/homebrew/bin", "/opt/homebrew/sbin"];
 
 export type UserShellKind = "posix" | "powershell" | "cmd";
 
@@ -100,7 +97,9 @@ function normalizeSlashes(input: string): string {
 async function resolveGitBashPath(): Promise<string | null> {
   const candidates = [
     process.env["ProgramFiles"] ? join(process.env["ProgramFiles"], "Git", "bin", "bash.exe") : "",
-    process.env["ProgramFiles(x86)"] ? join(process.env["ProgramFiles(x86)"], "Git", "bin", "bash.exe") : "",
+    process.env["ProgramFiles(x86)"]
+      ? join(process.env["ProgramFiles(x86)"], "Git", "bin", "bash.exe")
+      : "",
     "C:\\Program Files\\Git\\bin\\bash.exe",
     "C:\\Program Files (x86)\\Git\\bin\\bash.exe",
   ].filter(Boolean);
@@ -170,7 +169,12 @@ async function resolveBinaryViaWindowsShell(bin: string): Promise<string | null>
     shell.kind === "cmd"
       ? [shell.executable, "/d", "/s", "/c", `where ${bin}`]
       : shell.kind === "powershell"
-        ? [shell.executable, "-NoLogo", "-Command", `(Get-Command ${bin} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)`]
+        ? [
+            shell.executable,
+            "-NoLogo",
+            "-Command",
+            `(Get-Command ${bin} -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source -First 1)`,
+          ]
         : [shell.executable, "-lc", `command -v ${bin}`];
 
   const proc = Bun.spawn(shellArgs, {
@@ -178,10 +182,7 @@ async function resolveBinaryViaWindowsShell(bin: string): Promise<string | null>
     stderr: "pipe",
     env,
   });
-  const [out, code] = await Promise.all([
-    readSpawnOutput(proc.stdout),
-    proc.exited,
-  ]);
+  const [out, code] = await Promise.all([readSpawnOutput(proc.stdout), proc.exited]);
   const resolved = out
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -216,7 +217,9 @@ async function getManagedBinDirs(home: string): Promise<string[]> {
         home ? join(home, "scoop", "shims") : "",
         process.env.ProgramData ? join(process.env.ProgramData, "chocolatey", "bin") : "",
         process.env.ProgramFiles ? join(process.env.ProgramFiles, "nodejs") : "",
-        process.env["ProgramFiles(x86)"] ? join(process.env["ProgramFiles(x86)"] as string, "nodejs") : "",
+        process.env["ProgramFiles(x86)"]
+          ? join(process.env["ProgramFiles(x86)"] as string, "nodejs")
+          : "",
         home ? join(home, ".openclaw", "bin") : "",
       ]
     : [
@@ -245,6 +248,21 @@ function prependPathEntries(basePath: string, entries: Array<string | undefined>
   return merged.join(PATH_DELIMITER);
 }
 
+function getNvmVersionBinDirsSync(home: string): string[] {
+  if (!home) return [];
+  const root = `${home}/.nvm/versions/node`;
+  try {
+    const entries = readdirSync(root, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort(compareVersionNamesDesc)
+      .map((name) => `${root}/${name}/bin`);
+  } catch {
+    return [];
+  }
+}
+
 /** Build an enriched PATH string by appending common binary directories. */
 export function getEnrichedPath(): string {
   const home = getHomeDir();
@@ -259,7 +277,9 @@ export function getEnrichedPath(): string {
         home ? join(home, "scoop", "shims") : "",
         process.env.ProgramData ? join(process.env.ProgramData, "chocolatey", "bin") : "",
         process.env.ProgramFiles ? join(process.env.ProgramFiles, "nodejs") : "",
-        process.env["ProgramFiles(x86)"] ? join(process.env["ProgramFiles(x86)"] as string, "nodejs") : "",
+        process.env["ProgramFiles(x86)"]
+          ? join(process.env["ProgramFiles(x86)"] as string, "nodejs")
+          : "",
         home ? join(home, ".openclaw", "bin") : "",
       ]
     : [
@@ -271,6 +291,7 @@ export function getEnrichedPath(): string {
         `${home}/.npm-global/bin`,
         `${home}/.openclaw/bin`,
         ...UNIX_EXTRA_DIRS,
+        ...getNvmVersionBinDirsSync(home),
       ];
   const parts = existing.split(PATH_DELIMITER);
   for (const dir of extra) {
@@ -297,10 +318,7 @@ type SpawnOptionsWithEnv = Omit<NonNullable<Parameters<typeof Bun.spawn>[1]>, "e
   env?: Record<string, string>;
 };
 
-export function spawnWithPath(
-  cmd: string[],
-  opts: SpawnOptionsWithEnv = {},
-) {
+export function spawnWithPath(cmd: string[], opts: SpawnOptionsWithEnv = {}) {
   const env = { ...spawnEnv(), ...(opts.env ?? {}) };
   const path = cmd[0]?.startsWith("/")
     ? prependPathEntries(env.PATH ?? "", [dirname(cmd[0])])
@@ -326,10 +344,7 @@ export function resolveUserShell(): UserShell {
   return classifyShell(process.env.SHELL?.trim() || "/bin/sh");
 }
 
-export function spawnInUserShell(
-  command: string,
-  opts: SpawnOptionsWithEnv = {},
-) {
+export function spawnInUserShell(command: string, opts: SpawnOptionsWithEnv = {}) {
   const shell = resolveUserShell();
   const env = { ...spawnEnv(), ...(opts.env ?? {}) };
   const shellArgs =
@@ -359,10 +374,7 @@ async function resolveBinaryWithoutShell(bin: string): Promise<string | null> {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const [out, code] = await Promise.all([
-      readSpawnOutput(proc.stdout),
-      proc.exited,
-    ]);
+    const [out, code] = await Promise.all([readSpawnOutput(proc.stdout), proc.exited]);
     const resolved = out
       .split(/\r?\n/)
       .map((line) => line.trim())

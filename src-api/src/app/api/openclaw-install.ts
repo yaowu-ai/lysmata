@@ -16,13 +16,13 @@ import { readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
 import {
-  resetOpenclawBinCache,
   getAvailableWindowsShellOptions,
+  resetOpenclawBinCache,
   resolveBinary,
   resolveOpenclawBin,
-  type WindowsShellOption,
   spawnInUserShell,
   spawnWithPath,
+  type WindowsShellOption,
 } from "../../shared/openclaw-bin";
 import {
   readRuntimePreferences,
@@ -141,9 +141,7 @@ function compareNodeTooling(a: NodeTooling, b: NodeTooling): number {
 
 async function findSiblingNpm(nodePath: string): Promise<string | undefined> {
   const binDir = dirname(nodePath);
-  const names = process.platform === "win32"
-    ? ["npm.cmd", "npm.exe", "npm"]
-    : ["npm"];
+  const names = process.platform === "win32" ? ["npm.cmd", "npm.exe", "npm"] : ["npm"];
   for (const name of names) {
     const candidate = join(binDir, name);
     if (await fileExists(candidate)) return candidate;
@@ -204,8 +202,9 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
       const versionResult = await exec([nodePath, "--version"]);
       if (versionResult.exitCode !== 0 || !versionResult.stdout) return null;
 
-      const npmPath = (await findSiblingNpm(nodePath))
-        ?? (source === "path" ? pathNpm ?? undefined : undefined);
+      const npmPath =
+        (await findSiblingNpm(nodePath)) ??
+        (source === "path" ? (pathNpm ?? undefined) : undefined);
 
       return {
         nodePath,
@@ -236,8 +235,11 @@ async function resolveNodeTooling(): Promise<NodeTooling | null> {
 async function checkEnvironment(): Promise<EnvCheckResult> {
   const platform = process.platform;
 
-  // Detect OpenClaw
-  const openclawPath = await which("openclaw");
+  // Detect OpenClaw – use resolveOpenclawBin() which scans NVM version dirs,
+  // ~/.openclaw/bin, and other managed locations that plain `which` misses.
+  resetOpenclawBinCache();
+  const resolvedBin = await resolveOpenclawBin();
+  const openclawPath = resolvedBin !== "openclaw" ? resolvedBin : null;
   let openclawVersion: string | undefined;
   if (openclawPath) {
     const r = await exec([openclawPath, "--version"]);
@@ -257,14 +259,16 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
   const hasOpenClaw = !!openclawPath;
   const hasNode = !!nodePath && (nodeMajor ?? 0) >= MIN_NODE_MAJOR;
   const hasNpm = !!npmPath;
-  const windowsShellOptions = platform === "win32"
-    ? await getAvailableWindowsShellOptions()
-    : undefined;
+  const windowsShellOptions =
+    platform === "win32" ? await getAvailableWindowsShellOptions() : undefined;
   const preferences = platform === "win32" ? await readRuntimePreferences() : {};
   const preferredShell = preferences.windowsShell ?? "auto";
-  const windowsShell = platform === "win32"
-    ? (windowsShellOptions?.some((option) => option.id === preferredShell) ? preferredShell : "auto")
-    : undefined;
+  const windowsShell =
+    platform === "win32"
+      ? windowsShellOptions?.some((option) => option.id === preferredShell)
+        ? preferredShell
+        : "auto"
+      : undefined;
 
   let canInstall = true;
   let message = "环境检查通过";
@@ -282,9 +286,10 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     message = "检测到 Node.js 22+，但未找到 npm，请先安装 npm";
   } else if (!hasNode) {
     canInstall = false;
-    message = platform === "win32"
-      ? "未检测到 Node.js 22+，请先安装 Node.js，然后再使用 npm 安装 OpenClaw"
-      : "未检测到 Node.js 22+，请先安装 Node.js";
+    message =
+      platform === "win32"
+        ? "未检测到 Node.js 22+，请先安装 Node.js，然后再使用 npm 安装 OpenClaw"
+        : "未检测到 Node.js 22+，请先安装 Node.js";
   }
 
   return {
@@ -354,20 +359,20 @@ async function runPosixInstallScript(send: SendEvent): Promise<boolean> {
   send({ step: "installing", message: "正在执行官方安装脚本...", progress: 30 });
   send({ log: "$ curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard" });
 
-  const proc = spawnInUserShell("curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard", {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: {
-      NONINTERACTIVE: "1",
+  const proc = spawnInUserShell(
+    "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard",
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        NONINTERACTIVE: "1",
+      },
     },
-  });
+  );
 
   const decoder = new TextDecoder();
 
-  const streamOutput = async (
-    reader: ReadableStream<Uint8Array>,
-    prefix?: string,
-  ) => {
+  const streamOutput = async (reader: ReadableStream<Uint8Array>, prefix?: string) => {
     const r = reader.getReader();
     let buf = "";
     while (true) {
@@ -476,9 +481,10 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
 
     if (!installed) {
       send({
-        error: env.platform === "win32"
-          ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
-          : "自动安装失败。请手动在终端运行：curl -fsSL https://openclaw.ai/install.sh | bash",
+        error:
+          env.platform === "win32"
+            ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
+            : "自动安装失败。请手动在终端运行：curl -fsSL https://openclaw.ai/install.sh | bash",
       });
       return;
     }
@@ -509,12 +515,13 @@ app.get("/check-environment", async (c) => {
 
 app.get("/shell-preferences", async (c) => {
   const preferences = await readRuntimePreferences();
-  const windowsShellOptions = process.platform === "win32"
-    ? await getAvailableWindowsShellOptions()
-    : [];
+  const windowsShellOptions =
+    process.platform === "win32" ? await getAvailableWindowsShellOptions() : [];
   const preferred = preferences.windowsShell ?? "auto";
   return c.json({
-    windowsShell: windowsShellOptions.some((option) => option.id === preferred) ? preferred : "auto",
+    windowsShell: windowsShellOptions.some((option) => option.id === preferred)
+      ? preferred
+      : "auto",
     windowsShellOptions,
   });
 });
@@ -522,12 +529,13 @@ app.get("/shell-preferences", async (c) => {
 app.put("/shell-preferences", async (c) => {
   const body = await c.req.json<{ windowsShell?: WindowsShellPreference }>();
   const next = await writeRuntimePreferences({ windowsShell: body.windowsShell ?? "auto" });
-  const windowsShellOptions = process.platform === "win32"
-    ? await getAvailableWindowsShellOptions()
-    : [];
+  const windowsShellOptions =
+    process.platform === "win32" ? await getAvailableWindowsShellOptions() : [];
   const preferred = next.windowsShell ?? "auto";
   return c.json({
-    windowsShell: windowsShellOptions.some((option) => option.id === preferred) ? preferred : "auto",
+    windowsShell: windowsShellOptions.some((option) => option.id === preferred)
+      ? preferred
+      : "auto",
     windowsShellOptions,
   });
 });
@@ -543,13 +551,17 @@ app.get("/install", async (c) => {
     const send: SendEvent = (event) => {
       try {
         s.write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
-      } catch { /* stream closed */ }
+      } catch {
+        /* stream closed */
+      }
     };
 
     const keepalive = setInterval(() => {
       try {
         s.write(encoder.encode(": keepalive\n\n"));
-      } catch { /* stream closed */ }
+      } catch {
+        /* stream closed */
+      }
     }, 5000);
 
     try {
@@ -581,6 +593,7 @@ app.post("/skills/install", async (c) => {
 
 app.post("/gateway-config", async (c) => {
   const body = await c.req.json<{
+    mode?: "local" | "remote";
     port?: number;
     bind?: "loopback" | "lan";
     authMode?: "none" | "token";

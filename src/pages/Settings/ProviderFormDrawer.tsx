@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { X, ChevronDown, Check, Search, Info, Eye, EyeOff } from "lucide-react";
-import { OPENCLAW_API_TYPES } from "../../shared/types";
+import { OPENCLAW_API_TYPES, OPENCLAW_API_TYPE_LABELS } from "../../shared/types";
 import type { ProviderConfig, OpenClawApiType } from "../../shared/types";
 import { PROVIDER_GROUPS, ALL_PRESETS, findPreset } from "./provider-presets";
 import { useProviderApiKey, useSaveProviderApiKey } from "../../shared/hooks/useLlmSettings";
@@ -487,7 +487,7 @@ export default function ProviderFormDrawer({
                   onChange={(e) => setApiType(e.target.value as OpenClawApiType)}
                 >
                   {OPENCLAW_API_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
+                    <option key={t} value={t}>{OPENCLAW_API_TYPE_LABELS[t]}</option>
                   ))}
                 </select>
               </div>

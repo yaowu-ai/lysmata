@@ -34,6 +34,14 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
+    "windows": {
+      "wix": null,
+      "nsis": {
+        "installerIcon": "icons/icon.ico",
+        "headerImage": null,
+        "sidebarImage": null
+      }
+    },
     "macOS": {
       "minimumSystemVersion": "10.15",
       "entitlements": "Entitlements.plist",

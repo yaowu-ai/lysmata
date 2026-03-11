@@ -1,8 +1,13 @@
 import { Hono } from "hono";
-import type { Agent, AgentBinding, CreateAgentInput, BindAgentInput } from "../../../../src/shared/types";
+import type {
+  Agent,
+  AgentBinding,
+  BindAgentInput,
+  CreateAgentInput,
+} from "../../../../src/shared/types";
+import { updateAgentModel } from "../../core/openclaw-config-file";
 import { AppLogger } from "../../shared/app-logger";
 import { resolveBinary, resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
-import { updateAgentModel } from "../../core/openclaw-config-file";
 
 const app = new Hono();
 
@@ -13,7 +18,11 @@ interface ApiResult<T> {
 }
 
 /**
- * 检查 OpenClaw CLI 是否已安装（使用富化后的 PATH）
+ * Resolve the openclaw binary path, returning null if CLI is not installed.
+ *
+ * Uses resolveOpenclawBin() which does thorough file-existence checks across
+ * NVM version directories, well-known paths, and enriched PATH lookups —
+ * much more reliable than a plain `which openclaw`.
  */
 async function checkOpenClawCli(): Promise<boolean> {
   try {
@@ -21,6 +30,19 @@ async function checkOpenClawCli(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+async function requireOpenClawBin(): Promise<string | null> {
+  const bin = await resolveOpenclawBin();
+  if (bin) return bin;
+  // Bare "openclaw" means no installation was found — reset the cache so the
+  // next request re-probes (the user may install between requests).
+  // resetOpenclawBinCache();
+  AppLogger.warn("openclaw CLI not found", {
+    resolvedBin: bin,
+    PATH: process.env.PATH?.substring(0, 200),
+    HOME: process.env.HOME,
+  });
+  return null;
 }
 
 /**
@@ -121,14 +143,14 @@ function parseBindings(output: string): AgentBinding[] {
  */
 app.get("/", async (c) => {
   try {
-    if (!(await checkOpenClawCli())) {
+    const bin = await requireOpenClawBin();
+    if (!bin) {
       return c.json<ApiResult<Agent[]>>({
         success: false,
         message: "openclaw CLI 未安装，请先安装 OpenClaw",
       });
     }
 
-    const bin = await resolveOpenclawBin();
     const proc = spawnWithPath([bin, "agents", "list"], {
       stdout: "pipe",
       stderr: "pipe",
@@ -165,14 +187,14 @@ app.get("/", async (c) => {
  */
 app.get("/bindings", async (c) => {
   try {
-    if (!(await checkOpenClawCli())) {
+    const bin = await requireOpenClawBin();
+    if (!bin) {
       return c.json<ApiResult<AgentBinding[]>>({
         success: false,
         message: "openclaw CLI 未安装",
       });
     }
 
-    const bin = await resolveOpenclawBin();
     const proc = spawnWithPath([bin, "agents", "bindings"], {
       stdout: "pipe",
       stderr: "pipe",
@@ -209,9 +231,9 @@ app.get("/bindings", async (c) => {
  */
 app.post("/", async (c) => {
   try {
-    const cliAvailable = await checkOpenClawCli();
-    AppLogger.info("agent.create: CLI check", { cliAvailable });
-    if (!cliAvailable) {
+    const bin = await requireOpenClawBin();
+    AppLogger.info("agent.create: CLI check", { cliAvailable: !!bin, resolvedBin: bin });
+    if (!bin) {
       AppLogger.error("agent.create: openclaw CLI not found");
       return c.json<ApiResult<void>>({ success: false, message: "openclaw CLI 未安装" });
     }
@@ -230,7 +252,6 @@ app.post("/", async (c) => {
       return c.json<ApiResult<void>>({ success: false, message: "Agent ID 不能为空" });
     }
 
-    const bin = await resolveOpenclawBin();
     const args = [bin, "agents", "add", input.name];
     // --json 触发非交互模式，此模式强制要求 --workspace；用户未填时使用默认路径
     const homeDir = process.env.HOME ?? process.env.USERPROFILE ?? "~";
@@ -299,25 +320,21 @@ app.patch("/:id", async (c) => {
  */
 app.delete("/:id", async (c) => {
   try {
-    if (!(await checkOpenClawCli())) {
+    const id = c.req.param("id");
+
+    const bin = await resolveOpenclawBin();
+    if (!bin) {
       return c.json<ApiResult<void>>({
         success: false,
         message: "openclaw CLI 未安装",
       });
     }
-
-    const id = c.req.param("id");
-
-    const bin = await resolveOpenclawBin();
     const proc = spawnWithPath([bin, "agents", "delete", id, "--force", "--json"], {
       stdout: "pipe",
       stderr: "pipe",
     });
 
-    const [stderr, exitCode] = await Promise.all([
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const [stderr, exitCode] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
 
     if (exitCode !== 0) {
       return c.json<ApiResult<void>>({
@@ -343,7 +360,8 @@ app.delete("/:id", async (c) => {
  */
 app.post("/:id/bind", async (c) => {
   try {
-    if (!(await checkOpenClawCli())) {
+    const bin = await requireOpenClawBin();
+    if (!bin) {
       return c.json<ApiResult<void>>({
         success: false,
         message: "openclaw CLI 未安装",
@@ -371,10 +389,7 @@ app.post("/:id/bind", async (c) => {
       stderr: "pipe",
     });
 
-    const [stderr, exitCode] = await Promise.all([
-      new Response(proc.stderr).text(),
-      proc.exited,
-    ]);
+    const [stderr, exitCode] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
 
     if (exitCode !== 0) {
       return c.json<ApiResult<void>>({

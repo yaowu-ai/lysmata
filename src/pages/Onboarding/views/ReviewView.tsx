@@ -32,6 +32,7 @@ export function ReviewView({ skippedSteps, onRegisterSubmit, onDone }: Props) {
   // Build diff lines from real backend data
   const diffLines: { key: string; value: string }[] = [];
   if (gatewaySettings) {
+    diffLines.push({ key: "gateway.mode", value: gatewaySettings.mode });
     diffLines.push({ key: "gateway.port", value: String(gatewaySettings.port) });
     diffLines.push({ key: "gateway.bind", value: gatewaySettings.bind });
     diffLines.push({ key: "gateway.auth.mode", value: gatewaySettings.authMode });

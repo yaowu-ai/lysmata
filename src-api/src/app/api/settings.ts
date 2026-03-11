@@ -80,6 +80,7 @@ settings.get("/gateway", async (c) => {
 });
 
 const gatewayUpdateSchema = z.object({
+  mode: z.enum(["local", "remote"]).optional(),
   port: z.number().int().min(1024).max(65535).optional(),
   bind: z.enum(["loopback", "lan"]).optional(),
   authMode: z.enum(["none", "token"]).optional(),

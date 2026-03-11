@@ -87,6 +87,8 @@ export interface SendMessageInput {
 
 // ── Gateway Settings ─────────────────────────────────────────────
 export interface GatewaySettings {
+  /** "local" = 本地模式；"remote" = 远程模式 */
+  mode: "local" | "remote";
   port: number;
   /** "loopback" = 127.0.0.1（仅本地）；"lan" = 0.0.0.0（局域网共享） */
   bind: "loopback" | "lan";
@@ -126,6 +128,17 @@ export const OPENCLAW_API_TYPES = [
 ] as const;
 
 export type OpenClawApiType = (typeof OPENCLAW_API_TYPES)[number];
+
+export const OPENCLAW_API_TYPE_LABELS: Record<OpenClawApiType, string> = {
+  "openai-completions": "OpenAI Completions",
+  "openai-responses": "OpenAI Responses",
+  "openai-codex-responses": "OpenAI Codex Responses",
+  "anthropic-messages": "Anthropic Messages",
+  "google-generative-ai": "Google Generative AI",
+  "github-copilot": "GitHub Copilot",
+  "bedrock-converse-stream": "Bedrock Converse Stream",
+  "ollama": "Ollama",
+};
 
 export interface ProviderModel {
   id: string;

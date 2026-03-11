@@ -3,6 +3,8 @@ import { Eye, EyeOff, Info } from "lucide-react";
 import { apiClient } from "../../../shared/api-client";
 import { useLlmSettings, useProviderApiKey, useSaveProviderApiKey } from "../../../shared/hooks/useLlmSettings";
 import { PROVIDER_GROUPS, ALL_PRESETS, findPreset } from "../../Settings/provider-presets";
+import { OPENCLAW_API_TYPES, OPENCLAW_API_TYPE_LABELS } from "../../../shared/types";
+import type { OpenClawApiType } from "../../../shared/types";
 
 const MASKED_PLACEHOLDER = "•••••••••••";
 
@@ -60,7 +62,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   const [cName, setCName] = useState("");
   const [cApiKey, setCApiKey] = useState("");
   const [showCApiKey, setShowCApiKey] = useState(false);
-  const [cApi, setCApi] = useState<"openai-completions" | "anthropic-messages">("openai-completions");
+  const [cApi, setCApi] = useState<OpenClawApiType>("openai-completions");
   const [errors, setErrors] = useState<Record<string, boolean>>({});
   const [initialized, setInitialized] = useState(false);
 
@@ -93,7 +95,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
             setActiveTab("custom");
             setCId(provider);
             setCUrl(providerConfig.baseUrl ?? "");
-            setCApi((providerConfig.api as "openai-completions" | "anthropic-messages") ?? "openai-completions");
+            setCApi((providerConfig.api as OpenClawApiType) ?? "openai-completions");
             if (providerConfig.apiKey) setCApiKey(MASKED_PLACEHOLDER);
             const firstModel = providerConfig.models?.[0];
             if (firstModel) { setCModel(firstModel.id); setCName(firstModel.name ?? ""); }
@@ -305,7 +307,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
                   id: p.id,
                   url: p.baseUrl ?? "",
                   model: p.models[0]?.id ?? "",
-                  api: (p.api ?? "openai-completions") as "openai-completions" | "anthropic-messages",
+                  api: (p.api ?? "openai-completions") as OpenClawApiType,
                 })),
               ]
                 .filter((t, i, arr) => arr.findIndex((x) => x.id === t.id) === i)
@@ -401,11 +403,12 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
               <label className="block text-[13px] font-medium mb-1.5">API 类型</label>
               <select
                 value={cApi}
-                onChange={(e) => setCApi(e.target.value as "openai-completions" | "anthropic-messages")}
-                className="w-full px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none"
+                onChange={(e) => setCApi(e.target.value as OpenClawApiType)}
+                className="w-full h-[38px] px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#93C5FD]"
               >
-                <option value="openai-completions">OpenAI Compatible</option>
-                <option value="anthropic-messages">Anthropic Compatible</option>
+                {OPENCLAW_API_TYPES.map((t) => (
+                  <option key={t} value={t}>{OPENCLAW_API_TYPE_LABELS[t]}</option>
+                ))}
               </select>
             </div>
           </div>
