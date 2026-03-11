@@ -9,6 +9,7 @@ export function GatewayConfigSection() {
   const toast = useToast();
 
   const [form, setForm] = useState({
+    mode: "local" as "local" | "remote",
     port: 18789,
     bind: "loopback" as "loopback" | "lan",
     authMode: "token" as "none" | "token",
@@ -22,6 +23,7 @@ export function GatewayConfigSection() {
   useEffect(() => {
     if (settings) {
       setForm({
+        mode: settings.mode,
         port: settings.port,
         bind: settings.bind,
         authMode: settings.authMode,
@@ -37,6 +39,7 @@ export function GatewayConfigSection() {
       return;
     }
     const changed =
+      form.mode !== settings.mode ||
       form.port !== settings.port ||
       form.bind !== settings.bind ||
       form.authMode !== settings.authMode ||
@@ -70,6 +73,19 @@ export function GatewayConfigSection() {
       <p className="text-[13px] text-[#64748B] mb-4">
         修改 OpenClaw Gateway 的端口、认证模式等参数
       </p>
+
+      {/* 运行模式 */}
+      <div className="mb-4">
+        <label className="block text-[13px] font-medium mb-2 text-[#0F172A]">运行模式</label>
+        <select
+          value={form.mode}
+          onChange={(e) => setForm({ ...form, mode: e.target.value as "local" | "remote" })}
+          className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg bg-white cursor-pointer focus:outline-none focus:border-[#2563EB] transition-colors"
+        >
+          <option value="local">local（本地模式）</option>
+          <option value="remote">remote（远程模式）</option>
+        </select>
+      </div>
 
       {/* 端口输入框 */}
       <div className="mb-4">

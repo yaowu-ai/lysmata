@@ -10,6 +10,7 @@ interface Props {
 export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
   const { data: existing, isLoading } = useGatewaySettings();
 
+  const [mode, setMode] = useState<"local" | "remote">("local");
   const [port, setPort] = useState(18789);
   const [bind, setBind] = useState<"loopback" | "lan">("loopback");
   const [authMode, setAuthMode] = useState<"none" | "token">("none");
@@ -19,6 +20,7 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
   // Prefill from backend on first load
   useEffect(() => {
     if (existing && !initialized) {
+      setMode(existing.mode);
       setPort(existing.port);
       setBind(existing.bind);
       setAuthMode(existing.authMode);
@@ -29,6 +31,7 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
 
   async function handleSave() {
     await apiClient.post("/openclaw/gateway-config", {
+      mode,
       port,
       bind,
       authMode,
@@ -77,6 +80,21 @@ export function GatewayConfigView({ onRegisterSubmit, onDone }: Props) {
           已加载当前配置，你可以在此基础上修改
         </div>
       )}
+
+      <div className="mb-[18px]">
+        <label className="block text-[13px] font-medium mb-1.5">运行模式</label>
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value as "local" | "remote")}
+          className="w-full px-3 py-[9px] text-sm border border-[#E5E7EB] rounded-lg bg-white outline-none focus:border-[#93C5FD] appearance-none"
+        >
+          <option value="local">local（本地模式，推荐）</option>
+          <option value="remote">remote（远程模式）</option>
+        </select>
+        <p className="text-xs text-[#64748B] mt-1">
+          桌面使用选 local；连接远程 Gateway 选 remote
+        </p>
+      </div>
 
       <div className="flex gap-4 mb-[18px]">
         <div className="flex-1">

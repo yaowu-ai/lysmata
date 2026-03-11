@@ -534,6 +534,7 @@ app.post("/skills/install", async (c) => {
 
 app.post("/gateway-config", async (c) => {
   const body = await c.req.json<{
+    mode?: "local" | "remote";
     port?: number;
     bind?: "loopback" | "lan";
     authMode?: "none" | "token";

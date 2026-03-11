@@ -87,6 +87,8 @@ export interface SendMessageInput {
 
 // ── Gateway Settings ─────────────────────────────────────────────
 export interface GatewaySettings {
+  /** "local" = 本地模式；"remote" = 远程模式 */
+  mode: "local" | "remote";
   port: number;
   /** "loopback" = 127.0.0.1（仅本地）；"lan" = 0.0.0.0（局域网共享） */
   bind: "loopback" | "lan";
