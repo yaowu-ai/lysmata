@@ -107,10 +107,10 @@ bots.get("/:id/remote-config", async (c) => {
 bots.post("/:id/test-connection", async (c) => {
   const bot = BotService.findById(c.req.param("id"));
   if (!bot) throw notFound("Bot");
-  const result = await OpenClawProxy.testConnection(
-    bot.openclaw_ws_url,
-    bot.openclaw_ws_token ?? undefined,
-  );
+  const body = await c.req.json().catch(() => ({}));
+  const url = body.openclaw_ws_url || bot.openclaw_ws_url;
+  const token = body.openclaw_ws_token ?? bot.openclaw_ws_token ?? undefined;
+  const result = await OpenClawProxy.testConnection(url, token);
   BotService.updateStatus(bot.id, result.success ? "connected" : "error");
   return c.json(result);
 });

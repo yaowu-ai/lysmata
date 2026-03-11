@@ -74,11 +74,17 @@ export function useDeleteBot() {
 
 export function useTestBotConnection() {
   return useMutation({
-    mutationFn: (id: string) =>
-      apiClient.post<{ success: boolean; message: string; rttMs?: number }>(
+    mutationFn: (params: {
+      id: string;
+      openclaw_ws_url?: string;
+      openclaw_ws_token?: string;
+    }) => {
+      const { id, ...body } = params;
+      return apiClient.post<{ success: boolean; message: string; rttMs?: number }>(
         `/bots/${id}/test-connection`,
-        {},
-      ),
+        body,
+      );
+    },
   });
 }
 
