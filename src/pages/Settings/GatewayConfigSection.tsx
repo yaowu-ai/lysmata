@@ -3,6 +3,10 @@ import { useGatewaySettings, useUpdateGatewaySettings } from "../../shared/hooks
 import { useToast } from "../../components/Toast";
 import { apiClient } from "../../shared/api-client";
 
+function generateToken(): string {
+  return crypto.randomUUID();
+}
+
 export function GatewayConfigSection() {
   const { data: settings } = useGatewaySettings();
   const updateMut = useUpdateGatewaySettings();
@@ -116,7 +120,14 @@ export function GatewayConfigSection() {
         <label className="block text-[13px] font-medium mb-2 text-[#0F172A]">认证模式</label>
         <select
           value={form.authMode}
-          onChange={(e) => setForm({ ...form, authMode: e.target.value as "none" | "token" })}
+          onChange={(e) => {
+            const mode = e.target.value as "none" | "token";
+            setForm({
+              ...form,
+              authMode: mode,
+              ...(mode === "token" && !form.authToken && { authToken: generateToken() }),
+            });
+          }}
           className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg bg-white cursor-pointer focus:outline-none focus:border-[#2563EB] transition-colors"
         >
           <option value="token">Token</option>
@@ -128,12 +139,24 @@ export function GatewayConfigSection() {
       {form.authMode === "token" && (
         <div className="mb-4">
           <label className="block text-[13px] font-medium mb-2 text-[#0F172A]">认证 Token</label>
-          <input
-            type="text"
-            value={form.authToken}
-            onChange={(e) => setForm({ ...form, authToken: e.target.value })}
-            className="w-full px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:border-[#2563EB] transition-colors"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={form.authToken}
+              onChange={(e) => setForm({ ...form, authToken: e.target.value })}
+              className="flex-1 px-3 py-2 text-[14px] border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:border-[#2563EB] transition-colors font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, authToken: generateToken() })}
+              title="重新生成 Token"
+              className="shrink-0 px-3 py-2 rounded-lg text-[13px] font-medium border border-[#E5E7EB] text-[#374151] bg-white hover:bg-[#F9FAFB] hover:border-[#D1D5DB] transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.451a.75.75 0 000-1.5H4.5a.75.75 0 00-.75.75v3.75a.75.75 0 001.5 0v-2.033a7 7 0 0011.712-3.138.75.75 0 00-1.449-.394zm1.437-5.174a.75.75 0 00-.75-.75h-.009a7 7 0 00-11.712 3.138.75.75 0 001.45.394A5.5 5.5 0 0114.888 6.42l.312.311h-2.451a.75.75 0 000 1.5H16.5a.75.75 0 00.75-.75V3.75a.75.75 0 00-.75-.75h-.001z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 

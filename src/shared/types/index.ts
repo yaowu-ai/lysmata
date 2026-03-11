@@ -129,6 +129,17 @@ export const OPENCLAW_API_TYPES = [
 
 export type OpenClawApiType = (typeof OPENCLAW_API_TYPES)[number];
 
+export const OPENCLAW_API_TYPE_LABELS: Record<OpenClawApiType, string> = {
+  "openai-completions": "OpenAI Completions",
+  "openai-responses": "OpenAI Responses",
+  "openai-codex-responses": "OpenAI Codex Responses",
+  "anthropic-messages": "Anthropic Messages",
+  "google-generative-ai": "Google Generative AI",
+  "github-copilot": "GitHub Copilot",
+  "bedrock-converse-stream": "Bedrock Converse Stream",
+  "ollama": "Ollama",
+};
+
 export interface ProviderModel {
   id: string;
   name: string;
