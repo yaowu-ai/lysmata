@@ -29,6 +29,7 @@ import {
   writeRuntimePreferences,
   type WindowsShellPreference,
 } from "../../shared/runtime-preferences";
+import { AppLogger } from "../../shared/app-logger";
 
 const app = new Hono();
 const MIN_NODE_MAJOR = 22;
@@ -168,6 +169,16 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   const pathNode = await which("node");
   const pathNpm = await which("npm");
+  
+  // 记录初始检测结果
+  AppLogger.info("开始检测 Node.js 工具链", {
+    module: "inspectNodeTooling",
+    home,
+    pathNode,
+    pathNpm,
+    platform: process.platform,
+  });
+
   const candidates: Array<Pick<NodeTooling, "nodePath" | "source" | "priority">> = [];
   const seen = new Set<string>();
   const add = (nodePath: string | null | undefined, source: string, priority: number) => {
@@ -196,17 +207,43 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
     add(nodePath, "nvm-version", 25);
   }
 
+  // 记录所有候选路径
+  AppLogger.info("Node.js 候选路径", {
+    module: "inspectNodeTooling",
+    candidateCount: candidates.length,
+    candidates: candidates.map(c => ({ path: c.nodePath, source: c.source, priority: c.priority })),
+  });
+
   const inspected = await Promise.all(
     candidates.map(async ({ nodePath, source, priority }) => {
-      if (!(await fileExists(nodePath))) return null;
+      if (!(await fileExists(nodePath))) {
+        AppLogger.info("候选路径不存在", {
+          module: "inspectNodeTooling",
+          nodePath,
+          source,
+          priority,
+        });
+        return null;
+      }
+      
       const versionResult = await exec([nodePath, "--version"]);
-      if (versionResult.exitCode !== 0 || !versionResult.stdout) return null;
+      if (versionResult.exitCode !== 0 || !versionResult.stdout) {
+        AppLogger.warn("无法获取 Node.js 版本", {
+          module: "inspectNodeTooling",
+          nodePath,
+          source,
+          priority,
+          exitCode: versionResult.exitCode,
+          stderr: versionResult.stderr,
+        });
+        return null;
+      }
 
       const npmPath =
         (await findSiblingNpm(nodePath)) ??
         (source === "path" ? (pathNpm ?? undefined) : undefined);
 
-      return {
+      const tooling = {
         nodePath,
         nodeVersion: versionResult.stdout,
         nodeMajor: parseNodeMajor(versionResult.stdout),
@@ -214,6 +251,13 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
         source,
         priority,
       } satisfies NodeTooling;
+
+      AppLogger.info("检测到 Node.js 工具", {
+        module: "inspectNodeTooling",
+        ...tooling,
+      });
+
+      return tooling;
     }),
   );
 
@@ -221,6 +265,23 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
   for (const item of inspected) {
     if (item) filtered.push(item);
   }
+
+  // 记录最终结果
+  AppLogger.info("Node.js 工具链检测完成", {
+    module: "inspectNodeTooling",
+    totalCandidates: candidates.length,
+    validTools: filtered.length,
+    tools: filtered.map(t => ({
+      path: t.nodePath,
+      version: t.nodeVersion,
+      major: t.nodeMajor,
+      source: t.source,
+      priority: t.priority,
+      hasNpm: !!t.npmPath,
+    })),
+    sortedOrder: filtered.sort(compareNodeTooling).map(t => t.source),
+  });
+
   return filtered.sort(compareNodeTooling);
 }
 
@@ -229,11 +290,42 @@ async function resolveNodeTooling(): Promise<NodeTooling | null> {
   const compatible = inspected.filter(
     (candidate) => (candidate.nodeMajor ?? 0) >= MIN_NODE_MAJOR && candidate.npmPath,
   );
-  return compatible[0] ?? inspected[0] ?? null;
+  
+  const result = compatible[0] ?? inspected[0] ?? null;
+  
+  AppLogger.info("解析 Node.js 工具链结果", {
+    module: "resolveNodeTooling",
+    totalInspected: inspected.length,
+    compatibleCount: compatible.length,
+    minNodeMajor: MIN_NODE_MAJOR,
+    selectedTool: result ? {
+      path: result.nodePath,
+      version: result.nodeVersion,
+      major: result.nodeMajor,
+      source: result.source,
+      hasNpm: !!result.npmPath,
+    } : null,
+    allTools: inspected.map(t => ({
+      path: t.nodePath,
+      version: t.nodeVersion,
+      major: t.nodeMajor,
+      source: t.source,
+      hasNpm: !!t.npmPath,
+      priority: t.priority,
+    })),
+  });
+  
+  return result;
 }
 
 async function checkEnvironment(): Promise<EnvCheckResult> {
   const platform = process.platform;
+  
+  AppLogger.info("开始环境检查", {
+    module: "checkEnvironment",
+    platform,
+    minNodeMajor: MIN_NODE_MAJOR,
+  });
 
   // Detect OpenClaw – use resolveOpenclawBin() which scans NVM version dirs,
   // ~/.openclaw/bin, and other managed locations that plain `which` misses.
@@ -292,7 +384,7 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
         : "未检测到 Node.js 22+，请先安装 Node.js";
   }
 
-  return {
+  const result = {
     canInstall,
     message,
     hasOpenClaw,
@@ -309,6 +401,16 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     windowsShell,
     windowsShellOptions,
   };
+
+  AppLogger.info("环境检查完成", {
+    module: "checkEnvironment",
+    ...result,
+    processEnvPath: process.env.PATH,
+    processEnvHome: process.env.HOME,
+    processEnvUser: process.env.USER,
+  });
+
+  return result;
 }
 
 // ── Install logic ────────────────────────────────────────────────────────────

@@ -20,6 +20,7 @@ import { readdirSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { basename, delimiter, dirname, join } from "node:path";
 import { readRuntimePreferences, type WindowsShellPreference } from "./runtime-preferences";
+import { AppLogger } from "./app-logger";
 
 const IS_WINDOWS = process.platform === "win32";
 const PATH_DELIMITER = delimiter;
@@ -344,6 +345,25 @@ export function resolveUserShell(): UserShell {
   return classifyShell(process.env.SHELL?.trim() || "/bin/sh");
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+function getShellBootstrapEnv(shellExecutable: string): Record<string, string> {
+  const home = getHomeDir();
+  const username = process.env.USER || process.env.LOGNAME || "unknown";
+  return sanitizeEnv({
+    HOME: home,
+    USER: username,
+    LOGNAME: process.env.LOGNAME || username,
+    SHELL: shellExecutable,
+    LANG: process.env.LANG || "en_US.UTF-8",
+    LC_ALL: process.env.LC_ALL,
+    TERM: process.env.TERM || "xterm-256color",
+    PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+  });
+}
+
 export function spawnInUserShell(command: string, opts: SpawnOptionsWithEnv = {}) {
   const shell = resolveUserShell();
   const env = { ...spawnEnv(), ...(opts.env ?? {}) };
@@ -440,70 +460,30 @@ export function resetOpenclawBinCache(): void {
   _openclawBin = null;
 }
 /**
- * Get user's default shell information including config files
+ * Get user's default shell information and startup strategy.
+ * We prefer interactive+login startup to mimic launching a real terminal tab/window.
  */
 function getUserShellInfo(): {
   executable: string;
   kind: UserShellKind;
-  configFiles: string[];
-  sourceCommand: string;
+  probeArgs: string[][];
+  bootstrapEnv: Record<string, string>;
+  shellName: string;
 } {
   const explicit = process.env.LYSMATA_SHELL?.trim();
   const shell = explicit || process.env.SHELL?.trim() || (IS_WINDOWS ? "cmd.exe" : "/bin/bash");
   const shellInfo = classifyShell(shell);
-  const home = getHomeDir();
-
-  // Determine config files based on shell type
-  let configFiles: string[] = [];
   const shellName = basename(shell).toLowerCase();
-
-  if (shellName.includes("zsh")) {
-    configFiles = [
-      `${home}/.zshrc`,
-      `${home}/.zprofile`,
-      `${home}/.zlogin`,
-      `${home}/.zshenv`,
-      `${home}/.profile`
-    ];
-  } else if (shellName.includes("bash")) {
-    configFiles = [
-      `${home}/.bashrc`,
-      `${home}/.bash_profile`,
-      `${home}/.profile`,
-      `${home}/.bash_login`
-    ];
-  } else if (shellName.includes("fish")) {
-    configFiles = [
-      `${home}/.config/fish/config.fish`,
-      `${home}/.config/fish/conf.d/*.fish`
-    ];
-  } else {
-    // Default POSIX shell
-    configFiles = [`${home}/.profile`];
-  }
-
-  // Build source command
-  let sourceCommand = "";
-  if (shellName.includes("zsh") || shellName.includes("bash")) {
-    // For bash/zsh, source all config files that exist
-    const sourceFiles = configFiles
-      .filter(file => !file.includes("*")) // Skip glob patterns
-      .map(file => `[ -f "${file}" ] && source "${file}" 2>/dev/null;`)
-      .join(" ");
-    sourceCommand = `${sourceFiles} command -v`;
-  } else if (shellName.includes("fish")) {
-    // For fish, use source command
-    sourceCommand = `source ${home}/.config/fish/config.fish 2>/dev/null; command -v`;
-  } else {
-    // For other shells, just use command -v
-    sourceCommand = "command -v";
-  }
+  const probeArgs = shellName.includes("fish")
+    ? [["-lic"], ["-lc"], ["-c"]]
+    : [["-ilc"], ["-lc"], ["-c"]];
 
   return {
     executable: shell,
     kind: shellInfo.kind,
-    configFiles,
-    sourceCommand
+    probeArgs,
+    bootstrapEnv: getShellBootstrapEnv(shell),
+    shellName,
   };
 }
 
@@ -519,28 +499,76 @@ async function resolveBinaryViaShellEnv(bin: string): Promise<string | null> {
 
   try {
     const shellInfo = getUserShellInfo();
-    const { executable, sourceCommand } = shellInfo;
+    const { executable, probeArgs, bootstrapEnv, shellName } = shellInfo;
+    const command = `command -v -- ${shellQuote(bin)}`;
 
-    // Build the command to execute in user's shell
-    const command = `${sourceCommand} ${bin}`;
-
-    const proc = Bun.spawn([executable, "-c", command], {
-      stdout: "pipe",
-      stderr: "pipe",
-      env: spawnEnv()
+    // 调试日志：记录 shell 信息和环境变量
+    AppLogger.info(`查找二进制文件: ${bin}`, {
+      module: "resolveBinaryViaShellEnv",
+      binary: bin,
+      shell: executable,
+      shellName,
+      fullCommand: command,
+      probeModes: probeArgs.map((args) => args[0]),
+      bootstrapPath: bootstrapEnv.PATH,
+      home: bootstrapEnv.HOME,
     });
 
-    const [out, code] = await Promise.all([readSpawnOutput(proc.stdout), proc.exited]);
-    const resolved = out
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .find(Boolean);
+    for (const args of probeArgs) {
+      const proc = Bun.spawn([executable, ...args, command], {
+        stdout: "pipe",
+        stderr: "pipe",
+        env: bootstrapEnv,
+      });
+      const [out, err, code] = await Promise.all([
+        readSpawnOutput(proc.stdout),
+        readSpawnOutput(proc.stderr),
+        proc.exited,
+      ]);
+      const lines = out
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const resolved = lines.find((line) => line.startsWith("/")) ?? lines[0];
 
-    if (code === 0 && resolved) {
-      return resolved;
+      if (code === 0 && resolved) {
+        AppLogger.info(`找到二进制文件: ${resolved}`, {
+          module: "resolveBinaryViaShellEnv",
+          binary: bin,
+          resolvedPath: resolved,
+          probeMode: args[0],
+          exitCode: code,
+          stdoutPreview: out.substring(0, 200),
+          stderrPreview: err.substring(0, 200),
+        });
+        return resolved;
+      }
+
+      AppLogger.warn(`探测模式未找到二进制文件 ${bin}`, {
+        module: "resolveBinaryViaShellEnv",
+        binary: bin,
+        probeMode: args[0],
+        exitCode: code,
+        stdout: out,
+        stderr: err,
+        shell: executable,
+        command,
+      });
     }
-  } catch {
-    // ignore errors
+
+    AppLogger.warn(`未找到二进制文件 ${bin}`, {
+      module: "resolveBinaryViaShellEnv",
+      binary: bin,
+      shell: executable,
+      triedProbeModes: probeArgs.map((args) => args[0]),
+    });
+  } catch (error) {
+    AppLogger.error(`执行出错`, {
+      module: "resolveBinaryViaShellEnv",
+      binary: bin,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
   }
 
   return null;
