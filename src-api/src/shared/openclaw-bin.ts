@@ -16,6 +16,7 @@
  *   const proc = spawnWithPath([bin, "gateway", "restart"], { stdout: "pipe" });
  */
 
+import { readdirSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { dirname } from "node:path";
 
@@ -91,6 +92,21 @@ function prependPathEntries(basePath: string, entries: Array<string | undefined>
   return merged.join(":");
 }
 
+function getNvmVersionBinDirsSync(home: string): string[] {
+  if (!home) return [];
+  const root = `${home}/.nvm/versions/node`;
+  try {
+    const entries = readdirSync(root, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort(compareVersionNamesDesc)
+      .map((name) => `${root}/${name}/bin`);
+  } catch {
+    return [];
+  }
+}
+
 /** Build an enriched PATH string by appending common binary directories. */
 export function getEnrichedPath(): string {
   const home = process.env.HOME ?? "";
@@ -104,6 +120,7 @@ export function getEnrichedPath(): string {
     `${home}/.npm-global/bin`,
     `${home}/.openclaw/bin`,
     ...EXTRA_DIRS,
+    ...getNvmVersionBinDirsSync(home),
   ];
   const parts = existing.split(":");
   for (const dir of extra) {

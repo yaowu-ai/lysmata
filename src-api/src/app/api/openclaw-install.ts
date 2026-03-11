@@ -15,7 +15,7 @@ import { stream } from "hono/streaming";
 import { readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
-import { resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
+import { resetOpenclawBinCache, resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
 
 const app = new Hono();
 const MIN_NODE_MAJOR = 22;
@@ -226,8 +226,11 @@ async function resolveNodeTooling(): Promise<NodeTooling | null> {
 async function checkEnvironment(): Promise<EnvCheckResult> {
   const platform = process.platform;
 
-  // Detect OpenClaw
-  const openclawPath = await which("openclaw");
+  // Detect OpenClaw – use resolveOpenclawBin() which scans NVM version dirs,
+  // ~/.openclaw/bin, and other managed locations that plain `which` misses.
+  resetOpenclawBinCache();
+  const resolvedBin = await resolveOpenclawBin();
+  const openclawPath = resolvedBin !== "openclaw" ? resolvedBin : null;
   let openclawVersion: string | undefined;
   if (openclawPath) {
     const r = await exec([openclawPath, "--version"]);
