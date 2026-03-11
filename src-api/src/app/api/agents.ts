@@ -7,7 +7,7 @@ import type {
 } from "../../../../src/shared/types";
 import { updateAgentModel } from "../../core/openclaw-config-file";
 import { AppLogger } from "../../shared/app-logger";
-import { resolveBinary, resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
+import { resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
 
 const app = new Hono();
 
@@ -17,20 +17,6 @@ interface ApiResult<T> {
   message?: string;
 }
 
-/**
- * Resolve the openclaw binary path, returning null if CLI is not installed.
- *
- * Uses resolveOpenclawBin() which does thorough file-existence checks across
- * NVM version directories, well-known paths, and enriched PATH lookups —
- * much more reliable than a plain `which openclaw`.
- */
-async function checkOpenClawCli(): Promise<boolean> {
-  try {
-    return !!(await resolveBinary("openclaw"));
-  } catch {
-    return false;
-  }
-}
 async function requireOpenClawBin(): Promise<string | null> {
   const bin = await resolveOpenclawBin();
   if (bin) return bin;
@@ -137,6 +123,15 @@ function parseBindings(output: string): AgentBinding[] {
 
   return bindings;
 }
+/**
+ * 读取流或文件描述符为文本
+ */
+async function readStreamAsText(stream: number | ReadableStream<Uint8Array> | undefined): Promise<string> {
+  if (!stream || typeof stream === "number") {
+    return "";
+  }
+  return await new Response(stream).text();
+}
 
 /**
  * GET /agents - 列出所有 Agent
@@ -157,8 +152,8 @@ app.get("/", async (c) => {
     });
 
     const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
+      readStreamAsText(proc.stdout),
+      readStreamAsText(proc.stderr),
       proc.exited,
     ]);
 
@@ -201,8 +196,8 @@ app.get("/bindings", async (c) => {
     });
 
     const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
+      readStreamAsText(proc.stdout),
+      readStreamAsText(proc.stderr),
       proc.exited,
     ]);
 
@@ -269,8 +264,8 @@ app.post("/", async (c) => {
     const proc = spawnWithPath(args, { stdout: "pipe", stderr: "pipe" });
 
     const [stdout, stderr, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      new Response(proc.stderr).text(),
+      readStreamAsText(proc.stdout),
+      readStreamAsText(proc.stderr),
       proc.exited,
     ]);
 
@@ -334,7 +329,7 @@ app.delete("/:id", async (c) => {
       stderr: "pipe",
     });
 
-    const [stderr, exitCode] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+    const [stderr, exitCode] = await Promise.all([readStreamAsText(proc.stderr), proc.exited]);
 
     if (exitCode !== 0) {
       return c.json<ApiResult<void>>({
@@ -378,7 +373,6 @@ app.post("/:id/bind", async (c) => {
       });
     }
 
-    const bin = await resolveOpenclawBin();
     const args = [bin, "agents", "bind", "--agent", id];
     for (const binding of input.bindings) {
       args.push("--bind", binding);
@@ -389,7 +383,7 @@ app.post("/:id/bind", async (c) => {
       stderr: "pipe",
     });
 
-    const [stderr, exitCode] = await Promise.all([new Response(proc.stderr).text(), proc.exited]);
+    const [stderr, exitCode] = await Promise.all([readStreamAsText(proc.stderr), proc.exited]);
 
     if (exitCode !== 0) {
       return c.json<ApiResult<void>>({

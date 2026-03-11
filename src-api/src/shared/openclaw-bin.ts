@@ -356,18 +356,17 @@ export function spawnInUserShell(command: string, opts: SpawnOptionsWithEnv = {}
   return Bun.spawn(shellArgs, { ...opts, env });
 }
 
-async function resolveBinaryWithoutShell(bin: string): Promise<string | null> {
-  const home = getHomeDir();
-  const managedDirs = await getManagedBinDirs(home);
-  const candidates = getCommandCandidates(bin);
-
-  for (const dir of managedDirs) {
-    for (const candidateName of candidates) {
-      const candidate = join(dir, candidateName);
-      if (await fileExists(candidate)) return candidate;
+export async function resolveBinaryViaDefaultShell(bin: string): Promise<string | null> {
+  // On macOS/Linux, try to resolve binary using user's shell environment first
+  // This ensures nvm/fnm/etc. are properly initialized
+  if (!IS_WINDOWS) {
+    const shellResolved = await resolveBinaryViaShellEnv(bin);
+    if (shellResolved) {
+      return shellResolved;
     }
   }
 
+  // Fall back to the traditional method
   const lookupCmd = IS_WINDOWS ? "where" : "which";
   try {
     const proc = spawnWithPath([lookupCmd, bin], {
@@ -389,12 +388,27 @@ async function resolveBinaryWithoutShell(bin: string): Promise<string | null> {
   return null;
 }
 
+async function resolveBinaryWithoutShell(bin: string): Promise<string | null> {
+  const home = getHomeDir();
+  const managedDirs = await getManagedBinDirs(home);
+  const candidates = getCommandCandidates(bin);
+
+  for (const dir of managedDirs) {
+    for (const candidateName of candidates) {
+      const candidate = join(dir, candidateName);
+      if (await fileExists(candidate)) return candidate;
+    }
+  }
+
+  return resolveBinaryViaDefaultShell(bin);
+}
+
 export async function resolveBinary(bin: string): Promise<string | null> {
   if (IS_WINDOWS) {
     const shellResolved = await resolveBinaryViaWindowsShell(bin);
     if (shellResolved) return shellResolved;
   }
-  return resolveBinaryWithoutShell(bin);
+  return resolveBinaryViaDefaultShell(bin);
 }
 
 let _openclawBin: string | null = null;
@@ -424,4 +438,110 @@ export async function resolveOpenclawBin(): Promise<string> {
 /** Reset the cached bin path (useful for testing or after re-installation). */
 export function resetOpenclawBinCache(): void {
   _openclawBin = null;
+}
+/**
+ * Get user's default shell information including config files
+ */
+function getUserShellInfo(): {
+  executable: string;
+  kind: UserShellKind;
+  configFiles: string[];
+  sourceCommand: string;
+} {
+  const explicit = process.env.LYSMATA_SHELL?.trim();
+  const shell = explicit || process.env.SHELL?.trim() || (IS_WINDOWS ? "cmd.exe" : "/bin/bash");
+  const shellInfo = classifyShell(shell);
+  const home = getHomeDir();
+
+  // Determine config files based on shell type
+  let configFiles: string[] = [];
+  const shellName = basename(shell).toLowerCase();
+
+  if (shellName.includes("zsh")) {
+    configFiles = [
+      `${home}/.zshrc`,
+      `${home}/.zprofile`,
+      `${home}/.zlogin`,
+      `${home}/.zshenv`,
+      `${home}/.profile`
+    ];
+  } else if (shellName.includes("bash")) {
+    configFiles = [
+      `${home}/.bashrc`,
+      `${home}/.bash_profile`,
+      `${home}/.profile`,
+      `${home}/.bash_login`
+    ];
+  } else if (shellName.includes("fish")) {
+    configFiles = [
+      `${home}/.config/fish/config.fish`,
+      `${home}/.config/fish/conf.d/*.fish`
+    ];
+  } else {
+    // Default POSIX shell
+    configFiles = [`${home}/.profile`];
+  }
+
+  // Build source command
+  let sourceCommand = "";
+  if (shellName.includes("zsh") || shellName.includes("bash")) {
+    // For bash/zsh, source all config files that exist
+    const sourceFiles = configFiles
+      .filter(file => !file.includes("*")) // Skip glob patterns
+      .map(file => `[ -f "${file}" ] && source "${file}" 2>/dev/null;`)
+      .join(" ");
+    sourceCommand = `${sourceFiles} command -v`;
+  } else if (shellName.includes("fish")) {
+    // For fish, use source command
+    sourceCommand = `source ${home}/.config/fish/config.fish 2>/dev/null; command -v`;
+  } else {
+    // For other shells, just use command -v
+    sourceCommand = "command -v";
+  }
+
+  return {
+    executable: shell,
+    kind: shellInfo.kind,
+    configFiles,
+    sourceCommand
+  };
+}
+
+/**
+ * Resolve binary using user's shell environment (source config files first)
+ * This is specifically for macOS/Linux to ensure PATH includes nvm/fnm/etc.
+ */
+async function resolveBinaryViaShellEnv(bin: string): Promise<string | null> {
+  if (IS_WINDOWS) {
+    // Windows doesn't need shell environment sourcing
+    return null;
+  }
+
+  try {
+    const shellInfo = getUserShellInfo();
+    const { executable, sourceCommand } = shellInfo;
+
+    // Build the command to execute in user's shell
+    const command = `${sourceCommand} ${bin}`;
+
+    const proc = Bun.spawn([executable, "-c", command], {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: spawnEnv()
+    });
+
+    const [out, code] = await Promise.all([readSpawnOutput(proc.stdout), proc.exited]);
+    const resolved = out
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find(Boolean);
+
+    if (code === 0 && resolved) {
+      return resolved;
+    }
+  } catch {
+    // ignore errors
+  }
+
+  return null;
 }
