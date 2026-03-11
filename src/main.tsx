@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppLayout } from "./components/AppLayout";
 import { BotManagementPage } from "./pages/BotManagement/BotManagementPage";
@@ -12,7 +12,7 @@ import { ArtifactDemoPage } from "./pages/ArtifactDemoPage";
 // import OpenClawInstallPage from './pages/OpenClawInstallPage';
 import { startSidecar } from "./shared/tauri-bridge";
 import { WizardPage } from "./pages/Onboarding/WizardPage";
-import { isOnboardingComplete } from "./shared/store/wizard-store";
+import { StartupGuard } from "./components/StartupGuard";
 import "./index.css";
 
 // Add devtools toggle support
@@ -80,16 +80,7 @@ initSidecar().then((ready) => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Routes>
-          <Route
-            index
-            element={
-              isOnboardingComplete() ? (
-                <Navigate to="/bots" replace />
-              ) : (
-                <Navigate to="/onboarding" replace />
-              )
-            }
-          />
+          <Route index element={<StartupGuard />} />
           {/* Wizard — outside AppLayout */}
           <Route path="onboarding" element={<WizardPage />} />
 
