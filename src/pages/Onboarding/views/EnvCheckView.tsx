@@ -21,6 +21,7 @@ interface EnvCheckResult {
   hasNpm?: boolean;
   npmPath?: string;
   hasCurl: boolean;
+  networkReachable?: boolean;
   platform: string;
   windowsShell?: string;
   windowsShellOptions?: WindowsShellOption[];
@@ -44,6 +45,7 @@ export function EnvCheckView({ onEnvReady }: Props) {
     { label: "OpenClaw", desc: "检测已安装的 OpenClaw", status: "checking", detail: "检测中..." },
     { label: "Node.js", desc: "版本要求 v22.0 或以上", status: "checking", detail: "检测中..." },
     { label: "网络工具", desc: "curl 用于下载安装包", status: "checking", detail: "检测中..." },
+    { label: "网络连通", desc: "连接安装服务器", status: "checking", detail: "检测中..." },
   ]);
   const [envResult, setEnvResult] = useState<EnvCheckResult | null>(null);
   const [showLogs, setShowLogs] = useState(false);
@@ -92,7 +94,18 @@ export function EnvCheckView({ onEnvReady }: Props) {
           ? { label: "网络工具", desc: "curl 用于下载安装包", status: "pass", detail: "curl 可用" }
           : { label: "网络工具", desc: "curl 用于下载安装包", status: "fail", detail: "未检测到 curl" };
 
-        setItems([openclawItem, nodeItem, curlItem]);
+        let networkItem: CheckItem;
+        if (res.hasOpenClaw) {
+          networkItem = { label: "网络连通", desc: "连接安装服务器", status: "pass", detail: "已安装，无需网络" };
+        } else if (res.networkReachable === undefined) {
+          networkItem = { label: "网络连通", desc: "连接安装服务器", status: "warn", detail: "未检测" };
+        } else if (res.networkReachable) {
+          networkItem = { label: "网络连通", desc: "连接安装服务器", status: "pass", detail: "服务器可达" };
+        } else {
+          networkItem = { label: "网络连通", desc: "连接安装服务器", status: "fail", detail: "无法连接安装服务器，请检查网络" };
+        }
+
+        setItems([openclawItem, nodeItem, curlItem, networkItem]);
         onEnvReady?.({ canInstall: res.canInstall, hasOpenClaw: res.hasOpenClaw });
       })
       .catch(async () => {

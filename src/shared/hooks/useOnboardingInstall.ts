@@ -1,6 +1,9 @@
 // src/shared/hooks/useOnboardingInstall.ts
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_BASE_URL } from "../../config";
+import { apiClient } from "../api-client";
+
+export type InstallErrorKind = "network" | "permission" | "timeout" | "server_error" | "unknown";
 
 export interface InstallState {
   logs: string[];
@@ -9,6 +12,9 @@ export interface InstallState {
   isDone: boolean;
   isError: boolean;
   errorMsg: string;
+  errorKind?: InstallErrorKind;
+  platform?: string;
+  retryCount: number;
 }
 
 const INITIAL_STATE: InstallState = {
@@ -18,6 +24,9 @@ const INITIAL_STATE: InstallState = {
   isDone: false,
   isError: false,
   errorMsg: "",
+  errorKind: undefined,
+  platform: undefined,
+  retryCount: 0,
 };
 
 const STEP_LABELS: Record<string, string> = {
@@ -44,9 +53,12 @@ function connectInstall(
         progress?: number;
         log?: string;
         error?: string;
+        errorKind?: InstallErrorKind;
+        platform?: string;
         success?: boolean;
       };
       setState((prev) => ({
+        ...prev,
         logs: event.log ? [...prev.logs, event.log] : prev.logs,
         progress: event.progress ?? prev.progress,
         statusLabel:
@@ -54,6 +66,8 @@ function connectInstall(
         isDone: !!event.success,
         isError: !!event.error,
         errorMsg: event.error ?? prev.errorMsg,
+        errorKind: event.errorKind ?? prev.errorKind,
+        platform: event.platform ?? prev.platform,
       }));
       if (event.success || event.error) es.close();
     } catch {
@@ -62,7 +76,12 @@ function connectInstall(
   };
 
   es.onerror = () => {
-    setState((prev) => ({ ...prev, isError: true, errorMsg: "连接中断，请重试" }));
+    setState((prev) => ({
+      ...prev,
+      isError: true,
+      errorMsg: "与本地服务的连接中断（sidecar 可能已停止）。请检查应用是否正常运行，然后点击重试。",
+      errorKind: "unknown",
+    }));
     es.close();
   };
 }
@@ -80,9 +99,22 @@ export function useOnboardingInstall(run: boolean) {
   }, [run]);
 
   const retry = useCallback(() => {
-    setState(INITIAL_STATE);
+    setState((prev) => ({
+      ...INITIAL_STATE,
+      retryCount: prev.retryCount + 1,
+    }));
     connectInstall(setState, esRef);
   }, []);
 
-  return { ...state, retry };
+  const cancel = useCallback(async () => {
+    esRef.current?.close();
+    esRef.current = null;
+    try {
+      await apiClient.post("/openclaw/cancel-install", {});
+    } catch {
+      /* best effort */
+    }
+  }, []);
+
+  return { ...state, retry, cancel };
 }

@@ -68,14 +68,26 @@ async function exec(
 
 // ── SSE event types ──────────────────────────────────────────────────────────
 
+type InstallErrorKind = "network" | "permission" | "timeout" | "server_error" | "unknown";
+
 interface InstallEvent {
   step?: string;
   message?: string;
   progress?: number;
   log?: string;
   error?: string;
+  errorKind?: InstallErrorKind;
+  platform?: string;
   success?: boolean;
 }
+
+// ── Install lock & active process ───────────────────────────────────────────
+
+const INSTALL_TIMEOUT_MS = 5 * 60 * 1000;
+const DOWNLOAD_TIMEOUT_MS = 3 * 60 * 1000;
+
+let _installLock = false;
+let _activeProc: ReturnType<typeof Bun.spawn> | null = null;
 
 // ── Environment check ────────────────────────────────────────────────────────
 
@@ -92,6 +104,7 @@ interface EnvCheckResult {
   hasNpm: boolean;
   npmPath?: string;
   hasCurl: boolean;
+  networkReachable?: boolean;
   platform: string;
   windowsShell?: WindowsShellPreference;
   windowsShellOptions?: WindowsShellOption[];
@@ -346,11 +359,21 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
   const npmPath = nodeTooling?.npmPath ?? null;
 
   // Detect curl
-  const hasCurl = !!(await which("curl"));
+  const curlPath = await which("curl");
+  const hasCurl = !!curlPath;
 
   const hasOpenClaw = !!openclawPath;
   const hasNode = !!nodePath && (nodeMajor ?? 0) >= MIN_NODE_MAJOR;
   const hasNpm = !!npmPath;
+
+  // Network reachability: only needed when install.sh download path will be used
+  // (npm install uses npm registry, not openclaw.ai/install.sh)
+  const needsInstallScript = !hasOpenClaw && !(hasNode && hasNpm) && hasCurl && platform !== "win32";
+  let networkReachable: boolean | undefined;
+  if (needsInstallScript && curlPath) {
+    networkReachable = await checkNetworkReachability(curlPath);
+  }
+
   const windowsShellOptions =
     platform === "win32" ? await getAvailableWindowsShellOptions() : undefined;
   const preferences = platform === "win32" ? await readRuntimePreferences() : {};
@@ -370,9 +393,19 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
   } else if (hasNode && hasNpm) {
     message = `Node.js ${nodeVersion} 就绪，可以安装 OpenClaw`;
   } else if (hasNode && !hasNpm && hasCurl && platform !== "win32") {
-    message = `检测到 Node.js ${nodeVersion}，但未找到 npm，将通过官方安装脚本处理`;
+    if (networkReachable === false) {
+      message = `检测到 Node.js ${nodeVersion}，但无法连接安装服务器`;
+      canInstall = false;
+    } else {
+      message = `检测到 Node.js ${nodeVersion}，但未找到 npm，将通过官方安装脚本处理`;
+    }
   } else if (hasCurl && platform !== "win32") {
-    message = "将通过官方安装脚本自动安装（含 Node.js）";
+    if (networkReachable === false) {
+      message = "无法连接到安装服务器，请检查网络连接";
+      canInstall = false;
+    } else {
+      message = "将通过官方安装脚本自动安装（含 Node.js）";
+    }
   } else if (hasNode && !hasNpm) {
     canInstall = false;
     message = "检测到 Node.js 22+，但未找到 npm，请先安装 npm";
@@ -397,6 +430,7 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
     hasNpm,
     npmPath: npmPath ?? undefined,
     hasCurl,
+    networkReachable,
     platform,
     windowsShell,
     windowsShellOptions,
@@ -413,16 +447,103 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
   return result;
 }
 
-// ── Install logic ────────────────────────────────────────────────────────────
+// ── Helpers: timeout, error classification, network, streaming ──────────────
+
+async function withTimeout<T extends ReturnType<typeof Bun.spawn>>(
+  proc: T,
+  timeoutMs: number,
+): Promise<number> {
+  _activeProc = proc;
+  try {
+    const exitCode = await Promise.race([
+      proc.exited,
+      new Promise<never>((_, reject) =>
+        setTimeout(() => {
+          proc.kill();
+          reject(new Error(`INSTALL_TIMEOUT:${timeoutMs}`));
+        }, timeoutMs),
+      ),
+    ]);
+    return exitCode;
+  } finally {
+    _activeProc = null;
+  }
+}
+
+function classifyInstallError(exitCode: number, output: string): { kind: InstallErrorKind; hint: string } {
+  if (output.match(/EACCES|permission denied|EPERM/i)) {
+    return { kind: "permission", hint: "权限不足。尝试在终端运行 sudo npm install -g openclaw@latest，或检查全局 npm 目录权限" };
+  }
+  if (output.match(/ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|getaddrinfo|network|socket hang up/i) ||
+      [6, 7, 28].includes(exitCode)) {
+    return { kind: "network", hint: "网络连接失败。请检查网络连接、DNS 设置，或确认是否需要配置代理" };
+  }
+  if (exitCode === 22) {
+    return { kind: "server_error", hint: "安装服务器返回错误，请稍后重试" };
+  }
+  if (output.match(/INSTALL_TIMEOUT/i)) {
+    return { kind: "timeout", hint: "安装超时，网络可能不稳定。请检查网络后重试" };
+  }
+  if (output.match(/ENOSPC|no space/i)) {
+    return { kind: "unknown", hint: "磁盘空间不足，请清理后重试" };
+  }
+  return { kind: "unknown", hint: "请查看上方日志获取详细错误信息" };
+}
+
+async function checkNetworkReachability(curlPath: string): Promise<boolean> {
+  try {
+    const cmd = `${curlPath} --head --silent --connect-timeout 3 --max-time 5 -o /dev/null -w '%{http_code}' https://openclaw.ai/install.sh`;
+    const proc = spawnInUserShell(cmd, { stdout: "pipe", stderr: "pipe" });
+    const [stdout, exitCode] = await Promise.all([readSpawnOutput(proc.stdout), proc.exited]);
+    return exitCode === 0 && stdout.trim().startsWith("2");
+  } catch {
+    return false;
+  }
+}
 
 type SendEvent = (event: InstallEvent) => void;
 
-async function runNpmInstall(send: SendEvent, npmPath: string): Promise<boolean> {
+async function streamProcessOutput(
+  reader: ReadableStream<Uint8Array>,
+  send: SendEvent,
+  prefix?: string,
+): Promise<string> {
+  const decoder = new TextDecoder();
+  const r = reader.getReader();
+  let buf = "";
+  let allOutput = "";
+  while (true) {
+    const { done, value } = await r.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    buf += chunk;
+    allOutput += chunk;
+    const lines = buf.split("\n");
+    buf = lines.pop() ?? "";
+    for (const line of lines) {
+      if (line.trim()) {
+        const msg = prefix ? `${prefix}${line}` : line;
+        if (line.includes("WARN")) send({ log: `⚠ ${msg}` });
+        else send({ log: msg });
+      }
+    }
+  }
+  if (buf.trim()) {
+    const msg = prefix ? `${prefix}${buf}` : buf;
+    send({ log: msg });
+    allOutput += buf;
+  }
+  return allOutput;
+}
+
+// ── Install logic ────────────────────────────────────────────────────────────
+
+async function runNpmInstall(send: SendEvent, npmPath: string): Promise<{ ok: boolean; stderr: string; exitCode: number }> {
   send({ step: "installing", message: "正在通过 npm 安装 OpenClaw...", progress: 40 });
   send({ log: `npm path: ${npmPath}` });
-  send({ log: "$ npm install -g openclaw@latest" });
+  send({ log: "$ npm install -g openclaw@latest --fetch-timeout=60000" });
 
-  const proc = spawnWithPath([npmPath, "install", "-g", "openclaw@latest"], {
+  const proc = spawnWithPath([npmPath, "install", "-g", "openclaw@latest", "--fetch-timeout=60000"], {
     stdout: "pipe",
     stderr: "pipe",
     env: {
@@ -430,39 +551,60 @@ async function runNpmInstall(send: SendEvent, npmPath: string): Promise<boolean>
     },
   });
 
-  const [stdout, stderr, exitCode] = await Promise.all([
-    readSpawnOutput(proc.stdout),
-    readSpawnOutput(proc.stderr),
-    proc.exited,
+  const [, stderrOutput, exitCode] = await Promise.all([
+    streamProcessOutput(proc.stdout as ReadableStream<Uint8Array>, send),
+    streamProcessOutput(proc.stderr as ReadableStream<Uint8Array>, send),
+    withTimeout(proc, INSTALL_TIMEOUT_MS),
   ]);
-
-  if (stdout.trim()) {
-    for (const line of stdout.trim().split("\n")) {
-      send({ log: line });
-    }
-  }
-  if (stderr.trim()) {
-    for (const line of stderr.trim().split("\n")) {
-      if (line.includes("WARN")) send({ log: `⚠ ${line}` });
-      else send({ log: line });
-    }
-  }
 
   if (exitCode !== 0) {
     send({ log: `npm install 退出码: ${exitCode}` });
-    return false;
+    return { ok: false, stderr: stderrOutput, exitCode };
   }
 
   send({ log: "npm install 完成" });
-  return true;
+  return { ok: true, stderr: "", exitCode: 0 };
 }
 
-async function runPosixInstallScript(send: SendEvent): Promise<boolean> {
-  send({ step: "installing", message: "正在执行官方安装脚本...", progress: 30 });
-  send({ log: "$ curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard" });
+async function runPosixInstallScript(send: SendEvent): Promise<{ ok: boolean; stderr: string; exitCode: number }> {
+  // Phase 1: Download script to a temp file (safe — no piping to bash)
+  send({ step: "installing", message: "正在下载安装脚本...", progress: 20 });
+  send({ log: "$ curl -fsSL --connect-timeout 15 --max-time 180 -o /tmp/openclaw-install.sh https://openclaw.ai/install.sh" });
 
-  const proc = spawnInUserShell(
-    "curl -fsSL https://openclaw.ai/install.sh | bash -s -- --no-onboard",
+  const tmpFile = `/tmp/openclaw-install-${Date.now()}.sh`;
+  const curlProc = spawnInUserShell(
+    `curl -fsSL --connect-timeout 15 --max-time 180 -o ${tmpFile} https://openclaw.ai/install.sh`,
+    { stdout: "pipe", stderr: "pipe" },
+  );
+
+  const [, curlStderr, curlExit] = await Promise.all([
+    streamProcessOutput(curlProc.stdout as ReadableStream<Uint8Array>, send),
+    streamProcessOutput(curlProc.stderr as ReadableStream<Uint8Array>, send),
+    withTimeout(curlProc, DOWNLOAD_TIMEOUT_MS),
+  ]);
+
+  if (curlExit !== 0) {
+    send({ log: `下载安装脚本失败 (退出码: ${curlExit})` });
+    spawnInUserShell(`rm -f ${tmpFile}`, {});
+    return { ok: false, stderr: curlStderr, exitCode: curlExit };
+  }
+
+  // Validate downloaded file is non-empty
+  const scriptFile = Bun.file(tmpFile);
+  if (!(await scriptFile.exists()) || (await scriptFile.size()) === 0) {
+    send({ log: "下载的安装脚本为空或不存在" });
+    spawnInUserShell(`rm -f ${tmpFile}`, {});
+    return { ok: false, stderr: "downloaded script is empty", exitCode: 1 };
+  }
+
+  send({ log: "安装脚本下载完成，开始执行..." });
+
+  // Phase 2: Execute the downloaded script
+  send({ step: "installing", message: "正在执行安装脚本...", progress: 30 });
+  send({ log: `$ bash ${tmpFile} --no-onboard` });
+
+  const bashProc = spawnInUserShell(
+    `bash ${tmpFile} --no-onboard; exitcode=$?; rm -f ${tmpFile}; exit $exitcode`,
     {
       stdout: "pipe",
       stderr: "pipe",
@@ -472,38 +614,19 @@ async function runPosixInstallScript(send: SendEvent): Promise<boolean> {
     },
   );
 
-  const decoder = new TextDecoder();
-
-  const streamOutput = async (reader: ReadableStream<Uint8Array>, prefix?: string) => {
-    const r = reader.getReader();
-    let buf = "";
-    while (true) {
-      const { done, value } = await r.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const lines = buf.split("\n");
-      buf = lines.pop() ?? "";
-      for (const line of lines) {
-        if (line.trim()) send({ log: prefix ? `${prefix}${line}` : line });
-      }
-    }
-    if (buf.trim()) send({ log: prefix ? `${prefix}${buf}` : buf });
-  };
-
-  await Promise.all([
-    streamOutput(proc.stdout as ReadableStream<Uint8Array>),
-    streamOutput(proc.stderr as ReadableStream<Uint8Array>, ""),
+  const [, bashStderr, bashExit] = await Promise.all([
+    streamProcessOutput(bashProc.stdout as ReadableStream<Uint8Array>, send),
+    streamProcessOutput(bashProc.stderr as ReadableStream<Uint8Array>, send),
+    withTimeout(bashProc, INSTALL_TIMEOUT_MS),
   ]);
 
-  const exitCode = await proc.exited;
-
-  if (exitCode !== 0) {
-    send({ log: `安装脚本退出码: ${exitCode}` });
-    return false;
+  if (bashExit !== 0) {
+    send({ log: `安装脚本退出码: ${bashExit}` });
+    return { ok: false, stderr: bashStderr, exitCode: bashExit };
   }
 
   send({ log: "安装脚本执行完成" });
-  return true;
+  return { ok: true, stderr: "", exitCode: 0 };
 }
 
 async function verifyInstallation(send: SendEvent): Promise<boolean> {
@@ -553,40 +676,55 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
   try {
     send({ step: "checking", message: "检查系统环境...", progress: 5 });
     const env = await checkEnvironment();
+    const platform = env.platform;
 
-    send({ log: `平台: ${env.platform}` });
+    send({ log: `平台: ${platform}` });
     send({ log: `Node.js: ${env.hasNode ? env.nodeVersion : "未安装"}` });
     send({ log: `npm: ${env.hasNpm ? env.npmPath : "未安装"}` });
     send({ log: `OpenClaw: ${env.hasOpenClaw ? env.openclawVersion : "未安装"}` });
+    if (env.networkReachable !== undefined) {
+      send({ log: `网络连通: ${env.networkReachable ? "正常" : "不可达"}` });
+    }
 
     // Already installed
     if (env.hasOpenClaw) {
-      await installGatewayService(send);
+      try {
+        await installGatewayService(send);
+      } catch (err) {
+        send({ log: `⚠ Gateway 服务注册出错（非致命）: ${err instanceof Error ? err.message : String(err)}` });
+      }
       send({ step: "success", message: `OpenClaw 已安装 (${env.openclawVersion})`, progress: 100 });
       send({ success: true });
       return;
     }
 
-    let installed = false;
+    let installResult: { ok: boolean; stderr: string; exitCode: number } = { ok: false, stderr: "", exitCode: -1 };
 
     // Path 1: Node.js 22+ + npm available → npm install -g
     if (env.hasNode && env.hasNpm && env.npmPath) {
       send({ log: "检测到 Node.js 22+，使用 npm 安装" });
-      installed = await runNpmInstall(send, env.npmPath);
+      installResult = await runNpmInstall(send, env.npmPath);
     }
 
     // Path 2: Fall back to official install.sh only on macOS/Linux.
-    if (!installed && env.hasCurl && env.platform !== "win32") {
-      send({ log: "使用官方安装脚本安装..." });
-      installed = await runPosixInstallScript(send);
+    if (!installResult.ok && env.hasCurl && platform !== "win32") {
+      if (env.hasNode && env.hasNpm) {
+        send({ log: "⚠ npm 安装未成功，切换至官方安装脚本作为备选方案..." });
+      } else {
+        send({ log: "使用官方安装脚本安装..." });
+      }
+      installResult = await runPosixInstallScript(send);
     }
 
-    if (!installed) {
+    if (!installResult.ok) {
+      const { kind, hint } = classifyInstallError(installResult.exitCode, installResult.stderr);
+      const baseMsg = platform === "win32"
+        ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
+        : "自动安装失败";
       send({
-        error:
-          env.platform === "win32"
-            ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
-            : "自动安装失败。请手动在终端运行：curl -fsSL https://openclaw.ai/install.sh | bash",
+        error: `${baseMsg}。${hint}`,
+        errorKind: kind,
+        platform,
       });
       return;
     }
@@ -594,17 +732,28 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
     // Verify
     const verified = await verifyInstallation(send);
     if (verified) {
-      await installGatewayService(send);
+      try {
+        await installGatewayService(send);
+      } catch (err) {
+        send({ log: `⚠ Gateway 服务注册出错（非致命）: ${err instanceof Error ? err.message : String(err)}` });
+      }
       send({ step: "success", message: "OpenClaw 安装成功！", progress: 100 });
       send({ success: true });
     } else {
       send({
-        error: "安装已完成但未能验证。请打开终端运行 openclaw --version 确认，然后刷新页面。",
+        error: "安装已完成但未能验证。请打开终端运行 openclaw --version 确认，然后点击重试。",
+        errorKind: "unknown",
+        platform,
       });
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    send({ error: `安装出错: ${msg}` });
+    const { kind, hint } = classifyInstallError(0, msg);
+    send({
+      error: `安装出错: ${hint}`,
+      errorKind: kind,
+      platform: process.platform,
+    });
   }
 }
 
@@ -658,6 +807,12 @@ app.get("/install", async (c) => {
       }
     };
 
+    if (_installLock) {
+      send({ error: "另一个安装正在进行中，请等待完成或取消后重试", errorKind: "unknown" });
+      return;
+    }
+
+    _installLock = true;
     const keepalive = setInterval(() => {
       try {
         s.write(encoder.encode(": keepalive\n\n"));
@@ -670,11 +825,27 @@ app.get("/install", async (c) => {
       await installOpenClaw(send);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      send({ error: msg });
+      const { kind, hint } = classifyInstallError(0, msg);
+      send({ error: hint, errorKind: kind, platform: process.platform });
     } finally {
       clearInterval(keepalive);
+      _installLock = false;
+      _activeProc = null;
     }
   });
+});
+
+app.post("/cancel-install", async (c) => {
+  if (_activeProc) {
+    try {
+      _activeProc.kill();
+    } catch {
+      /* already exited */
+    }
+    _activeProc = null;
+  }
+  _installLock = false;
+  return c.json({ ok: true });
 });
 
 app.post("/skills/install", async (c) => {

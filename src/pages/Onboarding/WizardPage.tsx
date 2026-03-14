@@ -154,7 +154,15 @@ export function WizardPage() {
             <IntroView onStartInstall={goNext} onSkipToConfig={() => goToStep("step1")} />
           )}
           {step.id === "env" && <EnvCheckView onEnvReady={setEnvCheck} />}
-          {step.id === "installing" && <InstallingView onSuccess={goNext} />}
+          {step.id === "installing" && (
+            <InstallingView
+              onSuccess={goNext}
+              onBackToEnvCheck={() => {
+                setEnvCheck(null);
+                goToStep("env");
+              }}
+            />
+          )}
           {step.id === "install-success" && (
             <InstallSuccessView
               onConfigNow={() => goToStep("step1")}

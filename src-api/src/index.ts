@@ -90,6 +90,7 @@ try {
     port: PORT,
     hostname: "127.0.0.1",
     fetch: app.fetch,
+    idleTimeout: 255,
   });
 
   console.info(`[sidecar] ✓ Hono API running on http://127.0.0.1:${PORT}`);
