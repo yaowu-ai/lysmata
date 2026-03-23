@@ -1,169 +1,152 @@
-# US-09：Agent 配置管理
+# US-09：高级 Agent 管理
 
 **模块**：Agent Config
 **对应设计**：`design/ui-bot-management.html`
-**依赖**：US-01（Onboarding）、US-07（配置中心）
+**依赖**：US-07（持续维护中心）
 
-> **说明**：本模块聚焦于通过 OpenClaw CLI 命令行工具管理 Agent，使 Lysmata 能够对
-> `openclaw agents` 子命令进行可视化封装，让用户无需手动在终端输入命令即可完成
-> Agent 的添加、绑定、查看、移除等生命周期操作。
->
-> **OpenClaw CLI Agent 相关命令参考**：
-> ```bash
-> # 查看所有 agent
-> openclaw agents list
->
-> # 新增 agent（指定工作目录）
-> openclaw agents add <id> --workspace <dir>
->
-> # 查看所有 agent↔gateway 绑定关系
-> openclaw agents bindings
->
-> # 将 agent 绑定到 gateway
-> openclaw agents bind --agent <id> --gateway <url> [--token <token>]
->
-> # 移除 agent
-> openclaw agents remove <id>
->
-> # 初始化/重新配置（向导模式或非交互模式）
-> openclaw configure \
->   --workspace <dir> \
->   --mode local|remote \
->   --remote-url <url> \
->   --remote-token <token> \
->   --non-interactive
-> ```
+## 模块定位
+
+`US-09` 在 v1 中属于 **后台能力与高级能力层**。
+
+它的重要性依然很高，因为 Agent 决定系统是否真正可运行；但在产品叙事上：
+
+- Agent 不应成为首次成功主路径的前台概念
+- 用户不应在第一次使用前就被迫理解 Agent 生命周期
+- Agent 能力应主要服务高级用户、系统诊断与持续维护
+
+## Agent 与助手 / Bot 的关系
+
+- `Agent`：OpenClaw CLI 管理的本地运行实体
+- `Bot`：Lysmata 应用层的连接对象
+- `助手`：用户能直接理解和使用的前台对象
+
+在 v1 中，推荐心智顺序是：
+
+**先创建并使用助手，再在需要时进入 Agent 管理。**
 
 ---
+
+## 一、基础 Agent 维护能力
 
 ### US-09-01：查看本地 Agent 列表
 
-**作为** AI 开发者，
-**我希望** 在 Lysmata 中查看所有已注册的本地 OpenClaw Agent，
-**以便** 了解当前有哪些 Agent 可以连接和使用，而不需要打开终端执行 `openclaw agents list`。
+**作为** 进阶用户，
+**我希望** 在高级设置中查看本地 Agent 列表，
+**以便** 我知道系统当前有哪些运行实体可被使用。
 
-**优先级**：P0
-**实现状态**：⚠️ 未实现
+**优先级**：P1
 **验收标准（AC）**：
 
-- AC1：Bot 管理页或配置中心新增"本地 Agent"面板，调用后端接口（`GET /openclaw/agents`），后端执行 `openclaw agents list` 并解析输出，返回结构化列表
-- AC2：列表每行显示：Agent ID、工作目录（workspace）、当前绑定的 Gateway URL（若有）、在线状态
-- AC3：列表支持手动刷新（刷新图标按钮），刷新时执行重新调用 CLI 获取最新状态
-- AC4：若本地未检测到 `openclaw` 可执行文件，显示提示横幅："未找到 OpenClaw CLI，请先完成安装"，并附跳转安装向导的链接
+- AC1：在高级设置中查看 Agent 列表
+- AC2：展示 Agent ID、workspace、绑定状态等关键信息
+- AC3：支持手动刷新
+- AC4：若本地未安装 OpenClaw CLI，给出明确提示
 
 ---
 
-### US-09-02：通过界面新增 Agent
+### US-09-02：新增 Agent
 
-**作为** AI 开发者，
-**我希望** 在 Lysmata 中通过表单新增一个 OpenClaw Agent，
-**以便** 不需要在终端手动执行 `openclaw agents add` 命令。
+**作为** 进阶用户，
+**我希望** 通过界面新增 Agent，
+**以便** 不需要回到终端手工执行命令。
 
-**优先级**：P0
-**实现状态**：⚠️ 未实现
+**优先级**：P1
 **验收标准（AC）**：
 
-- AC1："本地 Agent"面板提供"+ 新增 Agent"按钮，点击后展开或弹出表单，包含以下字段：
-  - Agent ID（必填，仅允许小写字母、数字和连字符）
-  - 工作目录 workspace（必填，支持手动输入路径或点击"选择目录"调用系统文件选择器；默认值 `~/.openclaw/workspace-{id}`）
-- AC2：提交时后端执行 `openclaw agents add <id> --workspace <dir>`，实时将命令输出（stdout/stderr）流式回传至前端日志区
-- AC3：命令执行成功（exit code 0）后，列表自动刷新，新 Agent 出现在列表中，并显示成功 Toast："Agent「{id}」已创建"
-- AC4：若 Agent ID 已存在（CLI 返回错误），前端显示红色内联错误："Agent ID 已存在，请换一个名称"
-- AC5：Agent ID 输入框在失焦时自动校验格式，不合法时显示红色边框和提示："仅支持小写字母、数字和连字符"
+- AC1：支持输入 Agent ID 与 workspace
+- AC2：创建过程有清晰的成功或失败反馈
+- AC3：失败时显示可理解的错误信息
 
 ---
 
-### US-09-03：将 Agent 绑定到 Gateway
+### US-09-03：绑定 Agent 到 Gateway
 
-**作为** AI 开发者，
-**我希望** 在 Lysmata 中将本地 Agent 绑定到指定的 OpenClaw Gateway，
-**以便** 不需要手动执行 `openclaw agents bind` 命令即可建立 Agent↔Gateway 路由关系。
+**作为** 进阶用户，
+**我希望** 把本地 Agent 绑定到目标 Gateway，
+**以便** 完成更深层的系统连接管理。
 
-**优先级**：P0
-**实现状态**：⚠️ 未实现
+**优先级**：P1
 **验收标准（AC）**：
 
-- AC1：Agent 列表每行提供"绑定 Gateway"操作入口（链接按钮或行内展开表单），包含以下字段：
-  - Gateway URL（必填；下拉自动候选已在 Lysmata 中配置的 Bot 的 Gateway 地址，也可手动输入）
-  - 鉴权 Token（选填；对应 `--token` 参数）
-- AC2：提交时后端执行 `openclaw agents bind --agent <id> --gateway <url> [--token <token>]`
-- AC3：绑定成功后，该 Agent 行的"绑定 Gateway"列更新为新的 URL，并显示绿色成功标记
-- AC4：绑定失败时（CLI 返回非零退出码）显示错误 Toast，附原始错误信息（截取 stderr 末尾 3 行）
-- AC5：已绑定的 Agent 支持"重新绑定"（覆盖原有绑定）和"解除绑定"两个操作，解除绑定通过移除配置实现
+- AC1：支持为 Agent 指定 Gateway URL
+- AC2：绑定结果有明确成功 / 失败反馈
+- AC3：支持重新绑定
 
 ---
 
 ### US-09-04：移除 Agent
 
-**作为** AI 开发者，
-**我希望** 在 Lysmata 中删除不再需要的 Agent，
-**以便** 不需要手动执行 `openclaw agents remove` 命令来清理配置。
+**作为** 进阶用户，
+**我希望** 删除不再需要的 Agent，
+**以便** 清理运行实体和配置。
 
 **优先级**：P1
-**实现状态**：⚠️ 未实现
 **验收标准（AC）**：
 
-- AC1：Agent 列表每行提供"删除"操作（垃圾桶图标），点击后弹出二次确认对话框："确定移除 Agent「{id}」？此操作不可撤销。"
-- AC2：确认后后端执行 `openclaw agents remove <id>`，成功后从列表中移除该行并显示 Toast："Agent「{id}」已移除"
-- AC3：若该 Agent 当前在 Lysmata 中有关联的 Bot 连接（`openclaw_agent_id` 匹配），则确认对话框额外展示警告："以下 Bot 正在使用此 Agent：{bot名称列表}，移除后这些 Bot 将无法正常连接。"
-- AC4：执行 `remove` 命令期间，该行显示 loading 状态，删除按钮禁用
+- AC1：删除前必须确认
+- AC2：如果该 Agent 仍被现有助手 / Bot 使用，需要清楚警告影响
+- AC3：删除成功后列表更新
 
 ---
 
-### US-09-05：查看 Agent↔Gateway 绑定关系总览
+## 二、与高级 Bot 管理的关系
 
-**作为** AI 开发者，
-**我希望** 在一个统一视图中查看所有 Agent 与 Gateway 之间的绑定关系，
-**以便** 快速了解路由拓扑，相当于 `openclaw agents bindings` 命令的可视化呈现。
+### US-09-05：高级 Bot 编辑中选择 Agent
+
+**作为** 进阶用户，
+**我希望** 在高级 Bot 编辑中从已存在 Agent 中选择，
+**以便** 降低手工输入错误。
 
 **优先级**：P1
-**实现状态**：⚠️ 未实现
 **验收标准（AC）**：
 
-- AC1：配置中心（Settings）或 Agent 面板提供"绑定关系"视图，调用 `GET /openclaw/agents/bindings`，后端执行 `openclaw agents bindings` 并解析输出
-- AC2：视图以表格形式展示：Agent ID、Gateway URL、Token（遮码展示，点击复制）、绑定时间（若 CLI 输出含此字段）
-- AC3：表格支持一键刷新，刷新时重新执行 CLI 命令
-- AC4：若当前无任何绑定，显示空状态插画和文案："暂无绑定关系，在 Agent 列表中点击「绑定 Gateway」开始配置"
+- AC1：高级 Bot 编辑页支持从 Agent 列表中选择
+- AC2：选中后可自动带出相关默认连接信息
+- AC3：若读取 Agent 失败，允许回退到手动输入
 
 ---
 
-### US-09-06：非交互式批量配置（`openclaw configure --non-interactive`）
+### US-09-06：查看 Agent 与 Gateway 的绑定关系
 
-**作为** 高级用户或 CI/CD 环境中的开发者，
-**我希望** Lysmata 能够将配置中心的设置通过 `openclaw configure --non-interactive` 命令一次性写入，
-**以便** 在自动化场景下无需交互式操作即可完成 Agent 初始化，也避免 Lysmata 直接手写 `openclaw.json` 产生格式错误。
+**作为** 进阶用户，
+**我希望** 在一个视图中查看 Agent 与 Gateway 的绑定关系，
+**以便** 更容易理解当前系统拓扑。
 
 **优先级**：P1
-**实现状态**：⚠️ 未实现
 **验收标准（AC）**：
 
-- AC1：配置中心"Agent 配置"区域提供"一键应用配置"按钮；点击后后端将当前 Gateway 设置、workspace 路径、模式（local/remote）组合为以下命令并执行：
-  ```
-  openclaw configure \
-    --workspace <workspace> \
-    --mode <mode> \
-    [--remote-url <url>] \
-    [--remote-token <token>] \
-    --non-interactive
-  ```
-- AC2：命令执行过程中以实时日志流（SSE）方式将 stdout/stderr 推送至前端展示区，用户可观察进度
-- AC3：执行完成（exit code 0）后显示成功 Toast："Agent 配置已通过 CLI 写入"，并自动调用 `openclaw agents list` 刷新 Agent 列表
-- AC4：执行失败时显示错误面板，展示完整 stderr 输出，并提供"复制错误信息"按钮，方便用户排查
-- AC5：`--mode remote` 时，`--remote-url` 字段为必填；若未填写则按钮不可点击，并在字段下方显示红色提示
+- AC1：展示 Agent 与 Gateway 的关系表或摘要视图
+- AC2：支持刷新
+- AC3：空状态时明确提示下一步
 
 ---
 
-### US-09-07：Bot 表单中直接选择已注册 Agent
+## 三、运维向高级能力
 
-**作为** AI 开发者，
-**我希望** 在新建或编辑 Bot 时，能够从下拉列表中直接选择本地已注册的 OpenClaw Agent，
-**以便** 无需手动输入 Agent ID，减少输入错误。
+### US-09-07：通过非交互式方式写入 Agent 配置
 
-**优先级**：P1
-**实现状态**：⚠️ 未实现
+**作为** 高级用户，
+**我希望** 用非交互式方式统一写入 Agent 配置，
+**以便** 在复杂环境下减少手工操作。
+
+**优先级**：P2
 **验收标准（AC）**：
 
-- AC1：`BotFormDrawer` 的"连接"Tab 中，Agent ID 字段改为"输入 + 下拉候选"组合控件：加载时调用 `GET /openclaw/agents` 获取本地 Agent 列表，在下拉中展示 Agent ID 及其 workspace 路径作为副文本
-- AC2：选中某个 Agent 后，若该 Agent 已有绑定的 Gateway URL，自动将其填入 Gateway 地址输入框（可由用户覆盖）
-- AC3：若 `GET /openclaw/agents` 接口调用失败（CLI 不存在或返回空），下拉退化为普通文本输入框，行为与现有相同，并在输入框右侧显示黄色警告图标 + Tooltip："无法获取本地 Agent 列表"
-- AC4：下拉列表末尾始终保留"手动输入 Agent ID"选项，允许用户跳过选择自行填写
+- AC1：支持通过界面触发非交互式配置流程
+- AC2：执行过程有日志反馈
+- AC3：失败时可以复制错误信息排查
+
+---
+
+### US-09-08：向导不默认暴露 Agent 创建步骤
+
+**作为** 产品设计者，
+**我希望** 将 Agent 创建能力从首次成功主路径中后置，
+**以便** 用户第一次使用时不需要先理解 Agent。
+
+**优先级**：P0
+**验收标准（AC）**：
+
+- AC1：默认首次成功主路径不强制显示 Agent 创建步骤
+- AC2：系统可以在后台自动处理默认 Agent 或延后暴露该能力
+- AC3：当用户进入高级设置时，仍能完整管理 Agent 生命周期
