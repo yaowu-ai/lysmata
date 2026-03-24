@@ -33,3 +33,4 @@ src-tauri/bin/*
 *.bun-build
 /build
 tweet/*/*
+.gstack/

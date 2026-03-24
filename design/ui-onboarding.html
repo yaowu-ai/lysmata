@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>安装与配置向导 — OpenClaw</title>
+    <title>Lysmata 首次成功向导</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <script src="https://cdn.tailwindcss.com"></script>
     <style>
       :root {
-        --bg: #f7f7f8;
+        --bg: #f5f7fb;
         --surface: #ffffff;
-        --border: #e5e7eb;
+        --surface-muted: #f8fafc;
+        --border: #e2e8f0;
         --text: #0f172a;
         --text-muted: #64748b;
         --primary: #2563eb;
@@ -24,166 +24,219 @@
         --warning: #d97706;
         --error: #dc2626;
       }
+
       * {
+        box-sizing: border-box;
         font-family:
           "Inter",
           system-ui,
           -apple-system,
           sans-serif;
-        box-sizing: border-box;
       }
+
       body {
-        background: var(--bg);
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, #dbeafe 0, transparent 24%),
+          linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
         color: var(--text);
         -webkit-font-smoothing: antialiased;
-        margin: 0;
         display: flex;
         align-items: center;
         justify-content: center;
-        min-height: 100vh;
+        padding: 28px;
       }
 
-      /* ── Container ── */
-      .wizard-container {
-        width: 900px;
-        height: 640px;
+      .wizard-shell {
+        width: 980px;
+        min-height: 700px;
         background: var(--surface);
-        border-radius: 14px;
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        border-radius: 24px;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.16);
+        overflow: hidden;
         display: flex;
         flex-direction: column;
-        overflow: hidden;
-        position: relative;
       }
 
-      /* ── Header & Stepper ── */
+      .skip-link {
+        position: absolute;
+        left: 16px;
+        top: -40px;
+        z-index: 10;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .skip-link:focus {
+        top: 16px;
+      }
+
       .wizard-header {
-        padding: 20px 32px 16px;
-        border-bottom: 1px solid var(--border);
-        flex-shrink: 0;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
+        gap: 20px;
+        padding: 24px 28px 18px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.92);
+        backdrop-filter: blur(8px);
       }
-      .wizard-header-left {
-        flex: 1;
-      }
-      .wizard-title {
-        font-size: 16px;
-        font-weight: 600;
+
+      .brand-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
         margin-bottom: 14px;
-        color: var(--text);
+      }
+
+      .brand-logo {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 18px;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.25);
+      }
+
+      .brand-copy h1 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+      }
+
+      .brand-copy p {
+        margin: 4px 0 0;
+        font-size: 13px;
+        color: var(--text-muted);
       }
 
       .stepper {
         display: flex;
         align-items: center;
-        gap: 6px;
-        flex-wrap: nowrap;
-        overflow-x: auto;
+        gap: 8px;
+        flex-wrap: wrap;
       }
-      .step-item {
-        display: flex;
+
+      .stepper.is-hidden {
+        display: none;
+      }
+
+      .step-chip {
+        display: inline-flex;
         align-items: center;
-        gap: 6px;
-        font-size: 12px;
-        font-weight: 500;
-        color: var(--text-muted);
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-      .step-item.active {
-        color: var(--primary);
-      }
-      .step-item.completed {
-        color: var(--text);
-      }
-      .step-item.skipped {
-        color: #94a3b8;
-      }
-      .step-circle {
-        width: 22px;
-        height: 22px;
-        border-radius: 50%;
-        border: 1.5px solid var(--border);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 10px;
-        font-weight: 600;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
         background: var(--surface);
-        transition: all 0.2s ease;
-        flex-shrink: 0;
+        color: var(--text-muted);
+        font-size: 12px;
+        font-weight: 600;
       }
-      .step-item.active .step-circle {
-        border-color: var(--primary);
+
+      .step-chip.active {
+        border-color: #bfdbfe;
         background: #eff6ff;
         color: var(--primary);
       }
-      .step-item.completed .step-circle {
-        border-color: var(--primary);
-        background: var(--primary);
-        color: #fff;
-      }
-      .step-item.skipped .step-circle {
-        border-color: #d1d5db;
-        background: #f8fafc;
-        color: #94a3b8;
-      }
-      .step-divider {
-        width: 24px;
-        height: 1.5px;
-        background: var(--border);
-        transition: background 0.2s ease;
-        flex-shrink: 0;
-      }
-      .step-divider.completed {
-        background: var(--primary);
-      }
-      .step-divider.skipped {
-        background: #d1d5db;
-        border-style: dashed;
+
+      .step-chip.done {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #15803d;
       }
 
-      /* 右上角关闭按钮 */
-      .btn-close-wizard {
-        width: 28px;
-        height: 28px;
-        border-radius: 7px;
-        background: transparent;
-        border: none;
-        color: #94a3b8;
-        cursor: pointer;
-        font-size: 16px;
-        display: flex;
+      .step-index {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #f1f5f9;
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        transition:
-          background 0.15s,
-          color 0.15s;
-        flex-shrink: 0;
-        margin-left: 16px;
-        margin-top: 2px;
+        font-size: 11px;
       }
-      .btn-close-wizard:hover {
+
+      .step-chip.active .step-index {
+        background: #dbeafe;
+      }
+
+      .step-chip.done .step-index {
+        background: #dcfce7;
+      }
+
+      .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .resume-pill {
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border-radius: 999px;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        color: #92400e;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .resume-pill.show {
+        display: inline-flex;
+      }
+
+      .icon-button {
+        width: 34px;
+        height: 34px;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: #94a3b8;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .icon-button:hover {
         background: #f1f5f9;
         color: var(--text);
       }
 
-      /* ── Content Area ── */
       .wizard-content {
         flex: 1;
-        padding: 28px 32px;
+        padding: 28px;
         overflow-y: auto;
-        position: relative;
       }
-      .view-panel {
+
+      .view {
         display: none;
-        animation: fadeIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        animation: fadeIn 0.22s ease;
       }
-      .view-panel.active {
+
+      .view.active {
         display: block;
       }
+
+      .view h2:focus,
+      .view h3:focus {
+        outline: none;
+      }
+
       @keyframes fadeIn {
         from {
           opacity: 0;
@@ -195,1721 +248,1796 @@
         }
       }
 
-      /* ── Footer ── */
-      .wizard-footer {
-        padding: 14px 32px;
-        border-top: 1px solid var(--border);
-        background: #fafafa;
+      .hero {
+        display: grid;
+        grid-template-columns: 1.1fr 0.9fr;
+        gap: 28px;
+        align-items: center;
+        min-height: 520px;
+      }
+
+      .hero-copy h2 {
+        margin: 0 0 14px;
+        font-size: 38px;
+        line-height: 1.1;
+        letter-spacing: -0.03em;
+      }
+
+      .hero-copy p {
+        margin: 0 0 22px;
+        font-size: 15px;
+        line-height: 1.75;
+        color: var(--text-muted);
+      }
+
+      .hero-card,
+      .panel-card,
+      .summary-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+      }
+
+      .hero-card {
+        padding: 22px;
+        background:
+          linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(255, 255, 255, 0.98)),
+          var(--surface);
+      }
+
+      .intro-summary h3 {
+        margin: 14px 0 10px;
+        font-size: 22px;
+        line-height: 1.25;
+        text-wrap: balance;
+      }
+
+      .intro-summary p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.7;
+        color: var(--text-muted);
+      }
+
+      .intro-summary ol {
+        margin: 18px 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .intro-summary li {
+        padding-left: 4px;
+        color: var(--text-muted);
+      }
+
+      .intro-summary li::marker {
+        color: var(--primary);
+        font-weight: 700;
+      }
+
+      .intro-summary li strong {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .checklist {
+        display: grid;
+        gap: 12px;
+        margin-top: 20px;
+      }
+
+      .check-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.84);
+      }
+
+      .check-icon {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: #dbeafe;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
+
+      .check-row strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+
+      .check-row span {
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+
+      .title-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        flex-shrink: 0;
-      }
-      .wizard-footer-left {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-      .wizard-footer-right {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      /* ── Buttons ── */
-      .btn-primary {
-        background: var(--primary);
-        color: #fff;
-        border: none;
-        padding: 9px 18px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.15s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .btn-primary:hover {
-        background: var(--primary-hover);
-      }
-      .btn-primary:disabled {
-        background: #94a3b8;
-        cursor: not-allowed;
-      }
-      .btn-ghost {
-        background: transparent;
-        color: var(--text-muted);
-        border: 1px solid var(--border);
-        padding: 9px 18px;
-        border-radius: 8px;
-        font-size: 14px;
-        font-weight: 500;
-        cursor: pointer;
-        transition:
-          background 0.15s,
-          color 0.15s;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-      .btn-ghost:hover {
-        background: #f8fafc;
-        color: var(--text);
-      }
-      .btn-link {
-        background: transparent;
-        border: none;
-        color: var(--text-muted);
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        padding: 0;
-        text-decoration: underline;
-        text-underline-offset: 3px;
-        transition: color 0.15s;
-      }
-      .btn-link:hover {
-        color: var(--text);
-      }
-
-      /* ── Form Elements ── */
-      .form-group {
+        gap: 18px;
         margin-bottom: 18px;
       }
-      .form-label {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text);
-        margin-bottom: 6px;
-        display: block;
-      }
-      .form-input {
-        width: 100%;
-        padding: 9px 12px;
-        font-size: 14px;
-        border: 1px solid var(--border);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--text);
-        outline: none;
-        transition:
-          border-color 0.15s,
-          box-shadow 0.15s;
-      }
-      .form-input:focus {
-        border-color: #93c5fd;
-        box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.25);
-      }
-      .form-hint {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-top: 4px;
-      }
-      .form-error {
-        border-color: var(--error) !important;
-        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
-      }
-      .form-row {
-        display: flex;
-        gap: 16px;
-      }
-      .form-row > * {
-        flex: 1;
+
+      .title-copy h2 {
+        margin: 0;
+        font-size: 28px;
       }
 
-      /* ── Toggle ── */
-      .toggle-row {
+      .title-copy p {
+        margin: 6px 0 0;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
+
+      .status-grid,
+      .template-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .status-grid {
+        grid-template-columns: repeat(3, 1fr);
+        margin-bottom: 18px;
+      }
+
+      .status-card {
+        padding: 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface-muted);
+      }
+
+      .status-card strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 6px;
+      }
+
+      .status-card p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+
+      .status-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-top: 12px;
+      }
+
+      .status-tag::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .status-ok {
+        color: var(--success);
+      }
+
+      .status-warning {
+        color: var(--warning);
+      }
+
+      .status-action {
+        display: flex;
+        align-items: stretch;
+        gap: 16px;
+      }
+
+      .status-note {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #f8fafc;
+        border: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .action-card {
+        flex: 1;
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        background: #f8fafc;
+      }
+
+      .action-card strong {
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      .action-card ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text-muted);
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .progress-wrap {
+        margin-top: 26px;
+      }
+
+      .progress-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .progress-bar {
+        height: 8px;
+        border-radius: 999px;
+        background: #e2e8f0;
+        overflow: hidden;
+      }
+
+      .progress-value {
+        height: 100%;
+        width: 76%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #60a5fa, #2563eb);
+      }
+
+      .timeline {
+        margin-top: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .timeline-row {
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 14px 16px;
-        background: #fafafa;
+        border-radius: 14px;
         border: 1px solid var(--border);
-        border-radius: 10px;
+        background: #f8fafc;
       }
-      .toggle-label {
+
+      .timeline-row strong {
+        display: block;
         font-size: 14px;
-        font-weight: 500;
-        color: var(--text);
+        margin-bottom: 4px;
       }
-      .toggle-desc {
+
+      .timeline-row span {
         font-size: 12px;
         color: var(--text-muted);
-        margin-top: 2px;
       }
-      .toggle-wrapper {
+
+      .mini-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #f1f5f9;
+      }
+
+      .mini-badge.ok {
+        color: #15803d;
+        background: #f0fdf4;
+      }
+
+      .mini-badge.warn {
+        color: #b45309;
+        background: #fffbeb;
+      }
+
+      .form-panel {
+        max-width: 760px;
+      }
+
+      .panel-card {
+        padding: 22px;
+      }
+
+      .hint-banner {
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-size: 13px;
+        line-height: 1.7;
+        margin-bottom: 18px;
+      }
+
+      .panel-card h3 {
+        margin: 0 0 16px;
+        font-size: 20px;
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .field {
+        margin-bottom: 16px;
+      }
+
+      .field.full {
+        grid-column: 1 / -1;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        padding: 11px 13px;
+        font-size: 14px;
+        color: var(--text);
+        background: #fff;
+        outline: 2px solid transparent;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+
+      input:focus-visible,
+      textarea:focus-visible {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.2);
+      }
+
+      textarea {
+        min-height: 96px;
+        resize: vertical;
+        line-height: 1.6;
+      }
+
+      .field-hint {
+        margin-top: 6px;
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.6;
+      }
+
+      .field-error {
+        margin-top: 8px;
+        color: var(--error);
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.6;
+      }
+
+      .field.has-error input {
+        border-color: rgba(220, 38, 38, 0.7);
+        box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.12);
+      }
+
+      .advanced-details {
+        margin-top: 18px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--surface-muted);
+        overflow: hidden;
+      }
+
+      .advanced-details summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 14px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+      }
+
+      .advanced-details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .advanced-details[open] summary {
+        border-bottom: 1px solid var(--border);
+      }
+
+      .advanced-body {
+        padding: 16px;
+      }
+
+      .provider-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .provider-option,
+      .template-card,
+      .avatar-option {
+        display: block;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        background: #fff;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease,
+          transform 0.15s ease;
+        cursor: pointer;
+        text-align: left;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .provider-option.active,
+      .template-card.active,
+      .avatar-option.active {
+        border-color: #93c5fd;
+        background: #f8fbff;
+        box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.16);
+      }
+
+      .provider-option:hover,
+      .template-card:hover,
+      .avatar-option:hover {
+        transform: translateY(-1px);
+        border-color: #93c5fd;
+      }
+
+      .provider-option strong,
+      .template-card strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+      }
+
+      .provider-option p,
+      .template-card p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+
+      .provider-meta {
+        margin-top: 10px;
+        display: inline-flex;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #f1f5f9;
+        color: var(--text-muted);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .muted-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        border: none;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .template-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .template-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 14px;
         display: flex;
         align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        margin-bottom: 12px;
+        background: #eff6ff;
+      }
+
+      .template-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .avatar-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 10px;
+      }
+
+      .avatar-option {
+        text-align: center;
+        padding: 18px 12px;
+        font-size: 26px;
+      }
+
+      .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        margin-top: 18px;
+      }
+
+      .summary-card {
+        padding: 18px;
+      }
+
+      .summary-card strong {
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .summary-card p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+
+      .tab-row {
+        display: flex;
         gap: 8px;
+        margin-bottom: 18px;
+        flex-wrap: wrap;
+      }
+
+      .tab-btn {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text-muted);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .tab-btn.active {
+        border-color: #93c5fd;
+        background: #eff6ff;
+        color: var(--primary);
+      }
+
+      .config-view {
+        display: grid;
+        gap: 18px;
+      }
+
+      .info-inline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: var(--primary);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .switch-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .switch-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 16px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .switch-copy strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 4px;
+      }
+
+      .switch-copy p {
+        margin: 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: var(--text-muted);
+      }
+
+      .switch-toggle {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        border-radius: 999px;
+        background: #cbd5e1;
+        border: none;
         cursor: pointer;
         flex-shrink: 0;
       }
-      .toggle-track {
-        position: relative;
-        width: 36px;
-        height: 20px;
-        border-radius: 10px;
-        background: #cbd5e1;
-        transition: background 0.2s;
-      }
-      .toggle-track.active {
+
+      .switch-toggle.active {
         background: var(--primary);
       }
-      .toggle-thumb {
+
+      .switch-toggle::after {
+        content: "";
         position: absolute;
-        left: 2px;
-        top: 2px;
+        top: 3px;
+        left: 3px;
         width: 16px;
         height: 16px;
         border-radius: 50%;
         background: #fff;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        transition: transform 0.2s;
-      }
-      .toggle-track.active .toggle-thumb {
-        transform: translateX(16px);
+        transition: transform 0.15s ease;
       }
 
-      /* ── Tabs & Cards ── */
-      .tab-bar {
-        display: flex;
-        border-bottom: 1px solid var(--border);
-        margin-bottom: 18px;
-      }
-      .tab-item {
-        padding: 8px 14px;
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--text-muted);
-        cursor: pointer;
-        border-bottom: 2px solid transparent;
-        transition: color 0.15s;
-        white-space: nowrap;
-      }
-      .tab-item:hover {
-        color: var(--text);
-      }
-      .tab-item.active {
-        color: var(--primary);
-        border-bottom-color: var(--primary);
+      .switch-toggle.active::after {
+        transform: translateX(18px);
       }
 
-      .provider-card {
-        background: #fff;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 14px;
-        cursor: pointer;
-        transition: all 0.16s ease;
-        text-align: center;
-      }
-      .provider-card:hover {
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-        transform: translateY(-2px);
-        border-color: #93c5fd;
-      }
-      .provider-card.active {
-        border-color: var(--primary);
-        background: #f0f7ff;
-        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
-      }
-      .providers-grid {
+      .log-panel {
+        background: #1e293b;
+        color: #cbd5e1;
+        border-radius: 16px;
+        padding: 16px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 12px;
+        line-height: 1.7;
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
-        margin-bottom: 18px;
+        gap: 6px;
+        max-height: 220px;
+        overflow: auto;
       }
 
-      /* ── Info Banner ── */
-      .info-banner {
-        padding: 12px 16px;
-        background: #eff6ff;
-        border-radius: 8px;
-        border: 1px solid #bfdbfe;
+      .log-line.success {
+        color: #34d399;
+      }
+
+      .log-line.warn {
+        color: #fbbf24;
+      }
+
+      .log-line.error {
+        color: #f87171;
+      }
+
+      .compact-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .code-summary {
+        background: #1e293b;
+        color: #e2e8f0;
+        border-radius: 16px;
+        padding: 16px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 12px;
+        line-height: 1.7;
+        display: grid;
+        gap: 6px;
+      }
+
+      .code-summary .muted {
+        color: #94a3b8;
+      }
+
+      .code-summary .added {
+        color: #34d399;
+      }
+
+      .market-card {
+        border: 1px dashed var(--border);
+        border-radius: 18px;
+        padding: 26px 22px;
+        text-align: center;
+        background: var(--surface-muted);
+      }
+
+      .market-card strong {
+        display: block;
+        font-size: 16px;
+        margin-bottom: 8px;
+      }
+
+      .market-card p {
+        margin: 0 auto;
+        max-width: 360px;
         font-size: 13px;
-        color: #1e40af;
-        line-height: 1.5;
-        margin-top: 20px;
+        line-height: 1.7;
+        color: var(--text-muted);
       }
 
-      /* ── Scrollbar ── */
-      ::-webkit-scrollbar {
-        width: 5px;
-        height: 5px;
-      }
-      ::-webkit-scrollbar-track {
-        background: transparent;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #d1d5db;
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #9ca3af;
-      }
-
-      /* ── Toast ── */
-      .toast {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        padding: 12px 18px;
-        border-radius: 10px;
-        font-size: 13px;
-        font-weight: 500;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-        z-index: 999;
-        transform: translateY(16px);
-        opacity: 0;
-        transition:
-          transform 0.22s ease,
-          opacity 0.22s ease;
-        pointer-events: none;
-      }
-      .toast.show {
-        transform: translateY(0);
-        opacity: 1;
-      }
-      .toast-success {
-        background: #fff;
-        color: #15803d;
-        border-left: 4px solid #16a34a;
-      }
-      .toast-error {
-        background: #fff;
-        color: #b91c1c;
-        border-left: 4px solid #dc2626;
-      }
-      .toast-info {
-        background: #fff;
-        color: #1e40af;
-        border-left: 4px solid #2563eb;
-      }
-
-      /* ── Spinner ── */
-      .conn-testing {
-        animation: spin 1s linear infinite;
-      }
-      @keyframes spin {
-        to {
-          transform: rotate(360deg);
-        }
-      }
-      @keyframes blink {
-        0%,
-        100% {
-          opacity: 1;
-        }
-        50% {
-          opacity: 0.5;
-        }
-      }
-
-      /* ── Step badge ── */
-      .step-badge {
+      .step-kicker {
         display: inline-flex;
         align-items: center;
-        gap: 4px;
+        padding: 4px 8px;
+        border-radius: 999px;
         font-size: 11px;
         font-weight: 600;
-        padding: 2px 8px;
-        border-radius: 20px;
         background: #eff6ff;
         color: var(--primary);
         border: 1px solid #bfdbfe;
         margin-bottom: 10px;
       }
-      .step-badge.skippable {
-        background: #f1f5f9;
-        color: #64748b;
-        border-color: var(--border);
+
+      .ready-hero {
+        max-width: 760px;
+        margin: 34px auto;
+        text-align: center;
       }
 
-      /* ── Select dropdown arrow ── */
-      .form-select {
-        appearance: none;
-        background: #fff
-          url('data:image/svg+xml;utf8,<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="%2394A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>')
-          no-repeat right 12px center;
-      }
-
-      /* ── Centered card content / intro / success ── */
-      .centered-panel {
+      .ready-icon {
+        width: 84px;
+        height: 84px;
+        margin: 0 auto 18px;
+        border-radius: 50%;
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 100%;
-        text-align: center;
-        padding-bottom: 8px;
+        font-size: 34px;
+        background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+      }
+
+      .ready-hero h2 {
+        margin: 0 0 12px;
+        font-size: 34px;
+      }
+
+      .ready-hero p {
+        margin: 0 auto 22px;
+        max-width: 560px;
+        font-size: 15px;
+        line-height: 1.75;
+        color: var(--text-muted);
+      }
+
+      .wizard-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 28px;
+        border-top: 1px solid var(--border);
+        background: #fafcff;
+      }
+
+      .footer-note {
+        font-size: 12px;
+        color: var(--text-muted);
+        line-height: 1.6;
+      }
+
+      .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .button {
+        border: none;
+        border-radius: 12px;
+        padding: 11px 18px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 0.12s ease,
+          background 0.15s ease,
+          border-color 0.15s ease;
+        touch-action: manipulation;
+      }
+
+      .button:active {
+        transform: translateY(1px);
+      }
+
+      .button.primary {
+        background: var(--primary);
+        color: #fff;
+      }
+
+      .button.primary:hover {
+        background: var(--primary-hover);
+      }
+
+      .button.secondary {
+        background: #fff;
+        color: var(--text);
+        border: 1px solid var(--border);
+      }
+
+      .button.secondary:hover {
+        background: #f8fafc;
+      }
+
+      .button.link {
+        background: transparent;
+        color: var(--text-muted);
+        padding: 0;
+      }
+
+      .button.link:hover {
+        color: var(--text);
+      }
+
+      .button[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .button:focus-visible,
+      .icon-button:focus-visible,
+      .muted-link:focus-visible,
+      .tab-btn:focus-visible,
+      .switch-toggle:focus-visible,
+      .provider-option:focus-visible,
+      .template-card:focus-visible,
+      .avatar-option:focus-visible,
+      select:focus-visible,
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: 3px solid rgba(37, 99, 235, 0.22);
+        outline-offset: 2px;
+      }
+
+      .toast {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        padding: 12px 16px;
+        border-radius: 14px;
+        background: #fff;
+        border-left: 4px solid var(--primary);
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text);
+        opacity: 0;
+        transform: translateY(12px);
+        transition:
+          opacity 0.2s ease,
+          transform 0.2s ease;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .toast.success {
+        border-left-color: var(--success);
+      }
+
+      .toast.error {
+        border-left-color: var(--error);
+      }
+
+      .toast.info {
+        border-left-color: var(--primary);
+      }
+
+      @media (max-width: 1100px) {
+        body {
+          padding: 0;
+        }
+
+        .wizard-shell {
+          width: 100vw;
+          min-height: 100vh;
+          border-radius: 0;
+          border: none;
+        }
+
+        .hero,
+        .template-grid,
+        .provider-row,
+        .field-grid,
+        .summary-grid,
+        .status-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .avatar-grid {
+          grid-template-columns: repeat(3, 1fr);
+        }
       }
     </style>
   </head>
   <body>
-    <div class="wizard-container">
-      <!-- Header (only for config steps) -->
-      <div class="wizard-header" id="wizard-header" style="display: none">
-        <div class="wizard-header-left">
-          <div class="wizard-title">OpenClaw 配置向导</div>
-          <div class="stepper" id="stepper"></div>
+    <a class="skip-link" href="#wizard-main">跳到主要内容</a>
+    <div class="wizard-shell">
+      <div class="wizard-header">
+        <div>
+          <div class="brand-row">
+            <div class="brand-logo">L</div>
+            <div class="brand-copy">
+              <h1>Lysmata 首次成功向导</h1>
+              <p>安装 OpenClaw、连接 AI 服务、创建第一个助手，并立刻开始第一次对话。</p>
+            </div>
+          </div>
+          <div class="stepper" id="stepper" aria-label="首次成功步骤"></div>
         </div>
-        <button class="btn-close-wizard" onclick="handleExitWizard()" title="退出向导">
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2.2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+        <div class="header-actions">
+          <div class="resume-pill" id="resume-pill">已为你保留当前进度，可稍后继续</div>
+          <button
+            class="icon-button"
+            onclick="exitWizard()"
+            title="退出向导"
+            aria-label="退出首次成功向导"
           >
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Content -->
-      <div class="wizard-content" id="wizard-content">
-        <!-- ════════════ view: intro ════════════ -->
-        <div class="view-panel active" id="view-intro">
-          <div class="centered-panel">
-            <div
-              style="
-                width: 72px;
-                height: 72px;
-                border-radius: 18px;
-                background: linear-gradient(135deg, #3b82f6, #2563eb);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
-                margin-bottom: 24px;
-              "
-            >
-              <svg
-                width="36"
-                height="36"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#fff"
-                stroke-width="2.2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M12 2L4 7l8 5 8-5-8-5z" />
-                <path d="M4 12l8 5 8-5" />
-                <path d="M4 17l8 5 8-5" />
-              </svg>
-            </div>
-            <h1 style="font-size: 26px; font-weight: 700; margin: 0 0 12px">欢迎使用 OpenClaw</h1>
-            <p
-              style="
-                font-size: 14px;
-                color: var(--text-muted);
-                line-height: 1.65;
-                max-width: 420px;
-                margin: 0 0 32px;
-              "
-            >
-              lysmata 是轻量级的 OpenClaw
-              桌面伴侣。只需几分钟，即可完成环境检测、核心安装与基础配置。
-            </p>
-            <div
-              style="
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                width: 100%;
-                max-width: 340px;
-              "
-            >
-              <button
-                class="btn-primary"
-                style="width: 100%; justify-content: center; padding: 11px 18px; font-size: 15px"
-                onclick="goNext()"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M5 12h14M12 5l7 7-7 7" />
-                </svg>
-                开始安装 OpenClaw
-              </button>
-              <button
-                class="btn-ghost"
-                style="width: 100%; justify-content: center"
-                onclick="skipToConfig()"
-              >
-                已安装 OpenClaw，直接配置 →
-              </button>
-            </div>
-            <p style="font-size: 12px; color: #94a3b8; margin-top: 20px">
-              安装过程无需终端操作，约 1–2 分钟完成
-            </p>
-          </div>
-        </div>
-
-        <!-- ════════════ view: env-check ════════════ -->
-        <div class="view-panel" id="view-env">
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">环境检测</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 22px">
-            正在扫描运行 OpenClaw 必需的系统环境依赖...
-          </p>
-
-          <div
-            style="
-              background: #fafafa;
-              border: 1px solid var(--border);
-              border-radius: 10px;
-              overflow: hidden;
-            "
-          >
-            <!-- Node.js -->
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 14px 18px;
-                border-bottom: 1px solid #f1f5f9;
-              "
-            >
-              <div style="display: flex; align-items: center; gap: 12px">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#64748B"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                </svg>
-                <div>
-                  <div style="font-size: 14px; font-weight: 500">Node.js</div>
-                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px">
-                    版本要求 v18.0 或以上
-                  </div>
-                </div>
-              </div>
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  font-size: 13px;
-                  font-weight: 500;
-                  color: #15803d;
-                "
-              >
-                <span
-                  style="
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
-                    display: inline-block;
-                  "
-                ></span>
-                v20.11.0 已安装
-              </div>
-            </div>
-            <!-- 系统权限 -->
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 14px 18px;
-                border-bottom: 1px solid #f1f5f9;
-              "
-            >
-              <div style="display: flex; align-items: center; gap: 12px">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#64748B"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                </svg>
-                <div>
-                  <div style="font-size: 14px; font-weight: 500">系统权限</div>
-                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px">
-                    需要守护进程执行权限
-                  </div>
-                </div>
-              </div>
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  font-size: 13px;
-                  font-weight: 500;
-                  color: #15803d;
-                "
-              >
-                <span
-                  style="
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background: #10b981;
-                    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.18);
-                    display: inline-block;
-                  "
-                ></span>
-                权限通过
-              </div>
-            </div>
-            <!-- 网络 -->
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 14px 18px;
-              "
-            >
-              <div style="display: flex; align-items: center; gap: 12px">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="#64748B"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-                  <line x1="8" y1="21" x2="16" y2="21" />
-                  <line x1="12" y1="17" x2="12" y2="21" />
-                </svg>
-                <div>
-                  <div style="font-size: 14px; font-weight: 500">网络连接</div>
-                  <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px">
-                    连接至 OpenClaw Registry
-                  </div>
-                </div>
-              </div>
-              <div
-                style="
-                  display: flex;
-                  align-items: center;
-                  gap: 6px;
-                  font-size: 13px;
-                  font-weight: 500;
-                  color: #f59e0b;
-                "
-              >
-                <span
-                  style="
-                    width: 8px;
-                    height: 8px;
-                    border-radius: 50%;
-                    background: #f59e0b;
-                    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.25);
-                    display: inline-block;
-                    animation: blink 1.4s ease-in-out infinite;
-                  "
-                ></span>
-                测试中...
-              </div>
-            </div>
-          </div>
-
-          <div class="info-banner">
-            <strong style="font-weight: 600">提示：</strong>检测通过后，系统将使用一键脚本安装
-            OpenClaw Daemon 及 CLI 工具。安装过程中无需终端交互。
-          </div>
-        </div>
-
-        <!-- ════════════ view: installing ════════════ -->
-        <div class="view-panel" id="view-installing">
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">正在安装 OpenClaw</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 22px">
-            下载并配置核心组件，此过程通常需要 1-2 分钟。
-          </p>
-
-          <div style="margin-bottom: 18px">
-            <div
-              style="
-                display: flex;
-                justify-content: space-between;
-                font-size: 13px;
-                font-weight: 500;
-                margin-bottom: 8px;
-              "
-            >
-              <span style="color: var(--primary)">下载依赖包...</span>
-              <span>45%</span>
-            </div>
-            <div
-              style="
-                width: 100%;
-                height: 6px;
-                background: #e2e8f0;
-                border-radius: 3px;
-                overflow: hidden;
-              "
-            >
-              <div
-                style="
-                  width: 45%;
-                  height: 100%;
-                  background: var(--primary);
-                  border-radius: 3px;
-                  transition: width 0.3s ease;
-                "
-              ></div>
-            </div>
-          </div>
-
-          <!-- Terminal Log -->
-          <div
-            style="
-              background: #1e293b;
-              border-radius: 8px;
-              padding: 16px;
-              height: 220px;
-              overflow-y: auto;
-              font-family: &quot;JetBrains Mono&quot;, monospace;
-              font-size: 12px;
-              line-height: 1.65;
-              color: #94a3b8;
-            "
-          >
-            <div>&gt; curl -fsSL https://openclaw.ai/install.sh | bash</div>
-            <div>[INFO] OS: macOS 14.2 (Apple Silicon)</div>
-            <div>[INFO] Node.js v20.11.0 found</div>
-            <div>[INFO] Creating ~/.openclaw directory...</div>
-            <div>[INFO] Downloading openclaw-cli-macos-arm64.tar.gz...</div>
-            <div style="color: #38bdf8">[===&gt; ] 45% (21MB/48MB)</div>
-          </div>
-        </div>
-
-        <!-- ════════════ view: install-success ════════════ -->
-        <div class="view-panel" id="view-success">
-          <div class="centered-panel">
-            <div
-              style="
-                width: 72px;
-                height: 72px;
-                border-radius: 50%;
-                background: #dcfce7;
-                border: 4px solid #bbf7d0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 24px;
-                color: #16a34a;
-              "
-            >
-              <svg
-                width="34"
-                height="34"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            </div>
-            <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px">安装成功！</h1>
-            <p
-              style="
-                font-size: 14px;
-                color: var(--text-muted);
-                line-height: 1.65;
-                max-width: 420px;
-                margin: 0 0 32px;
-              "
-            >
-              OpenClaw 核心组件已成功部署至你的系统。<br />
-              接下来完成 Gateway 和大模型的可视化配置，只需 2 分钟。
-            </p>
-            <div
-              style="
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                width: 100%;
-                max-width: 340px;
-              "
-            >
-              <button
-                class="btn-primary"
-                style="width: 100%; justify-content: center; padding: 11px 18px; font-size: 15px"
-                onclick="goNext()"
-              >
-                立即配置 →
-              </button>
-              <button
-                class="btn-ghost"
-                style="width: 100%; justify-content: center"
-                onclick="handleDefer()"
-              >
-                稍后再说，先去主界面
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ════════════ view: config-step1 ════════════ -->
-        <div class="view-panel" id="view-step1">
-          <div class="step-badge">step 1 / 6 · 必填</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">Gateway 配置</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 22px">
-            设置 OpenClaw Gateway 的基础运行参数。
-          </p>
-
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">绑定地址</label>
-              <input type="text" class="form-input" value="127.0.0.1" />
-              <p class="form-hint">本地使用保持 127.0.0.1；局域网共享可设为 0.0.0.0</p>
-            </div>
-            <div class="form-group">
-              <label class="form-label">监听端口</label>
-              <input type="number" class="form-input" value="18789" />
-              <p class="form-hint">默认 18789，若有冲突请修改</p>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label class="form-label">认证模式</label>
-            <select class="form-input form-select">
-              <option>None（本地无感，推荐）</option>
-              <option>Token（需鉴权）</option>
-            </select>
-            <p class="form-hint">建议本地环境使用 None，提升开发体验</p>
-          </div>
-
-          <div class="toggle-row">
-            <div>
-              <div class="toggle-label">开机自启 (Daemon)</div>
-              <div class="toggle-desc">让 Gateway 作为后台服务随系统启动</div>
-            </div>
-            <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-              <div class="toggle-track active"><div class="toggle-thumb"></div></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- ════════════ view: config-step2 ════════════ -->
-        <div class="view-panel" id="view-step2">
-          <div class="step-badge">step 2 / 6 · 必填</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">LLM Provider 配置</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px">
-            选择并配置你的主要大模型服务提供商。
-          </p>
-
-          <div class="tab-bar">
-            <div
-              class="tab-item active"
-              id="ptab-btn-builtin"
-              onclick="switchProviderTab('builtin')"
-            >
-              内置 Provider
-            </div>
-            <div class="tab-item" id="ptab-btn-custom" onclick="switchProviderTab('custom')">
-              自定义 Provider
-            </div>
-            <div
-              class="tab-item"
-              id="ptab-btn-marketplace"
-              onclick="switchProviderTab('marketplace')"
-            >
-              Marketplace 🛒
-            </div>
-          </div>
-
-          <!-- Tab: Built-in -->
-          <div id="ptab-builtin" class="provider-tab" style="display: block">
-            <div class="providers-grid">
-              <div class="provider-card active" onclick="selectCard(this)">
-                <div style="font-size: 22px; margin-bottom: 6px">🚀</div>
-                <div style="font-weight: 600; font-size: 13px">OpenAI</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px">gpt-4o</div>
-              </div>
-              <div class="provider-card" onclick="selectCard(this)">
-                <div style="font-size: 22px; margin-bottom: 6px">🧠</div>
-                <div style="font-weight: 600; font-size: 13px">Anthropic</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px">
-                  claude-3.5
-                </div>
-              </div>
-              <div class="provider-card" onclick="selectCard(this)">
-                <div style="font-size: 22px; margin-bottom: 6px">⚡</div>
-                <div style="font-weight: 600; font-size: 13px">Groq</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px">
-                  llama-3.1
-                </div>
-              </div>
-              <div class="provider-card" onclick="selectCard(this)">
-                <div style="font-size: 22px; margin-bottom: 6px">🌙</div>
-                <div style="font-weight: 600; font-size: 13px">Moonshot</div>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px">
-                  moonshot-v1
-                </div>
-              </div>
-            </div>
-            <div class="form-group" style="margin-bottom: 0">
-              <label class="form-label">API Key <span style="color: var(--error)">*</span></label>
-              <input type="password" class="form-input" placeholder="sk-..." />
-              <p class="form-hint">安全提示：Key 将使用本地 Keyring 加密存储，不上传云端</p>
-            </div>
-          </div>
-
-          <!-- Tab: Custom -->
-          <div id="ptab-custom" class="provider-tab" style="display: none">
-            <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap">
-              <button
-                class="btn-ghost"
-                style="padding: 5px 10px; font-size: 12px"
-                onclick="fillTemplate('ollama')"
-              >
-                Ollama
-              </button>
-              <button
-                class="btn-ghost"
-                style="padding: 5px 10px; font-size: 12px"
-                onclick="fillTemplate('vllm')"
-              >
-                vLLM
-              </button>
-              <button
-                class="btn-ghost"
-                style="padding: 5px 10px; font-size: 12px"
-                onclick="fillTemplate('lmstudio')"
-              >
-                LM Studio
-              </button>
-              <button
-                class="btn-ghost"
-                style="padding: 5px 10px; font-size: 12px"
-                onclick="fillTemplate('moonshot')"
-              >
-                Moonshot
-              </button>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label"
-                  >Provider ID <span style="color: var(--error)">*</span></label
-                >
-                <input
-                  type="text"
-                  class="form-input"
-                  placeholder="例如: local-ollama"
-                  id="custom-provider-id"
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label">显示名称</label>
-                <input type="text" class="form-input" placeholder="例如: Ollama Local" />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Base URL <span style="color: var(--error)">*</span></label>
-              <input
-                type="text"
-                class="form-input"
-                placeholder="http://127.0.0.1:11434/v1"
-                id="custom-base-url"
-              />
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label"
-                  >Model ID <span style="color: var(--error)">*</span></label
-                >
-                <input
-                  type="text"
-                  class="form-input"
-                  placeholder="例如: llama3"
-                  id="custom-model-id"
-                />
-              </div>
-              <div class="form-group">
-                <label class="form-label">Model 显示名称</label>
-                <input type="text" class="form-input" placeholder="例如: Llama 3 8B" />
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label class="form-label">API Key</label>
-                <input type="password" class="form-input" placeholder="支持 ${ENV_VAR}" />
-              </div>
-              <div class="form-group">
-                <label class="form-label">API 类型</label>
-                <select class="form-input form-select">
-                  <option>OpenAI Compatible</option>
-                  <option>Anthropic Compatible</option>
-                </select>
-              </div>
-            </div>
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 10px 14px;
-                background: #fafafa;
-                border: 1px solid var(--border);
-                border-radius: 8px;
-              "
-            >
-              <span style="font-size: 13px; font-weight: 500">设为默认模型</span>
-              <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-                <div class="toggle-track active"><div class="toggle-thumb"></div></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tab: Marketplace -->
-          <div id="ptab-marketplace" class="provider-tab" style="display: none">
-            <div
-              style="
-                background: #fafafa;
-                border: 1px dashed var(--border);
-                border-radius: 10px;
-                padding: 36px 24px;
-                text-align: center;
-                color: var(--text-muted);
-              "
-            >
-              <div style="font-size: 36px; margin-bottom: 12px">🛒</div>
-              <div
-                style="font-weight: 600; color: var(--text); font-size: 15px; margin-bottom: 6px"
-              >
-                lysmata Marketplace
-              </div>
-              <div style="font-size: 13px; max-width: 300px; margin: 0 auto; line-height: 1.6">
-                提供稳定的大模型 API 服务。购买额度后一键激活，无需自行配置网络与 Key。
-              </div>
-              <button class="btn-primary" style="margin-top: 20px">浏览大模型服务</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- ════════════ view: config-step3 ════════════ -->
-        <div class="view-panel" id="view-step3">
-          <div class="step-badge skippable">step 3 / 6 · 可跳过</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">Channel 配置</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px">
-            配置可接入 Gateway 的客户端通道白名单与鉴权。
-          </p>
-
-          <div class="toggle-row" style="margin-bottom: 10px">
-            <div>
-              <div class="toggle-label">Lysmata 桌面端</div>
-              <div class="toggle-desc">Token: sk-lysmata-desktop-local</div>
-            </div>
-            <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-              <div class="toggle-track active"><div class="toggle-thumb"></div></div>
-            </div>
-          </div>
-
-          <div class="toggle-row" style="margin-bottom: 10px">
-            <div>
-              <div class="toggle-label">VS Code 插件</div>
-              <div class="toggle-desc">Token: sk-vscode-extension</div>
-            </div>
-            <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-              <div class="toggle-track"><div class="toggle-thumb"></div></div>
-            </div>
-          </div>
-
-          <button class="btn-ghost" style="width: 100%; justify-content: center; margin-top: 6px">
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            添加新 Channel
+            ✕
           </button>
         </div>
+      </div>
 
-        <!-- ════════════ view: config-step4 ════════════ -->
-        <div class="view-panel" id="view-step4">
-          <div class="step-badge skippable">step 4 / 6 · 可跳过</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">Skills 配置</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px">
-            从 ClawHub 安装或配置本地自定义技能。
-          </p>
+      <main class="wizard-content" id="wizard-main" role="main">
+        <section class="view active" id="view-intro">
+          <div class="hero">
+            <div class="hero-copy">
+              <div class="mini-badge ok">首次成功主线</div>
+              <h2>先安装 OpenClaw，再创建你的第一个助手。</h2>
+              <p>
+                跟着这条主线走，你只需要完成安装、连接 1 个 AI 服务，然后从 3 个模板里选一个。
+                不用先学复杂配置，也不用先进入空白管理页。
+              </p>
+              <div style="display: flex; gap: 12px; flex-wrap: wrap">
+                <button class="button primary" onclick="jumpTo('env-check')">
+                  开始安装 OpenClaw
+                </button>
+                <button class="button secondary" onclick="jumpTo('llm-key')">
+                  已安装，继续配置 LLM
+                </button>
+              </div>
+              <div class="checklist">
+                <div class="check-row">
+                  <div class="check-icon">1</div>
+                  <div>
+                    <strong>少填信息</strong>
+                    <span>这次只需要补 1 个关键凭证，其余默认项会尽量自动准备好。</span>
+                  </div>
+                </div>
+                <div class="check-row">
+                  <div class="check-icon">2</div>
+                  <div>
+                    <strong>直接开始</strong>
+                    <span>创建完成后会立刻进入第一次对话，而不是把你带回管理页。</span>
+                  </div>
+                </div>
+                <div class="check-row">
+                  <div class="check-icon">3</div>
+                  <div>
+                    <strong>可随时回来</strong>
+                    <span>中途退出也会保留进度，下次可以从上次停下的位置继续。</span>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px">
-            <div
-              style="
-                background: #fff;
-                border: 1px solid #bfdbfe;
-                border-radius: 10px;
-                padding: 16px;
-                position: relative;
-              "
-            >
-              <div style="font-size: 22px; margin-bottom: 8px">🖥️</div>
-              <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px">
-                System Execution
-              </div>
-              <div
-                style="
-                  font-size: 12px;
-                  color: var(--text-muted);
-                  margin-bottom: 14px;
-                  line-height: 1.5;
-                "
-              >
-                允许大模型在本地执行终端命令和读写文件。
-              </div>
-              <button
-                class="btn-ghost"
-                style="
-                  padding: 5px 10px;
-                  font-size: 12px;
-                  width: 100%;
-                  justify-content: center;
-                  background: #f1f5f9;
-                  color: #475569;
-                  border-color: #e2e8f0;
-                  cursor: default;
-                "
-              >
-                已安装 ✓
-              </button>
-            </div>
-            <div
-              style="
-                background: #fff;
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                padding: 16px;
-              "
-            >
-              <div style="font-size: 22px; margin-bottom: 8px">🌐</div>
-              <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px">Web Search</div>
-              <div
-                style="
-                  font-size: 12px;
-                  color: var(--text-muted);
-                  margin-bottom: 14px;
-                  line-height: 1.5;
-                "
-              >
-                允许大模型调用搜索引擎获取实时信息。
-              </div>
-              <button
-                class="btn-ghost"
-                style="padding: 5px 10px; font-size: 12px; width: 100%; justify-content: center"
-              >
-                点击安装
-              </button>
-            </div>
-            <div
-              style="
-                background: #fff;
-                border: 1px solid var(--border);
-                border-radius: 10px;
-                padding: 16px;
-              "
-            >
-              <div style="font-size: 22px; margin-bottom: 8px">📄</div>
-              <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px">File Reader</div>
-              <div
-                style="
-                  font-size: 12px;
-                  color: var(--text-muted);
-                  margin-bottom: 14px;
-                  line-height: 1.5;
-                "
-              >
-                读取并解析 PDF、Word、Excel 等文档格式。
-              </div>
-              <button
-                class="btn-ghost"
-                style="padding: 5px 10px; font-size: 12px; width: 100%; justify-content: center"
-              >
-                点击安装
-              </button>
-            </div>
-            <div
-              style="
-                background: #fff;
-                border: 1.5px dashed var(--border);
-                border-radius: 10px;
-                padding: 16px;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                justify-content: center;
-                text-align: center;
-                gap: 8px;
-                cursor: pointer;
-                color: var(--text-muted);
-                transition: all 0.15s;
-              "
-              onmouseover="this.style.background = '#F8FAFC'"
-              onmouseout="this.style.background = '#fff'"
-            >
-              <div style="font-size: 22px">🔍</div>
-              <div style="font-size: 13px; font-weight: 500">浏览 ClawHub</div>
-              <div style="font-size: 12px">探索更多社区技能</div>
+            <div class="hero-card intro-summary">
+              <div class="mini-badge">大约 3 分钟</div>
+              <h3>你会完成这 3 步</h3>
+              <ol>
+                <li>
+                  <strong>确认环境并完成安装</strong>
+                  自动检查必要条件，卡住时直接告诉你下一步怎么做。
+                </li>
+                <li>
+                  <strong>连接 1 个 AI 服务</strong>
+                  只填写你真正必须提供的 AI 服务密钥（LLM Key），推荐项会自动带出。
+                </li>
+                <li>
+                  <strong>选模板并创建助手</strong>
+                  从 3 个模板里选一个，创建完成后直接进入第一次对话。
+                </li>
+              </ol>
+              <p>首次成功的终点不是“完成配置”，而是“现在真的可以开始用了”。</p>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- ════════════ view: config-step5 ════════════ -->
-        <div class="view-panel" id="view-step5">
-          <div class="step-badge skippable">step 5 / 6 · 可跳过</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">Hooks 配置</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 20px">
-            设置请求的预处理或后处理钩子逻辑，默认关闭。
-          </p>
+        <section class="view" id="view-env-check">
+          <div class="title-row">
+            <div class="title-copy">
+              <h2>安装前环境检查</h2>
+              <p>先检查 OpenClaw、Node.js、网络工具和安装连接，确认可以继续再开始安装。</p>
+            </div>
+            <div class="mini-badge warn">预计 30 秒</div>
+          </div>
 
-          <div
-            style="
-              background: #fafafa;
-              border: 1px solid var(--border);
-              border-radius: 10px;
-              padding: 16px;
-              margin-bottom: 10px;
-            "
-          >
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 10px;
-              "
-            >
-              <div>
-                <div style="font-weight: 500; font-size: 14px">全局日志拦截器</div>
+          <div class="status-grid">
+            <div class="status-card">
+              <strong>OpenClaw</strong>
+              <p>先确认系统里是否已经有可用版本，避免重复安装。</p>
+              <div class="status-tag status-warning">未安装，将自动处理</div>
+            </div>
+            <div class="status-card">
+              <strong>Node.js</strong>
+              <p>版本要求 v22.0 或以上，满足时会直接继续。</p>
+              <div class="status-tag status-ok">已准备好</div>
+            </div>
+            <div class="status-card">
+              <strong>网络工具与连通</strong>
+              <p>检查 curl 和安装服务器可达性；异常时会给出修复方向。</p>
+              <div class="status-tag status-warning">正在检测</div>
+            </div>
+          </div>
+
+          <div class="status-action">
+            <div class="action-card">
+              <strong>如果这里卡住，我们会这样提示</strong>
+              <ul>
+                <li>用用户语言说明“为什么卡住”</li>
+                <li>告诉你下一步该点哪里或该做什么</li>
+                <li>保留“重试检测”和“继续安装”的明确入口</li>
+              </ul>
+            </div>
+            <div class="action-card">
+              <strong>你通常只需要做这些事</strong>
+              <ul>
+                <li>网络问题：切换网络后点击“重新检测”</li>
+                <li>权限问题：按提示允许安装所需访问权限</li>
+                <li>运行环境问题：按提示补齐缺失项后再继续</li>
+              </ul>
+            </div>
+          </div>
+          <div class="status-note">
+            如果这一页没有全部通过，也不会清空你已经完成的步骤；修复后重新检测即可。
+          </div>
+        </section>
+
+        <section class="view" id="view-install">
+          <div class="title-row">
+            <div class="title-copy">
+              <h2>正在安装 OpenClaw</h2>
+              <p>安装过程会展示实时进度和日志；如果失败，可以直接重试或返回检测。</p>
+            </div>
+            <div class="mini-badge ok">自动执行</div>
+          </div>
+
+          <div class="panel-card">
+            <div class="progress-wrap">
+              <div class="progress-head">
+                <span>正在准备核心组件</span>
+                <span>76%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-value"></div>
+              </div>
+            </div>
+
+            <div class="timeline">
+              <div class="timeline-row">
+                <div>
+                  <strong>下载并校验安装包</strong>
+                  <span>确保文件完整可用，避免半安装状态。</span>
+                </div>
+                <div class="mini-badge ok">已完成</div>
+              </div>
+              <div class="timeline-row">
+                <div>
+                  <strong>配置 OpenClaw 运行目录</strong>
+                  <span>系统正在创建默认运行环境，无需你手动打开终端。</span>
+                </div>
+                <div class="mini-badge ok">已完成</div>
+              </div>
+              <div class="timeline-row">
+                <div>
+                  <strong>启动基础服务</strong>
+                  <span>完成后会自动进入下一步最少配置，而不是跳去控制台。</span>
+                </div>
+                <div class="mini-badge warn">进行中</div>
+              </div>
+            </div>
+          </div>
+          <div class="log-panel" style="margin-top: 16px">
+            <div class="log-line success">[ok] Node.js v22.3.0 ready</div>
+            <div class="log-line success">[ok] curl available</div>
+            <div class="log-line warn">[run] downloading openclaw package...</div>
+            <div class="log-line warn">[run] starting gateway service...</div>
+          </div>
+          <div class="status-note">
+            如果超过 1 分钟仍停在这里，页面会显示错误原因、重试按钮和手动安装说明。
+          </div>
+        </section>
+
+        <section class="view" id="view-install-success">
+          <div class="ready-hero">
+            <div class="ready-icon">✓</div>
+            <h2>安装已经完成，离第一次对话只差一步。</h2>
+            <p>接下来只要连接 1 个 AI 服务，就可以继续选择模板并创建你的第一个助手。</p>
+            <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap">
+              <button class="button primary" onclick="jumpTo('llm-key')">继续连接 AI 服务</button>
+              <button class="button link" onclick="saveAndGoWorkshop()">稍后继续</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-llm-key">
+          <div class="form-panel">
+            <div class="title-row">
+              <div class="title-copy">
+                <h2>连接 AI 服务</h2>
+                <p>
+                  首次成功主路径里，这一步只需要填写 1 个 AI 服务密钥（LLM
+                  Key），其它项都可以稍后再调。
+                </p>
+              </div>
+              <div class="mini-badge ok">主路径必填</div>
+            </div>
+
+            <div class="hint-banner">
+              如果你以前配过，系统会尽量自动复用旧设置。现在只想先跑通也没关系，保持推荐项即可继续。
+            </div>
+
+            <div class="panel-card">
+              <h3>选择要连接的服务</h3>
+              <div class="provider-row">
                 <div
-                  style="
-                    font-size: 12px;
-                    color: var(--text-muted);
-                    margin-top: 2px;
-                    font-family: &quot;JetBrains Mono&quot;, monospace;
-                  "
+                  class="provider-option active"
+                  data-provider="OpenAI"
+                  role="button"
+                  tabindex="0"
+                  aria-pressed="true"
+                  onclick="selectProvider(this, 'OpenAI')"
                 >
-                  path: /hooks/global-logger.js
+                  <strong>OpenAI</strong>
+                  <p>默认推荐，适合先把第一次成功跑通。</p>
+                  <div class="provider-meta">已检测到旧配置，可自动预填</div>
+                </div>
+                <div
+                  class="provider-option"
+                  data-provider="Anthropic"
+                  role="button"
+                  tabindex="0"
+                  aria-pressed="false"
+                  onclick="selectProvider(this, 'Anthropic')"
+                >
+                  <strong>Anthropic</strong>
+                  <p>适合长对话和长文本处理，也可以直接作为默认选择。</p>
+                  <div class="provider-meta">可直接切换</div>
+                </div>
+                <div
+                  class="provider-option"
+                  data-provider="Moonshot"
+                  role="button"
+                  tabindex="0"
+                  aria-pressed="false"
+                  onclick="selectProvider(this, 'Moonshot')"
+                >
+                  <strong>Moonshot</strong>
+                  <p>适合常见国内使用场景，后续也可以在设置里替换。</p>
+                  <div class="provider-meta">后续可在设置中替换</div>
                 </div>
               </div>
-              <div
-                class="toggle-wrapper"
-                onclick="this.querySelector('.toggle-track').classList.toggle('active')"
-              >
-                <div class="toggle-track active"><div class="toggle-thumb"></div></div>
+
+              <div class="status-note">
+                当前已选：<strong id="selected-provider-name">OpenAI</strong
+                >。默认会带出推荐模型；如果你现在只想先跑通，直接填写 API Key 就可以继续。
               </div>
-            </div>
-          </div>
 
-          <button class="btn-ghost" style="width: 100%; justify-content: center">
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-            注册新 Hook
-          </button>
-
-          <div class="info-banner" style="margin-top: 18px">
-            Hooks 支持热重载，变更后无需重启 Gateway 即可生效。
-          </div>
-        </div>
-
-        <!-- ════════════ view: config-step6 ════════════ -->
-        <div class="view-panel" id="view-step6">
-          <div class="step-badge">step 6 / 6 · 检查与应用</div>
-          <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 6px">确认配置</h2>
-          <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 18px">
-            确认以下变更，应用并重启 Gateway。
-          </p>
-
-          <!-- Diff 预览 -->
-          <div
-            style="
-              background: #1e293b;
-              border-radius: 8px;
-              padding: 16px;
-              overflow-y: auto;
-              font-family: &quot;JetBrains Mono&quot;, monospace;
-              font-size: 12px;
-              line-height: 1.65;
-              color: #e2e8f0;
-              margin-bottom: 16px;
-              max-height: 180px;
-            "
-          >
-            <div style="color: #64748b">// openclaw.json diff</div>
-            <div style="color: #10b981">+ "gateway": {</div>
-            <div style="color: #10b981">+ "port": 18789,</div>
-            <div style="color: #10b981">+ "auth": "none",</div>
-            <div style="color: #10b981">+ "autostart": true</div>
-            <div style="color: #10b981">+ },</div>
-            <div style="color: #10b981">+ "providers": {</div>
-            <div style="color: #10b981">+ "primary": "openai",</div>
-            <div style="color: #10b981">+ "openai": { "model": "gpt-4o" }</div>
-            <div style="color: #10b981">+ },</div>
-            <div style="color: #10b981">+ "channels": {</div>
-            <div style="color: #10b981">+ "lysmata-desktop": { "enabled": true }</div>
-            <div style="color: #10b981">+ }</div>
-          </div>
-
-          <!-- 跳过的步骤提示 -->
-          <div
-            id="skipped-steps-note"
-            style="
-              display: none;
-              padding: 10px 14px;
-              background: #fffbeb;
-              border: 1px solid #fde68a;
-              border-radius: 8px;
-              font-size: 13px;
-              color: #92400e;
-              margin-bottom: 12px;
-            "
-          >
-            <strong>提示：</strong>以下步骤已跳过，可在主界面设置中随时配置：<span
-              id="skipped-list"
-            ></span>
-          </div>
-
-          <div class="toggle-row" style="background: #fffbeb; border-color: #fde68a">
-            <div>
-              <div class="toggle-label" style="color: #b45309">重启 Gateway</div>
-              <div class="toggle-desc" style="color: #92400e">核心参数变更需要重启服务以生效。</div>
-            </div>
-            <div class="toggle-wrapper" onclick="toggleTrackClick(this)">
-              <div class="toggle-track active" style="background: #f59e0b">
-                <div class="toggle-thumb"></div>
+              <div class="field-grid">
+                <div class="field full" id="api-key-field">
+                  <label for="api-key">API Key</label>
+                  <input
+                    id="api-key"
+                    name="apiKey"
+                    type="password"
+                    value="sk-live-••••••••••old"
+                    autocomplete="off"
+                    spellcheck="false"
+                    aria-describedby="api-key-hint api-key-error"
+                  />
+                  <div class="field-hint" id="api-key-hint">
+                    已有配置会自动预填并允许更新，保存后会用安全方式存储。
+                  </div>
+                  <div class="field-error" id="api-key-error" role="alert" hidden></div>
+                </div>
               </div>
+
+              <details class="advanced-details">
+                <summary>需要时，再调整推荐模型</summary>
+                <div class="advanced-body">
+                  <div class="field" style="margin-bottom: 0">
+                    <label for="model-name">推荐模型（可选）</label>
+                    <input
+                      id="model-name"
+                      name="modelName"
+                      value="gpt-4o-mini"
+                      autocomplete="off"
+                      spellcheck="false"
+                    />
+                    <div class="field-hint">
+                      已自动带出推荐模型。你可以保持默认，后续也能在设置里继续调整。
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <button class="muted-link" onclick="openAdvancedSettings()">查看高级设置入口</button>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- ════════════ view: done ════════════ -->
-        <div class="view-panel" id="view-done">
-          <div class="centered-panel">
+        <section class="view" id="view-template-select">
+          <div class="title-row">
+            <div class="title-copy">
+              <h2>选择第一个助手模板</h2>
+              <p>先选一个最接近你当前需求的助手类型，创建后随时还能继续调整。</p>
+            </div>
+            <div class="mini-badge">3 个 v1 模板</div>
+          </div>
+
+          <div class="template-grid" id="template-grid">
             <div
-              style="
-                width: 72px;
-                height: 72px;
-                border-radius: 50%;
-                background: linear-gradient(135deg, #dcfce7, #bbf7d0);
-                border: 4px solid #bbf7d0;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-bottom: 24px;
-                color: #16a34a;
-              "
+              class="template-card active"
+              data-template="通用助手"
+              role="button"
+              tabindex="0"
+              aria-pressed="true"
+              onclick="selectTemplate(this)"
             >
-              <svg
-                width="34"
-                height="34"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
+              <div class="template-icon">✨</div>
+              <strong>通用助手</strong>
+              <p>适合大多数日常提问、讨论、总结和简单协作，是最稳妥的默认入口。</p>
+              <div class="template-foot">
+                <span>最适合第一次开始</span>
+                <span>默认推荐</span>
+              </div>
             </div>
-            <h1 style="font-size: 24px; font-weight: 700; margin: 0 0 12px">已就绪 🎉</h1>
-            <p
-              style="
-                font-size: 14px;
-                color: var(--text-muted);
-                line-height: 1.65;
-                max-width: 380px;
-                margin: 0 0 28px;
-              "
+            <div
+              class="template-card"
+              data-template="信息助手"
+              role="button"
+              tabindex="0"
+              aria-pressed="false"
+              onclick="selectTemplate(this)"
             >
-              Gateway 配置已应用并成功重启。<br />
-              你现在可以开始创建 Bot 并开始对话了。
+              <div class="template-icon" style="background: #f0fdf4">🔎</div>
+              <strong>信息助手</strong>
+              <p>适合检索、整理、解释与归纳信息，帮助你更快理解复杂内容。</p>
+              <div class="template-foot">
+                <span>偏信息收集</span>
+                <span>容易上手</span>
+              </div>
+            </div>
+            <div
+              class="template-card"
+              data-template="日常任务助手"
+              role="button"
+              tabindex="0"
+              aria-pressed="false"
+              onclick="selectTemplate(this)"
+            >
+              <div class="template-icon" style="background: #fff7ed">✅</div>
+              <strong>日常任务助手</strong>
+              <p>适合拆解待办、撰写文本、安排事务，让你更快把想法变成可执行动作。</p>
+              <div class="template-foot">
+                <span>偏行动导向</span>
+                <span>结果导向</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-assistant-create">
+          <div class="form-panel">
+            <div class="title-row">
+              <div class="title-copy">
+                <h2>创建你的第一个助手</h2>
+                <p>这里只需要补一点你愿意自定义的信息，剩下的准备工作系统会替你完成。</p>
+              </div>
+              <div class="mini-badge ok">轻量创建</div>
+            </div>
+
+            <div class="hint-banner">
+              当前模板：<strong id="selected-template-name">通用助手</strong
+              >。创建成功后将直接进入第一次对话，不会让你回到空白管理页。
+            </div>
+
+            <div class="panel-card">
+              <div class="field-grid">
+                <div class="field">
+                  <label for="assistant-name">助手名称</label>
+                  <input
+                    id="assistant-name"
+                    name="assistantName"
+                    value="我的第一个助手"
+                    autocomplete="off"
+                  />
+                  <div class="field-hint">最多只要求一个可理解的名称，默认已帮你填好。</div>
+                </div>
+                <div class="field">
+                  <label for="assistant-tone">一句话用途</label>
+                  <input
+                    id="assistant-tone"
+                    name="assistantPurpose"
+                    value="帮我更快开始第一次真实使用"
+                    autocomplete="off"
+                  />
+                  <div class="field-hint">这是可选项，用来帮你快速辨认用途。</div>
+                </div>
+                <div class="field full">
+                  <label>选择头像</label>
+                  <div class="avatar-grid" id="avatar-grid">
+                    <div
+                      class="avatar-option active"
+                      data-avatar="✨"
+                      role="button"
+                      tabindex="0"
+                      aria-pressed="true"
+                      aria-label="选择星光头像"
+                      onclick="selectAvatar(this)"
+                    >
+                      ✨
+                    </div>
+                    <div
+                      class="avatar-option"
+                      data-avatar="🤖"
+                      role="button"
+                      tabindex="0"
+                      aria-pressed="false"
+                      aria-label="选择机器人头像"
+                      onclick="selectAvatar(this)"
+                    >
+                      🤖
+                    </div>
+                    <div
+                      class="avatar-option"
+                      data-avatar="🔎"
+                      role="button"
+                      tabindex="0"
+                      aria-pressed="false"
+                      aria-label="选择放大镜头像"
+                      onclick="selectAvatar(this)"
+                    >
+                      🔎
+                    </div>
+                    <div
+                      class="avatar-option"
+                      data-avatar="✅"
+                      role="button"
+                      tabindex="0"
+                      aria-pressed="false"
+                      aria-label="选择勾选头像"
+                      onclick="selectAvatar(this)"
+                    >
+                      ✅
+                    </div>
+                    <div
+                      class="avatar-option"
+                      data-avatar="💡"
+                      role="button"
+                      tabindex="0"
+                      aria-pressed="false"
+                      aria-label="选择灯泡头像"
+                      onclick="selectAvatar(this)"
+                    >
+                      💡
+                    </div>
+                  </div>
+                  <div class="field-hint">这里只保留轻量定制项，连接和运行准备会自动完成。</div>
+                </div>
+              </div>
+
+              <div class="summary-grid">
+                <div class="summary-card">
+                  <strong>自动准备就绪</strong>
+                  <p>系统会沿用刚才的连接配置，帮你准备好可直接使用的助手。</p>
+                </div>
+                <div class="summary-card">
+                  <strong>失败时可重试</strong>
+                  <p>如果创建失败，页面会告诉你原因，并保留明确的重试入口。</p>
+                </div>
+                <div class="summary-card">
+                  <strong>创建后直接聊天</strong>
+                  <p>成功后会自动进入对应对话页，把“第一次成功”真正兑现出来。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="view-ready">
+          <div class="ready-hero">
+            <div class="ready-icon" id="ready-avatar">✨</div>
+            <h2>你的第一个助手已经可以开始使用了。</h2>
+            <p>
+              <strong id="ready-name">我的第一个助手</strong> 已根据
+              <strong id="ready-template">通用助手</strong>
+              模板创建完成。现在你可以直接进入第一次对话，把 OpenClaw 真正用起来。
             </p>
-            <button
-              class="btn-primary"
-              style="padding: 11px 28px; font-size: 15px"
-              onclick="goToDashboard()"
-            >
-              进入主界面
-            </button>
-            <button class="btn-link" style="margin-top: 16px" onclick="reenterWizard()">
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                style="display: inline-block; vertical-align: middle; margin-right: 4px"
-              >
-                <polyline points="1 4 1 10 7 10" />
-                <path d="M3.51 15a9 9 0 1 0 .49-3.57" />
-              </svg>
-              重新运行配置向导
+            <div style="display: flex; justify-content: center; gap: 12px; flex-wrap: wrap">
+              <button class="button primary" onclick="goToPrivateChat()">立即开始对话</button>
+              <button class="button secondary" onclick="goToWorkshop()">先回助手工坊</button>
+            </div>
+            <button class="muted-link" style="margin-top: 20px" onclick="restartWizard()">
+              重新运行首次成功向导
             </button>
           </div>
-        </div>
-      </div>
+        </section>
+      </main>
 
-      <!-- ── Footer ── -->
-      <div class="wizard-footer">
-        <div class="wizard-footer-left">
-          <button class="btn-ghost" id="btn-cancel" onclick="handleCancel()">取消</button>
+      <div class="wizard-footer" id="wizard-footer">
+        <div class="footer-note" id="footer-note">
+          v1 默认先卖“结果”，后续再承接“系统”。高级能力可在设置中继续维护。
         </div>
-        <div class="wizard-footer-right">
-          <button class="btn-link" id="btn-skip" onclick="skipCurrentStep()" style="display: none">
-            跳过此步
+        <div class="footer-actions">
+          <button
+            class="button link"
+            id="skip-btn"
+            style="display: none"
+            onclick="saveAndGoWorkshop()"
+          >
+            稍后继续
           </button>
-          <button class="btn-ghost" id="btn-prev" onclick="goPrev()" style="display: none">
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M19 12H5M12 5l-7 7 7 7" />
-            </svg>
+          <button class="button secondary" id="prev-btn" style="display: none" onclick="prevStep()">
             上一步
           </button>
-          <button class="btn-primary" id="btn-next" onclick="goNext()">开始安装</button>
+          <button class="button primary" id="next-btn" onclick="nextStep()">开始</button>
         </div>
       </div>
     </div>
 
-    <!-- Toast -->
-    <div id="toast" class="toast"></div>
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
     <script>
-      // ── 步骤数据 ──
-      const INSTALL_STEPS = [
-        { id: "intro", type: "install" },
-        { id: "env", type: "install" },
-        { id: "installing", type: "install" },
-        { id: "success", type: "install" },
+      const FLOW = [
+        { id: "intro", action: "开始安装" },
+        { id: "env-check", action: "开始安装 OpenClaw" },
+        { id: "install", action: "安装进行中" },
+        { id: "install-success", action: "继续连接 AI 服务" },
+        { id: "llm-key", action: "保存并继续" },
+        { id: "template-select", action: "使用这个模板" },
+        { id: "assistant-create", action: "创建助手并开始对话" },
+        { id: "ready", action: "" },
       ];
-      const CONFIG_STEPS = [
-        { id: "step1", type: "config", title: "Gateway", index: 1, skippable: false },
-        { id: "step2", type: "config", title: "Provider", index: 2, skippable: false },
-        { id: "step3", type: "config", title: "Channel", index: 3, skippable: true },
-        { id: "step4", type: "config", title: "Skills", index: 4, skippable: true },
-        { id: "step5", type: "config", title: "Hooks", index: 5, skippable: true },
-        { id: "step6", type: "config", title: "Review", index: 6, skippable: false },
+
+      const HEADER_STEPS = [
+        { id: "env-check", label: "检查环境" },
+        { id: "install", label: "安装 OpenClaw" },
+        { id: "llm-key", label: "连接 AI 服务" },
+        { id: "template-select", label: "选择模板" },
+        { id: "assistant-create", label: "创建助手" },
+        { id: "ready", label: "开始对话" },
       ];
-      const FLOW = [...INSTALL_STEPS, ...CONFIG_STEPS, { id: "done", type: "done" }];
 
-      let currentStepIdx = 0;
-      // 保存每个 config step 的跳过状态
-      const skippedSteps = {};
+      const FOOTER_HIDDEN_STEPS = new Set(["intro", "install-success", "ready"]);
 
-      // ── 渲染进度器 ──
-      function renderStepper(step) {
-        const el = document.getElementById("stepper");
-        const total = CONFIG_STEPS.length;
-        let html = "";
-        CONFIG_STEPS.forEach((s, idx) => {
-          const isCompleted = s.index < step.index;
-          const isActive = s.index === step.index;
-          const isSkipped = skippedSteps[s.id];
-          let cls = "";
-          if (isActive) cls = "active";
-          if (isCompleted) cls = isSkipped ? "skipped" : "completed";
+      const FOOTER_NOTES = {
+        "env-check": "如果中途退出，Lysmata 会尽量保留你已经完成的步骤。",
+        install: "安装完成后会自动进入下一步；如果失败，会提供重试入口。",
+        "llm-key": "高级设置不会阻断主路径。需要时可以去设置页继续调整。",
+        "template-select": "先选最接近你当前需求的模板，后续随时可以继续调整。",
+        "assistant-create": "这里只保留少量可选项，完成后会直接开始第一次对话。",
+      };
 
-          html += `<div class="step-item ${cls}">
-        <div class="step-circle">${isCompleted ? (isSkipped ? "–" : "✓") : s.index}</div>
-        <span style="display:${isActive ? "inline-block" : "none"};">${s.title}</span>
-      </div>`;
-          if (idx < total - 1) {
-            const divClass = isCompleted ? (isSkipped ? "skipped" : "completed") : "";
-            html += `<div class="step-divider ${divClass}"></div>`;
-          }
-        });
-        el.innerHTML = html;
+      let currentStepIndex = 0;
+      let selectedTemplate = "通用助手";
+      let selectedAvatar = "✨";
+      let selectedProvider = "OpenAI";
+      let savedProgress = false;
+
+      function getCurrentStepId() {
+        return FLOW[currentStepIndex].id;
       }
 
-      // ── 渲染视图 ──
-      function renderView() {
-        const step = FLOW[currentStepIdx];
-
-        // header 显示/隐藏
-        const header = document.getElementById("wizard-header");
-        if (step.type === "config") {
-          header.style.display = "flex";
-          renderStepper(step);
-        } else {
-          header.style.display = "none";
-        }
-
-        // 切换 panel
-        document.querySelectorAll(".view-panel").forEach((el) => el.classList.remove("active"));
-        const panel = document.getElementById("view-" + step.id);
-        if (panel) panel.classList.add("active");
-
-        // 按钮状态
-        const btnCancel = document.getElementById("btn-cancel");
-        const btnPrev = document.getElementById("btn-prev");
-        const btnNext = document.getElementById("btn-next");
-        const btnSkip = document.getElementById("btn-skip");
-
-        // 默认重置
-        btnCancel.style.display = "block";
-        btnPrev.style.display = "none";
-        btnSkip.style.display = "none";
-        btnNext.disabled = false;
-
-        if (step.id === "intro") {
-          btnNext.textContent = "开始安装";
-          btnCancel.textContent = "取消";
-        } else if (step.id === "env") {
-          btnPrev.style.display = "flex";
-          btnNext.textContent = "一键安装";
-        } else if (step.id === "installing") {
-          btnNext.textContent = "安装中...";
-          btnNext.disabled = true;
-          btnCancel.style.display = "none";
-          setTimeout(() => {
-            goNext();
-          }, 3000);
-        } else if (step.id === "success") {
-          btnNext.textContent = "立即配置 →";
-          btnCancel.style.display = "none";
-        } else if (step.type === "config") {
-          btnPrev.style.display = "flex";
-          btnCancel.textContent = "取消";
-          if (step.skippable) {
-            btnSkip.style.display = "inline-flex";
-            btnSkip.textContent = "跳过此步";
-          }
-          if (step.id === "step6") {
-            btnNext.textContent = "应用配置";
-            // 更新跳过步骤提示
-            const skippedNames = CONFIG_STEPS.filter((s) => skippedSteps[s.id]).map((s) => s.title);
-            const note = document.getElementById("skipped-steps-note");
-            if (skippedNames.length > 0) {
-              note.style.display = "block";
-              document.getElementById("skipped-list").textContent = " " + skippedNames.join("、");
-            } else {
-              note.style.display = "none";
-            }
-          } else {
-            btnNext.textContent = "下一步";
-          }
-        } else if (step.id === "done") {
-          btnCancel.style.display = "none";
-          btnNext.style.display = "none";
-          btnNext.style.display = "none";
-        }
+      function getCurrentHeaderStepId() {
+        const stepId = getCurrentStepId();
+        if (stepId === "intro") return null;
+        if (stepId === "install-success") return "install";
+        return stepId;
       }
 
-      // ── 导航函数 ──
-      function goNext() {
-        const step = FLOW[currentStepIdx];
-
-        // 自定义 Provider 必填校验
-        if (step.id === "step2") {
-          const activeTab = document.querySelector(".tab-item.active").innerText;
-          if (activeTab.includes("自定义")) {
-            const requiredIds = ["custom-provider-id", "custom-base-url", "custom-model-id"];
-            let valid = true;
-            requiredIds.forEach((id) => {
-              const inp = document.getElementById(id);
-              if (!inp.value.trim()) {
-                inp.classList.add("form-error");
-                valid = false;
-              } else inp.classList.remove("form-error");
-            });
-            if (!valid) {
-              showToast("请填写必填字段（标有 *）", "error");
-              return;
-            }
-          }
-        }
-
-        // 最后一步应用配置
-        if (step.id === "step6") {
-          const btn = document.getElementById("btn-next");
-          btn.innerHTML = `<svg class="conn-testing" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 应用中...`;
-          btn.disabled = true;
-          setTimeout(() => {
-            showToast("Gateway 配置已应用并成功重启", "success");
-            currentStepIdx++;
-            renderView();
-          }, 2000);
+      function renderStepper() {
+        const stepper = document.getElementById("stepper");
+        const current = getCurrentHeaderStepId();
+        if (!current) {
+          stepper.classList.add("is-hidden");
+          stepper.innerHTML = "";
           return;
         }
 
-        if (currentStepIdx < FLOW.length - 1) {
-          currentStepIdx++;
+        stepper.classList.remove("is-hidden");
+        const currentHeaderIndex = HEADER_STEPS.findIndex((step) => step.id === current);
+        const html = HEADER_STEPS.map((step, index) => {
+          const isDone = currentHeaderIndex > index;
+          const isActive = step.id === current;
+          const className = isActive ? "step-chip active" : isDone ? "step-chip done" : "step-chip";
+          const indexText = isDone ? "✓" : index + 1;
+          return `<div class="${className}"><span class="step-index">${indexText}</span><span>${step.label}</span></div>`;
+        }).join("");
+        stepper.innerHTML = html;
+      }
+
+      function renderView() {
+        document.querySelectorAll(".view").forEach((view) => view.classList.remove("active"));
+        const activeView = document.getElementById(`view-${FLOW[currentStepIndex].id}`);
+        activeView.classList.add("active");
+        renderStepper();
+        renderFooter();
+        syncViewFocus(activeView);
+      }
+
+      function renderFooter() {
+        const stepId = getCurrentStepId();
+        const footer = document.getElementById("wizard-footer");
+        const prevBtn = document.getElementById("prev-btn");
+        const nextBtn = document.getElementById("next-btn");
+        const skipBtn = document.getElementById("skip-btn");
+        const footerNote = document.getElementById("footer-note");
+
+        if (FOOTER_HIDDEN_STEPS.has(stepId)) {
+          footer.style.display = "none";
+          return;
+        }
+
+        footer.style.display = "flex";
+        prevBtn.style.display = currentStepIndex === 0 ? "none" : "inline-flex";
+        skipBtn.style.display = stepId === "llm-key" ? "inline-flex" : "none";
+
+        if (stepId === "install") {
+          nextBtn.textContent = FLOW[currentStepIndex].action;
+          nextBtn.disabled = true;
+        } else {
+          nextBtn.style.display = "inline-flex";
+          nextBtn.disabled = false;
+          nextBtn.textContent = FLOW[currentStepIndex].action;
+        }
+
+        footerNote.textContent =
+          FOOTER_NOTES[stepId] ?? "如果中途退出，Lysmata 会尽量保留你已经完成的步骤。";
+      }
+
+      function setFieldError(message = "") {
+        const apiKeyField = document.getElementById("api-key-field");
+        const apiKey = document.getElementById("api-key");
+        const apiKeyError = document.getElementById("api-key-error");
+        const hasError = Boolean(message);
+
+        apiKeyField.classList.toggle("has-error", hasError);
+        apiKey.setAttribute("aria-invalid", hasError ? "true" : "false");
+        apiKeyError.hidden = !hasError;
+        apiKeyError.textContent = message;
+      }
+
+      function syncPressedState(selector, activeElement) {
+        document.querySelectorAll(selector).forEach((node) => {
+          node.setAttribute("aria-pressed", node === activeElement ? "true" : "false");
+        });
+      }
+
+      function setupSelectableCardKeyboard() {
+        document
+          .querySelectorAll(".provider-option, .template-card, .avatar-option")
+          .forEach((node) => {
+            node.addEventListener("keydown", (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                node.click();
+              }
+            });
+          });
+      }
+
+      function syncViewFocus(activeView) {
+        requestAnimationFrame(() => {
+          const focusTarget = activeView.querySelector("h2, h3");
+          if (!focusTarget) return;
+          focusTarget.setAttribute("tabindex", "-1");
+          focusTarget.focus();
+        });
+      }
+
+      function nextStep() {
+        const stepId = getCurrentStepId();
+
+        if (stepId === "llm-key") {
+          const apiKey = document.getElementById("api-key");
+          if (!apiKey.value.trim()) {
+            setFieldError("请输入你的 AI 服务密钥后再继续。");
+            showToast("请先填写 AI 服务密钥。", "error");
+            apiKey.focus();
+            return;
+          }
+          setFieldError();
+        }
+
+        if (stepId === "assistant-create") {
+          syncReadyView();
+        }
+
+        if (stepId === "install") return;
+        if (currentStepIndex < FLOW.length - 1) {
+          currentStepIndex += 1;
           renderView();
+          maybeAutoAdvance();
         }
       }
 
-      function goPrev() {
-        if (currentStepIdx > 0) {
-          currentStepIdx--;
-          renderView();
+      function prevStep() {
+        if (currentStepIndex === 0) return;
+        currentStepIndex -= 1;
+        renderView();
+      }
+
+      function jumpTo(stepId) {
+        const targetIndex = FLOW.findIndex((step) => step.id === stepId);
+        if (targetIndex === -1) return;
+        currentStepIndex = targetIndex;
+        renderView();
+        maybeAutoAdvance();
+      }
+
+      function maybeAutoAdvance() {
+        if (getCurrentStepId() === "install") {
+          setTimeout(() => {
+            if (getCurrentStepId() === "install") {
+              currentStepIndex += 1;
+              renderView();
+            }
+          }, 2200);
         }
       }
 
-      // 跳过当前可选步骤
-      function skipCurrentStep() {
-        const step = FLOW[currentStepIdx];
-        if (!step.skippable) return;
-        skippedSteps[step.id] = true;
-        showToast(`已跳过「${step.title}」，可在设置中随时配置`, "info");
-        currentStepIdx++;
-        renderView();
+      function selectProvider(element, providerName) {
+        document
+          .querySelectorAll(".provider-option")
+          .forEach((node) => node.classList.remove("active"));
+        element.classList.add("active");
+        syncPressedState(".provider-option", element);
+        selectedProvider = providerName;
+        document.getElementById("selected-provider-name").textContent = providerName;
+        const recommendedModel =
+          providerName === "Anthropic"
+            ? "claude-3-5-sonnet"
+            : providerName === "Moonshot"
+              ? "moonshot-v1-8k"
+              : "gpt-4o-mini";
+        document.getElementById("model-name").value = recommendedModel;
       }
 
-      // 已安装，直接跳到配置
-      function skipToConfig() {
-        currentStepIdx = FLOW.findIndex((s) => s.id === "step1");
-        renderView();
+      function selectTemplate(element) {
+        document
+          .querySelectorAll(".template-card")
+          .forEach((node) => node.classList.remove("active"));
+        element.classList.add("active");
+        syncPressedState(".template-card", element);
+        selectedTemplate = element.dataset.template;
+        document.getElementById("selected-template-name").textContent = selectedTemplate;
+        const defaultName =
+          selectedTemplate === "信息助手"
+            ? "我的信息助手"
+            : selectedTemplate === "日常任务助手"
+              ? "我的任务助手"
+              : "我的第一个助手";
+        document.getElementById("assistant-name").value = defaultName;
       }
 
-      // 稍后再说
-      function handleDefer() {
-        showToast("已保存进度，可在「设置 → 重新运行向导」中继续", "info");
+      function selectAvatar(element) {
+        document
+          .querySelectorAll(".avatar-option")
+          .forEach((node) => node.classList.remove("active"));
+        element.classList.add("active");
+        syncPressedState(".avatar-option", element);
+        selectedAvatar = element.dataset.avatar;
+      }
+
+      function syncReadyView() {
+        const assistantName =
+          document.getElementById("assistant-name").value.trim() || "我的第一个助手";
+        document.getElementById("ready-name").textContent = assistantName;
+        document.getElementById("ready-template").textContent = selectedTemplate;
+        document.getElementById("ready-avatar").textContent = selectedAvatar;
+      }
+
+      function openAdvancedSettings() {
+        showToast("高级设置已后置到设置页，不会打断首次成功主路径。", "info");
+      }
+
+      function saveAndGoWorkshop() {
+        savedProgress = true;
+        updateResumePill();
+        showToast("已保存当前进度，可稍后继续完成首次成功。", "info");
         setTimeout(() => {
           window.location.href = "ui-bot-management.html";
-        }, 1800);
+        }, 1200);
       }
 
-      // 退出向导（配置过程中点 ✕）
-      function handleExitWizard() {
-        showToast("已退出向导，配置将保留已完成步骤", "info");
+      function exitWizard() {
+        savedProgress = true;
+        updateResumePill();
+        showToast("已退出向导，已完成步骤会被保留。", "info");
         setTimeout(() => {
           window.location.href = "ui-bot-management.html";
-        }, 1800);
+        }, 1200);
       }
 
-      // 取消
-      function handleCancel() {
-        showToast("已取消操作", "error");
+      function updateResumePill() {
+        document.getElementById("resume-pill").classList.toggle("show", savedProgress);
       }
 
-      // 进入主界面
-      function goToDashboard() {
+      function restartWizard() {
+        currentStepIndex = 0;
+        selectedTemplate = "通用助手";
+        selectedAvatar = "✨";
+        savedProgress = false;
+        setFieldError();
+        updateResumePill();
+        selectTemplate(document.querySelector(".template-card[data-template='通用助手']"));
+        selectAvatar(document.querySelector(".avatar-option[data-avatar='✨']"));
+        selectProvider(
+          document.querySelector(".provider-option[data-provider='OpenAI']"),
+          "OpenAI",
+        );
+        renderView();
+        showToast("已重新开始首次成功向导。", "success");
+      }
+
+      function goToPrivateChat() {
+        window.location.href = "ui-private-chat.html";
+      }
+
+      function goToWorkshop() {
         window.location.href = "ui-bot-management.html";
       }
 
-      // 重新运行向导
-      function reenterWizard() {
-        Object.keys(skippedSteps).forEach((k) => delete skippedSteps[k]);
-        currentStepIdx = FLOW.findIndex((s) => s.id === "step1");
-        document.getElementById("btn-next").style.display = "";
-        renderView();
-        showToast("已进入配置向导", "info");
+      function showToast(message, type = "success") {
+        const toast = document.getElementById("toast");
+        toast.textContent = message;
+        toast.className = `toast ${type} show`;
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => {
+          toast.classList.remove("show");
+        }, 2600);
       }
 
-      // ── Provider Tab 切换 ──
-      function switchProviderTab(tabId) {
-        document.querySelectorAll(".provider-tab").forEach((el) => {
-          el.style.display = "none";
-        });
-        const target = document.getElementById("ptab-" + tabId);
-        if (target) target.style.display = "block";
-        document.querySelectorAll(".tab-item").forEach((el) => el.classList.remove("active"));
-        const btn = document.getElementById("ptab-btn-" + tabId);
-        if (btn) btn.classList.add("active");
-      }
-
-      // ── 卡片单选 ──
-      function selectCard(el) {
-        el.closest(".providers-grid")
-          .querySelectorAll(".provider-card")
-          .forEach((c) => c.classList.remove("active"));
-        el.classList.add("active");
-      }
-
-      // ── 模板填充 ──
-      const TEMPLATES = {
-        ollama: { id: "local-ollama", url: "http://127.0.0.1:11434/v1", model: "llama3" },
-        vllm: { id: "local-vllm", url: "http://127.0.0.1:8000/v1", model: "meta-llama-3-8b" },
-        lmstudio: { id: "local-lmstudio", url: "http://127.0.0.1:1234/v1", model: "local-model" },
-        moonshot: { id: "moonshot", url: "https://api.moonshot.cn/v1", model: "moonshot-v1-8k" },
-      };
-      function fillTemplate(name) {
-        const t = TEMPLATES[name];
-        if (!t) return;
-        document.getElementById("custom-provider-id").value = t.id;
-        document.getElementById("custom-base-url").value = t.url;
-        document.getElementById("custom-model-id").value = t.model;
-        showToast(`已加载 ${name} 模板`, "info");
-      }
-
-      // ── Toggle ──
-      function toggleTrackClick(el) {
-        el.querySelector(".toggle-track").classList.toggle("active");
-      }
-
-      // ── Toast ──
-      let toastTimer;
-      function showToast(msg, type = "success") {
-        const el = document.getElementById("toast");
-        el.textContent = msg;
-        el.className = `toast toast-${type} show`;
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => {
-          el.classList.remove("show");
-        }, 2800);
-      }
-
-      // 初始化
+      document.getElementById("api-key").addEventListener("input", () => setFieldError());
+      setupSelectableCardKeyboard();
       renderView();
+      maybeAutoAdvance();
     </script>
   </body>
 </html>

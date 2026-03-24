@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>群聊 — OpenClaw</title>
+    <title>Lysmata 群聊</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -12,9 +12,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       :root {
-        --bg: #f7f7f8;
+        --bg: #f5f7fb;
         --surface: #fff;
-        --border: #e5e7eb;
+        --border: #e2e8f0;
         --text: #0f172a;
         --text-muted: #64748b;
         --primary: #2563eb;
@@ -46,50 +46,51 @@
 
       /* ── Nav ── */
       #left-nav {
-        width: 64px;
+        width: 72px;
+        background: #fff;
+        border-right: 1px solid var(--border);
         overflow: hidden;
-        transition: width 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: width 0.24s ease;
+        display: flex;
+        flex-direction: column;
+        padding: 12px 0;
+        flex-shrink: 0;
       }
       #left-nav.expanded {
-        width: 220px;
+        width: 228px;
       }
       .nav-btn {
+        width: calc(100% - 20px);
+        margin: 0 10px;
+        border: none;
+        border-radius: 12px;
+        background: transparent;
         display: flex;
         align-items: center;
-        width: 100%;
-        border: none;
-        background: transparent;
+        gap: 10px;
+        padding: 7px 8px;
+        color: var(--text-muted);
         cursor: pointer;
-        border-radius: 9px;
-        padding: 4px;
-        transition: background 0.14s;
-        text-align: left;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
       }
       .nav-btn:hover {
         background: #f1f5f9;
+        color: var(--text);
       }
       .nav-btn.active {
         background: #eff6ff;
-      }
-      .nav-btn.active .nav-icon-wrap {
-        color: #2563eb;
-      }
-      .nav-btn.active .nav-label {
-        color: #2563eb;
+        color: var(--primary);
       }
       .nav-icon-wrap {
         width: 36px;
         height: 36px;
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        color: #94a3b8;
-        border-radius: 8px;
-        transition: color 0.14s;
-      }
-      .nav-btn:hover .nav-icon-wrap {
-        color: #475569;
       }
       .nav-label {
         opacity: 0;
@@ -97,15 +98,19 @@
         overflow: hidden;
         white-space: nowrap;
         font-size: 14px;
-        font-weight: 500;
-        color: var(--text-muted);
+        font-weight: 600;
         transition:
-          opacity 0.18s ease,
-          max-width 0.22s ease;
+          opacity 0.2s ease,
+          max-width 0.2s ease;
       }
       #left-nav.expanded .nav-label {
         opacity: 1;
-        max-width: 180px;
+        max-width: 188px;
+      }
+      .nav-bottom {
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid #f1f5f9;
       }
 
       /* ── Avatar gradients ── */
@@ -573,40 +578,12 @@
   </head>
   <body style="display: flex; height: 100vh; overflow: hidden">
     <!-- ══ LEFT NAV ══ -->
-    <nav
-      id="left-nav"
-      style="
-        background: #fff;
-        border-right: 1px solid var(--border);
-        display: flex;
-        flex-direction: column;
-        padding: 12px 0;
-        flex-shrink: 0;
-        z-index: 10;
-      "
-    >
+    <nav id="left-nav">
       <div
-        style="
-          display: flex;
-          align-items: center;
-          padding: 0 14px;
-          margin-bottom: 14px;
-          height: 36px;
-          min-width: 220px;
-        "
+        style="display:flex;align-items:center;padding:0 16px;margin-bottom:18px;height:36px;min-width:228px;"
       >
         <div
-          style="
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #3b82f6, #2563eb);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
-          "
+          style="width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#3b82f6,#2563eb);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(37,99,235,.28);"
         >
           <svg
             width="18"
@@ -622,151 +599,35 @@
             <path d="M4 17l8 5 8-5" />
           </svg>
         </div>
-        <span
-          class="nav-label"
-          style="
-            font-size: 15px;
-            font-weight: 700;
-            color: #0f172a;
-            margin-left: 10px;
-            letter-spacing: -0.3px;
-          "
-          >OpenClaw</span
+        <span class="nav-label" style="font-size:15px;font-weight:700;color:#0f172a;margin-left:10px;"
+          >Lysmata</span
         >
       </div>
-      <div
-        style="
-          padding: 0 10px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-          flex: 1;
-          min-width: 220px;
-        "
-      >
-        <button class="nav-btn" onclick="window.open('ui-bot-management.html', '_blank')">
-          <div class="nav-icon-wrap">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <rect x="3" y="11" width="18" height="10" rx="2" />
-              <circle cx="12" cy="5" r="2" />
-              <path d="M12 7v4" />
-              <circle cx="8.5" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
-              <circle cx="15.5" cy="15.5" r="1.5" fill="currentColor" stroke="none" />
-            </svg>
-          </div>
-          <span class="nav-label">Bot 管理</span>
-        </button>
-        <button class="nav-btn" onclick="window.open('ui-private-chat.html', '_blank')">
-          <div class="nav-icon-wrap">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-            </svg>
-          </div>
-          <span class="nav-label">私聊</span>
-        </button>
-        <button class="nav-btn active">
-          <div class="nav-icon-wrap">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-              <circle cx="9" cy="7" r="4" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-            </svg>
-          </div>
-          <span class="nav-label">群聊</span>
-        </button>
-        <button class="nav-btn" onclick="window.open('ui-artifact-demo.html', '_blank')">
-          <div class="nav-icon-wrap">
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M9 3v18" />
-              <path d="M14 8h3" />
-              <path d="M14 12h3" />
-              <path d="M14 16h3" />
-            </svg>
-          </div>
-          <span class="nav-label">Artifact 演示</span>
-        </button>
-      </div>
-      <div
-        style="
-          padding: 0 10px;
-          border-top: 1px solid #f1f5f9;
-          padding-top: 8px;
-          margin-top: 4px;
-          min-width: 220px;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        "
-      >
-        <a href="ui-settings.html" class="nav-btn">
-          <div class="nav-icon-wrap">
-            <svg
-              width="17"
-              height="17"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <circle cx="12" cy="12" r="3" />
-              <path
-                d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
-              />
-            </svg>
-          </div>
+      <button class="nav-btn" onclick="window.open('ui-bot-management.html', '_blank')">
+        <div class="nav-icon-wrap">🤖</div>
+        <span class="nav-label">助手工坊</span>
+      </button>
+      <button class="nav-btn" onclick="window.open('ui-private-chat.html', '_blank')">
+        <div class="nav-icon-wrap">💬</div>
+        <span class="nav-label">私聊</span>
+      </button>
+      <button class="nav-btn active">
+        <div class="nav-icon-wrap">👥</div>
+        <span class="nav-label">群聊</span>
+      </button>
+      <button class="nav-btn" onclick="window.open('ui-artifact-demo.html', '_blank')">
+        <div class="nav-icon-wrap">🧩</div>
+        <span class="nav-label">Artifact</span>
+      </button>
+
+      <div class="nav-bottom">
+        <button class="nav-btn" onclick="window.open('ui-settings.html', '_blank')">
+          <div class="nav-icon-wrap">⚙️</div>
           <span class="nav-label">设置</span>
-        </a>
+        </button>
         <button class="nav-btn" onclick="toggleNav()">
-          <div class="nav-icon-wrap" id="nav-toggle-icon">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-            >
-              <polyline points="13 17 18 12 13 7" />
-              <polyline points="6 17 11 12 6 7" />
-            </svg>
-          </div>
-          <span class="nav-label" id="nav-toggle-label">收起</span>
+          <div class="nav-icon-wrap" id="nav-toggle-icon">⇆</div>
+          <span class="nav-label" id="nav-toggle-label">展开导航</span>
         </button>
       </div>
     </nav>
@@ -793,9 +654,12 @@
           "
         >
           <div>
-            <div style="font-size: 15px; font-weight: 600">群聊</div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <div style="font-size: 15px; font-weight: 600">群聊</div>
+              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:#F1F5F9;color:#64748B;">Phase 2</span>
+            </div>
             <div style="font-size: 12px; color: var(--text-muted); margin-top: 1px">
-              多 Bot 协作 · @mention 精准路由
+              多助手协作 · @mention 精准路由 · 非 v1 默认主路径
             </div>
           </div>
           <button
@@ -1105,7 +969,7 @@
           <div>
             <h2 style="font-size: 17px; font-weight: 600; margin: 0">新建群聊</h2>
             <p style="font-size: 13px; color: var(--text-muted); margin: 4px 0 0">
-              选择多个 Bot 开始协作对话
+              选择多个助手开始协作对话，可自定义名称和图标
             </p>
           </div>
           <button class="btn-icon" onclick="closeNewConvDialog()" style="width: 30px; height: 30px">
@@ -1149,6 +1013,14 @@
               outline: none;
             "
           ></select>
+        </div>
+
+        <div id="group-icon-row" style="margin-bottom: 18px">
+          <label style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 8px"
+            >群聊图标
+            <span style="color: #94a3b8; font-weight: 400">（支持自定义 Emoji）</span></label
+          >
+          <div id="group-icon-options" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
         </div>
 
         <label style="font-size: 13px; font-weight: 500; display: block; margin-bottom: 8px"
@@ -1243,6 +1115,7 @@
       const CONVS = [
         {
           id: "g1",
+          icon: "🧠",
           title: "研发协作群",
           bots: ["cm", "rs", "dv"],
           primary: "cm",
@@ -1301,6 +1174,7 @@
         },
         {
           id: "g2",
+          icon: "🛠️",
           title: "全栈开发群",
           bots: ["ui", "cm", "dv"],
           primary: "cm",
@@ -1333,6 +1207,7 @@
         },
         {
           id: "g3",
+          icon: "🛡️",
           title: "代码审查群",
           bots: ["cm", "sec"],
           primary: "cm",
@@ -1377,6 +1252,8 @@
       let mentionFocusIdx = 0;
       let isStreaming = false;
       let newConvSelected = [];
+      let newConvIcon = "💬";
+      const GROUP_ICONS = ["💬", "🧠", "🛠️", "🧪", "📚", "🚀", "🛡️", "📊"];
 
       // ══════════════════════════════════════════
       // NAV
@@ -1384,12 +1261,6 @@
       function toggleNav() {
         navExpanded = !navExpanded;
         document.getElementById("left-nav").classList.toggle("expanded", navExpanded);
-        const icon = document.getElementById("nav-toggle-icon");
-        const label = document.getElementById("nav-toggle-label");
-        icon.innerHTML = navExpanded
-          ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>'
-          : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>';
-        label.textContent = navExpanded ? "收起" : "展开";
       }
 
       // ══════════════════════════════════════════
@@ -1424,7 +1295,7 @@
       </div>
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
-          <span style="font-size:13px;font-weight:${isActive ? "600" : "500"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.title}</span>
+          <span style="font-size:13px;font-weight:${isActive ? "600" : "500"};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.icon || "💬"} ${c.title}</span>
           <span style="font-size:10px;color:#CBD5E1;flex-shrink:0;margin-left:4px;">${c.bots.length} Bot</span>
         </div>
         <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${preview}</div>
@@ -1474,7 +1345,7 @@
     <div style="display:flex;">${avHtml}</div>
     <div style="margin-left:8px;min-width:0;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span style="font-size:15px;font-weight:600;">${conv.title}</span>
+        <span style="font-size:15px;font-weight:600;">${conv.icon || "💬"} ${conv.title}</span>
         <span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#EDE9FE;color:#6D28D9;font-weight:500;">群聊 · ${conv.bots.length} Bot</span>
         <span class="route-badge rb-primary" style="font-size:10px;">👑 主Bot: ${primary?.name}</span>
       </div>
@@ -1487,7 +1358,7 @@
         <span class="dot dot-connected pulse-dot" style="width:6px;height:6px;"></span>
         <span id="active-bot-name">响应中</span>
       </div>
-      <button onclick="window.open('ui-bot-management.html','_blank')" class="btn-icon" title="Bot 管理" style="width:32px;height:32px;">
+      <button onclick="window.open('ui-bot-management.html','_blank')" class="btn-icon" title="助手工坊" style="width:32px;height:32px;">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
     </div>`;
@@ -1876,9 +1747,11 @@
       // ══════════════════════════════════════════
       function openNewConvDialog() {
         newConvSelected = [];
+        newConvIcon = "💬";
         document.getElementById("new-conv-dialog").classList.add("open");
         document.getElementById("conv-name-input").value = "";
         document.getElementById("primary-bot-row").style.display = "none";
+        renderGroupIcons();
         renderBotChips();
       }
 
@@ -1921,6 +1794,21 @@
           .join("");
       }
 
+      function renderGroupIcons() {
+        document.getElementById("group-icon-options").innerHTML = GROUP_ICONS.map((icon) => {
+          const selected = icon === newConvIcon;
+          return `<button
+      onclick="selectGroupIcon('${icon}')"
+      style="width:40px;height:40px;border-radius:12px;border:${selected ? "1.5px solid #2563EB" : "1px solid var(--border)"};background:${selected ? "#EFF6FF" : "#fff"};font-size:18px;cursor:pointer;"
+    >${icon}</button>`;
+        }).join("");
+      }
+
+      function selectGroupIcon(icon) {
+        newConvIcon = icon;
+        renderGroupIcons();
+      }
+
       function toggleBotChip(id) {
         const idx = newConvSelected.indexOf(id);
         idx >= 0 ? newConvSelected.splice(idx, 1) : newConvSelected.push(id);
@@ -1939,6 +1827,7 @@
           bots.map((b) => b.name).join("·") + " 群";
         const c = {
           id: "g-" + Date.now(),
+          icon: newConvIcon,
           title: name,
           bots: newConvSelected,
           primary,
