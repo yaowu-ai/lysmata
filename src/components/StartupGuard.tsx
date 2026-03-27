@@ -1,19 +1,26 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { apiClient } from "../shared/api-client";
-import {
-  isOnboardingComplete,
-  ONBOARDING_KEY,
-  useWizardStore,
-} from "../shared/store/wizard-store";
+import { getOnboardingProgress, useWizardStore } from "../shared/store/wizard-store";
 
 type CheckState = "loading" | "has-openclaw" | "no-openclaw" | "error";
 
 export function StartupGuard() {
   const [state, setState] = useState<CheckState>("loading");
+  const [hasProgress, setHasProgress] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
+
+    const progress = getOnboardingProgress();
+    if (progress) {
+      useWizardStore.getState().goToStep(progress.lastStepId);
+      setHasProgress(true);
+      setState("no-openclaw");
+      return () => {
+        cancelled = true;
+      };
+    }
 
     apiClient
       .get<{ hasOpenClaw: boolean }>("/openclaw/check-environment")
@@ -83,16 +90,13 @@ export function StartupGuard() {
   }
 
   if (state === "no-openclaw") {
-    localStorage.removeItem(ONBOARDING_KEY);
-    useWizardStore.getState().goToStep("intro");
+    if (!hasProgress) {
+      useWizardStore.getState().goToStep("intro");
+      return <Navigate to="/onboarding" replace />;
+    }
     return <Navigate to="/onboarding" replace />;
   }
 
-  // "has-openclaw" or "error" (fallback to original behavior)
-  return (
-    <Navigate
-      to={isOnboardingComplete() ? "/bots" : "/onboarding"}
-      replace
-    />
-  );
+  // "has-openclaw" or "error" fallback to bots
+  return <Navigate to="/bots" replace />;
 }

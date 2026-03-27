@@ -1,18 +1,17 @@
 import { useNavigate } from "react-router-dom";
-import { markOnboardingComplete, useWizardStore } from "../../../shared/store/wizard-store";
+import { clearOnboardingProgress, useWizardStore } from "../../../shared/store/wizard-store";
 
 export function DoneView() {
   const navigate = useNavigate();
-  const { goToStep, resetSkips } = useWizardStore();
+  const { goToStep } = useWizardStore();
 
   function handleDashboard() {
-    markOnboardingComplete();
+    clearOnboardingProgress();
     navigate("/bots");
   }
 
   function handleReenter() {
-    resetSkips();
-    goToStep("step1");
+    goToStep("intro");
   }
 
   return (

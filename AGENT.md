@@ -1,10 +1,3 @@
-## 前端应用兼容
-
-1. 本工程是一个桌面端应用，需要同时兼容Windows与MacOS
-2. 应用中涉及到终端的操作，在MacOS中请以系统默认的SHELL($SHELL)为准
-3. 应用中设计到终端的操作，在Windows中可以以这个优先级考虑 cmd git-bash PowerShell，如有必要，让用户自己选择
-4. NodeJS中有很多兼容Windows与MacOS的方法及变量，请基于这些进行业务逻辑
-
 ## 工作流编排 (Workflow Orchestration)
 
 ### 1. 默认进入计划模式 (Plan Node Default)

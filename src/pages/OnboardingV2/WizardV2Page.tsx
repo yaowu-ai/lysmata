@@ -1,19 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useWizardStore } from "../../shared/store/wizard-store";
-import { WizardStepper } from "./WizardStepper";
-import { WizardFooter } from "./WizardFooter";
-import { IntroView } from "./views/IntroView";
-import { EnvCheckView } from "./views/EnvCheckView";
-import { InstallingView } from "./views/InstallingView";
-import { InstallSuccessView } from "./views/InstallSuccessView";
-import { ProviderConfigView } from "./views/ProviderConfigView";
-import { TemplateSelectView } from "./views/TemplateSelectView";
-import { getTemplateMeta } from "./views/template-meta";
-import { AssistantCreateView } from "./views/AssistantCreateView";
-import { FirstChatReadyView } from "./views/FirstChatReadyView";
+import { WizardStepper } from "../Onboarding/WizardStepper";
+import { WizardFooter } from "../Onboarding/WizardFooter";
+import { IntroView } from "../Onboarding/views/IntroView";
+import { EnvCheckView } from "../Onboarding/views/EnvCheckView";
+import { InstallingView } from "../Onboarding/views/InstallingView";
+import { InstallSuccessView } from "../Onboarding/views/InstallSuccessView";
+import { ProviderConfigView } from "../Onboarding/views/ProviderConfigView";
+import { TemplateSelectView } from "../Onboarding/views/TemplateSelectView";
+import { getTemplateMeta } from "../Onboarding/views/template-meta";
+import { AssistantCreateView } from "../Onboarding/views/AssistantCreateView";
+import { FirstChatReadyView } from "../Onboarding/views/FirstChatReadyView";
 
-export function WizardPage() {
+export function WizardV2Page() {
   const navigate = useNavigate();
   const { currentStep, goNext, goPrev, goToStep, clearProgress, restoreLastProgress } = useWizardStore();
   const step = currentStep();

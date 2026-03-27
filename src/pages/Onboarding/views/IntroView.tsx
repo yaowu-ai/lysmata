@@ -29,9 +29,9 @@ export function IntroView({ onStartInstall, onSkipToConfig }: Props) {
           <path d="M4 17l8 5 8-5" />
         </svg>
       </div>
-      <h1 className="text-[26px] font-bold m-0 mb-3">欢迎使用 OpenClaw</h1>
+      <h1 className="text-[26px] font-bold m-0 mb-3">先安装 OpenClaw，再创建你的第一个助手</h1>
       <p className="text-sm text-[#64748B] leading-[1.65] max-w-[420px] m-0 mb-8">
-        lysmata 是轻量级的 OpenClaw 桌面伴侣。只需几分钟，即可完成环境检测、核心安装与基础配置。
+        跟着这条主路径走，你只需要安装 OpenClaw、连接一个 AI 服务、选择一个模板，马上就能开始第一次对话。
       </p>
       <div className="flex flex-col gap-2.5 w-full max-w-[340px]">
         <button
@@ -56,10 +56,10 @@ export function IntroView({ onStartInstall, onSkipToConfig }: Props) {
           onClick={onSkipToConfig}
           className="w-full bg-transparent text-[#64748B] border border-[#E5E7EB] px-[18px] py-[9px] rounded-lg text-sm font-medium cursor-pointer hover:bg-[#F8FAFC] hover:text-[#0F172A] flex items-center justify-center"
         >
-          已安装 OpenClaw，直接配置 →
+          已安装，继续连接 AI 服务 →
         </button>
       </div>
-      <p className="text-[12px] text-[#94A3B8] mt-5">安装过程无需终端操作，约 1–2 分钟完成</p>
+      <p className="text-[12px] text-[#94A3B8] mt-5">首次成功主线大约 3 分钟，中途退出也可继续</p>
     </div>
   );
 }

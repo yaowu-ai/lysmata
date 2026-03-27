@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
 import { Eye, EyeOff, Info } from "lucide-react";
 import { apiClient } from "../../../shared/api-client";
@@ -53,6 +54,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   const [selectedId, setSelectedId] = useState("zai");
   const [apiKey, setApiKey] = useState("");
   const [showApiKey, setShowApiKey] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState("");
   const [selectedModelId, setSelectedModelId] = useState("");
 
   // Custom provider fields
@@ -111,11 +113,14 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
       if (!selectedPreset) throw new Error("请选择供应商");
       if (!selectedModelId) throw new Error("请选择模型");
 
-      // Save API key to agent auth-profiles (not openclaw.json)
-      const keyToSave = apiKey && apiKey !== MASKED_PLACEHOLDER ? apiKey.trim() : null;
-      if (keyToSave) {
-        await saveApiKey({ key: selectedId, apiKey: keyToSave });
+      const normalizedApiKey = apiKey.trim();
+      if (!normalizedApiKey || normalizedApiKey === MASKED_PLACEHOLDER) {
+        setApiKeyError("请输入 API Key 后再继续");
+        throw new Error("api key required");
       }
+
+      // Save API key to agent auth-profiles (not openclaw.json)
+      await saveApiKey({ key: selectedId, apiKey: normalizedApiKey });
 
       // Save model selection to alias table only (no models.providers entry for built-in)
       const model = selectedPreset.models.find((m) => m.id === selectedModelId);
@@ -173,8 +178,8 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
   return (
     <div>
       <StepBadge />
-      <h2 className="text-[20px] font-bold mb-1.5">LLM Provider 配置</h2>
-      <p className="text-sm text-[#64748B] mb-4">选择并配置你的主要大模型服务提供商。</p>
+      <h2 className="text-[20px] font-bold mb-1.5">连接 AI 服务</h2>
+      <p className="text-sm text-[#64748B] mb-4">首次成功主路径只需要填写 API Key。其它高级配置可后续在设置中调整。</p>
 
       {hasExistingConfig && (
         <div className="flex items-center gap-1.5 text-[12px] text-[#2563EB] bg-[#EFF6FF] border border-[#BFDBFE] rounded-lg px-3 py-2 mb-3">
@@ -270,9 +275,15 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
                     type={showApiKey ? "text" : "password"}
                     value={apiKey}
                     placeholder={apiKey === MASKED_PLACEHOLDER ? undefined : "粘贴 API Key..."}
-                    onChange={(e) => setApiKey(e.target.value)}
+                    onChange={(e) => {
+                      setApiKey(e.target.value);
+                      if (apiKeyError) setApiKeyError("");
+                    }}
                     onFocus={() => { if (apiKey === MASKED_PLACEHOLDER) setApiKey(""); }}
-                    className="w-full px-3 py-2 pr-9 text-sm border border-[#E5E7EB] rounded-lg outline-none focus:border-[#93C5FD] font-mono bg-white"
+                    className={[
+                      "w-full px-3 py-2 pr-9 text-sm border rounded-lg outline-none font-mono bg-white",
+                      apiKeyError ? "border-[#FCA5A5] focus:border-[#F87171]" : "border-[#E5E7EB] focus:border-[#93C5FD]",
+                    ].join(" ")}
                     autoComplete="off"
                   />
                   <button
@@ -287,6 +298,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
                 {apiKey === MASKED_PLACEHOLDER && (
                   <p className="text-[11px] text-[#64748B] mt-1">已配置 API Key，点击输入框可重新设置</p>
                 )}
+                {apiKeyError && <p className="text-[11px] text-[#DC2626] mt-1">{apiKeyError}</p>}
               </div>
             </div>
           )}
@@ -435,7 +447,7 @@ export function ProviderConfigView({ onRegisterSubmit, onDone }: Props) {
 function StepBadge() {
   return (
     <div className="inline-flex text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#EFF6FF] text-[#2563EB] border border-[#BFDBFE] mb-2.5">
-      step 2 / 6 · 必填
+      step 3 / 5 · 必填
     </div>
   );
 }

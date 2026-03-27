@@ -3,82 +3,120 @@ import { create } from "zustand";
 
 export type WizardStepId =
   | "intro"
-  | "env"
-  | "installing"
+  | "env-check"
+  | "install"
   | "install-success"
-  | "step1"
-  | "step2"
-  | "step3"
-  | "step4"
-  | "step5"
-  | "step6"
-  | "done";
+  | "llm-key"
+  | "template-select"
+  | "assistant-create"
+  | "ready";
 
 export interface WizardStep {
   id: WizardStepId;
-  type: "install" | "config" | "done";
+  type: "intro" | "install" | "config" | "template" | "create" | "ready";
   title?: string;
-  configIndex?: number;
-  skippable?: boolean;
+  navIndex?: number;
 }
 
 export const WIZARD_FLOW: WizardStep[] = [
-  { id: "intro", type: "install" },
-  { id: "env", type: "install" },
-  { id: "installing", type: "install" },
+  { id: "intro", type: "intro" },
+  { id: "env-check", type: "install", title: "检查环境", navIndex: 1 },
+  { id: "install", type: "install", title: "安装 OpenClaw", navIndex: 2 },
   { id: "install-success", type: "install" },
-  { id: "step1", type: "config", title: "Gateway", configIndex: 1, skippable: false },
-  { id: "step2", type: "config", title: "Provider", configIndex: 2, skippable: false },
-  { id: "step3", type: "config", title: "Channel", configIndex: 3, skippable: true },
-  { id: "step4", type: "config", title: "Skills", configIndex: 4, skippable: true },
-  { id: "step5", type: "config", title: "Hooks", configIndex: 5, skippable: true },
-  { id: "step6", type: "config", title: "Review", configIndex: 6, skippable: false },
-  { id: "done", type: "done" },
+  { id: "llm-key", type: "config", title: "连接 AI 服务", navIndex: 3 },
+  { id: "template-select", type: "template", title: "选择模板", navIndex: 4 },
+  { id: "assistant-create", type: "create", title: "开始对话", navIndex: 5 },
+  { id: "ready", type: "ready" },
 ];
+
+interface OnboardingProgress {
+  lastStepId: WizardStepId;
+  updatedAt: number;
+}
+
+const ONBOARDING_PROGRESS_KEY = "onboarding_progress_v2";
+
+function persistProgress(stepId: WizardStepId) {
+  const shouldStore = stepId !== "intro" && stepId !== "ready";
+  if (!shouldStore) {
+    localStorage.removeItem(ONBOARDING_PROGRESS_KEY);
+    return;
+  }
+  const payload: OnboardingProgress = {
+    lastStepId: stepId,
+    updatedAt: Date.now(),
+  };
+  localStorage.setItem(ONBOARDING_PROGRESS_KEY, JSON.stringify(payload));
+}
+
+function getStepIndex(stepId: WizardStepId): number {
+  const idx = WIZARD_FLOW.findIndex((s) => s.id === stepId);
+  return idx >= 0 ? idx : 0;
+}
+
+function setIndexAndPersist(idx: number) {
+  const bounded = Math.max(0, Math.min(idx, WIZARD_FLOW.length - 1));
+  persistProgress(WIZARD_FLOW[bounded].id);
+  return { currentIdx: bounded };
+}
 
 interface WizardStore {
   currentIdx: number;
-  skippedSteps: Record<string, boolean>;
   goNext: () => void;
   goPrev: () => void;
   goToStep: (id: WizardStepId) => void;
-  skipCurrentStep: () => void;
-  resetSkips: () => void;
+  restoreLastProgress: () => WizardStepId | null;
+  clearProgress: () => void;
   currentStep: () => WizardStep;
 }
 
 export const useWizardStore = create<WizardStore>((set, get) => ({
   currentIdx: 0,
-  skippedSteps: {},
 
   currentStep: () => WIZARD_FLOW[get().currentIdx],
 
   goNext: () =>
-    set((s) => ({
-      currentIdx: Math.min(s.currentIdx + 1, WIZARD_FLOW.length - 1),
-    })),
+    set((s) => setIndexAndPersist(s.currentIdx + 1)),
 
-  goPrev: () => set((s) => ({ currentIdx: Math.max(s.currentIdx - 1, 0) })),
+  goPrev: () => set((s) => setIndexAndPersist(s.currentIdx - 1)),
 
-  goToStep: (id) => {
-    const idx = WIZARD_FLOW.findIndex((s) => s.id === id);
-    if (idx >= 0) set({ currentIdx: idx });
+  goToStep: (id: WizardStepId) => {
+    set(setIndexAndPersist(getStepIndex(id)));
   },
 
-  skipCurrentStep: () =>
-    set((s) => {
-      const step = WIZARD_FLOW[s.currentIdx];
-      if (!step.skippable) return s;
-      return {
-        skippedSteps: { ...s.skippedSteps, [step.id]: true },
-        currentIdx: Math.min(s.currentIdx + 1, WIZARD_FLOW.length - 1),
-      };
-    }),
+  restoreLastProgress: () => {
+    const raw = localStorage.getItem(ONBOARDING_PROGRESS_KEY);
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as OnboardingProgress;
+      if (!parsed?.lastStepId) return null;
+      const idx = getStepIndex(parsed.lastStepId);
+      set({ currentIdx: idx });
+      return WIZARD_FLOW[idx].id;
+    } catch {
+      return null;
+    }
+  },
 
-  resetSkips: () => set({ skippedSteps: {} }),
+  clearProgress: () => {
+    localStorage.removeItem(ONBOARDING_PROGRESS_KEY);
+    set({ currentIdx: 0 });
+  },
 }));
 
 // Completion persistence helpers
 export const ONBOARDING_KEY = "onboarding_completed";
 export const markOnboardingComplete = () => localStorage.setItem(ONBOARDING_KEY, "1");
 export const isOnboardingComplete = () => !!localStorage.getItem(ONBOARDING_KEY);
+export const clearOnboardingProgress = () => localStorage.removeItem(ONBOARDING_PROGRESS_KEY);
+export const getOnboardingProgress = (): { lastStepId: WizardStepId; updatedAt: number } | null => {
+  const raw = localStorage.getItem(ONBOARDING_PROGRESS_KEY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as OnboardingProgress;
+    if (!parsed?.lastStepId) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+};

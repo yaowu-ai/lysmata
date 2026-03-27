@@ -11,7 +11,8 @@ import SettingsPage from "./pages/SettingsPage";
 import { ArtifactDemoPage } from "./pages/ArtifactDemoPage";
 // import OpenClawInstallPage from './pages/OpenClawInstallPage';
 import { startSidecar } from "./shared/tauri-bridge";
-import { WizardPage } from "./pages/Onboarding/WizardPage";
+import { OnboardingEntryPage } from "./pages/OnboardingV2/OnboardingEntryPage";
+import { OnboardingV2Page } from "./pages/OnboardingV2/OnboardingV2Page";
 import { StartupGuard } from "./components/StartupGuard";
 import "./index.css";
 
@@ -20,9 +21,9 @@ if (import.meta.env.PROD) {
   document.addEventListener("keydown", (e) => {
     if (e.key === "F12" || (e.ctrlKey && e.shiftKey && e.key === "I")) {
       e.preventDefault();
-      // @ts-ignore - Tauri API
+      // @ts-expect-error - Tauri API injected at runtime
       if (window.__TAURI__) {
-        // @ts-ignore
+        // @ts-expect-error - Tauri API injected at runtime
         window.__TAURI__.event.emit("toggle-devtools");
       }
     }
@@ -82,7 +83,8 @@ initSidecar().then((ready) => {
         <Routes>
           <Route index element={<StartupGuard />} />
           {/* Wizard — outside AppLayout */}
-          <Route path="onboarding" element={<WizardPage />} />
+          <Route path="onboarding" element={<OnboardingEntryPage />} />
+          <Route path="onboarding/:step" element={<OnboardingV2Page />} />
 
           {/* Main app */}
           <Route element={<AppLayout />}>
