@@ -15,9 +15,9 @@ type WizardStep = {
 const WIZARD_STEPS: WizardStep[] = [
   { id: "welcome", title: "欢迎", index: 1 },
   { id: "install", title: "安装 OpenClaw", index: 2 },
-  { id: "llm-key", title: "连接 AI 服务", index: 3 },
-  { id: "template-select", title: "选择模板", index: 4 },
-  { id: "assistant-create", title: "创建助手", index: 5 },
+  { id: "provider", title: "连接 AI 服务", index: 3 },
+  { id: "template", title: "选择模板", index: 4 },
+  { id: "assistant", title: "创建助手", index: 5 },
   { id: "ready", title: "开始对话", index: 6 },
 ];
 
@@ -40,11 +40,11 @@ export function OnboardingV2Page() {
         return <Page1Welcome />;
       case "install":
         return <Page2Install />;
-      case "llm-key":
+      case "provider":
         return <Page3Provider />;
-      case "template-select":
+      case "template":
         return <Page4Template />;
-      case "assistant-create":
+      case "assistant":
         return <Page5Assistant />;
       case "ready":
         return <Page5Ready />;

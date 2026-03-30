@@ -6,9 +6,9 @@ const ALLOWED_STEPS = new Set([
   "welcome",
   "install",
   "install-success",
-  "llm-key",
-  "template-select",
-  "assistant-create",
+  "provider",
+  "template",
+  "assistant",
   "ready",
 ]);
 

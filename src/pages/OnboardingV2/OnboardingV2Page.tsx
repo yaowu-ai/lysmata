@@ -16,26 +16,26 @@ type StepId =
   | "welcome"
   | "install"
   | "install-success"
-  | "llm-key"
-  | "template-select"
-  | "assistant-create"
+  | "provider"
+  | "template"
+  | "assistant"
   | "ready";
 
 const FLOW: StepId[] = [
   "welcome",
   "install",
   "install-success",
-  "llm-key",
-  "template-select",
-  "assistant-create",
+  "provider",
+  "template",
+  "assistant",
   "ready",
 ];
 
 const NAV_STEPS = [
   { id: "install", title: "安装 OpenClaw", index: 1 },
-  { id: "llm-key", title: "连接 AI 服务", index: 2 },
-  { id: "template-select", title: "选择模板", index: 3 },
-  { id: "assistant-create", title: "开始对话", index: 4 },
+  { id: "provider", title: "连接 AI 服务", index: 2 },
+  { id: "template", title: "选择模板", index: 3 },
+  { id: "assistant", title: "开始对话", index: 4 },
 ] as const;
 
 function currentNavIndex(step: StepId): number {
@@ -105,7 +105,7 @@ export function OnboardingV2Page() {
   async function handleNext() {
     if (step === "install") return;
 
-    if ((step === "llm-key" || step === "assistant-create") && submitRef.current) {
+    if ((step === "provider" || step === "assistant") && submitRef.current) {
       setSubmitting(true);
       try {
         await submitRef.current();
@@ -139,13 +139,13 @@ export function OnboardingV2Page() {
   const nextLabel =
     step === "install"
       ? "安装中..."
-      : step === "llm-key"
+      : step === "provider"
         ? submitting
           ? "保存中..."
           : "保存并继续"
-        : step === "template-select"
+        : step === "template"
           ? "使用这个模板"
-          : step === "assistant-create"
+          : step === "assistant"
             ? submitting
               ? "创建中..."
               : "创建助手并开始对话"
@@ -255,7 +255,7 @@ export function OnboardingV2Page() {
                   </button>
                   {runtimeState.hasOpenClaw && (
                     <button
-                      onClick={() => goto("llm-key")}
+                      onClick={() => goto("provider")}
                       className="rounded-xl border border-[#CBD5E1] bg-white px-5 py-3 text-[15px] font-semibold text-[#0F172A] hover:bg-[#F8FAFC]"
                     >
                       直接配置
@@ -303,10 +303,10 @@ export function OnboardingV2Page() {
           )}
 
           {step === "install-success" && (
-            <InstallSuccessView onConfigNow={() => goto("llm-key")} onDefer={handleExit} />
+            <InstallSuccessView onConfigNow={() => goto("provider")} onDefer={handleExit} />
           )}
 
-          {step === "llm-key" && (
+          {step === "provider" && (
             <ProviderConfigView
               onRegisterSubmit={(fn) => {
                 submitRef.current = fn;
@@ -315,14 +315,14 @@ export function OnboardingV2Page() {
             />
           )}
 
-          {step === "template-select" && (
+          {step === "template" && (
             <TemplateSelectView
               selectedTemplateId={selectedTemplateId}
               onSelectTemplate={setSelectedTemplateId}
             />
           )}
 
-          {step === "assistant-create" && (
+          {step === "assistant" && (
             <AssistantCreateView
               selectedTemplateId={selectedTemplateId}
               assistantName={assistantName}
