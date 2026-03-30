@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { apiClient } from "../shared/api-client";
+import { setOnboardingRuntimeState } from "../shared/store/onboarding-runtime-store.ts";
 import { getOnboardingProgress, useWizardStore } from "../shared/store/wizard-store";
 
 type CheckState = "loading" | "has-openclaw" | "no-openclaw" | "error";
@@ -16,6 +17,10 @@ export function StartupGuard() {
     if (progress) {
       useWizardStore.getState().goToStep(progress.lastStepId);
       setHasProgress(true);
+      setOnboardingRuntimeState({
+        startupCheck: "unknown",
+        hasOpenClaw: false,
+      });
       setState("no-openclaw");
       return () => {
         cancelled = true;
@@ -26,10 +31,18 @@ export function StartupGuard() {
       .get<{ hasOpenClaw: boolean }>("/openclaw/check-environment")
       .then((res) => {
         if (cancelled) return;
+        setOnboardingRuntimeState({
+          startupCheck: "ready",
+          hasOpenClaw: res.hasOpenClaw,
+        });
         setState(res.hasOpenClaw ? "has-openclaw" : "no-openclaw");
       })
       .catch(() => {
         if (cancelled) return;
+        setOnboardingRuntimeState({
+          startupCheck: "failed",
+          hasOpenClaw: false,
+        });
         setState("error");
       });
 
@@ -65,13 +78,7 @@ export function StartupGuard() {
             </svg>
           </div>
           <div className="flex items-center gap-2.5 text-[#64748B] text-sm">
-            <svg
-              className="animate-spin"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-            >
+            <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none">
               <circle
                 cx="12"
                 cy="12"
@@ -89,14 +96,20 @@ export function StartupGuard() {
     );
   }
 
-  if (state === "no-openclaw") {
+  if (state === "no-openclaw" || state === "has-openclaw" || state === "error") {
     if (!hasProgress) {
-      useWizardStore.getState().goToStep("intro");
-      return <Navigate to="/onboarding" replace />;
+      useWizardStore.getState().goToStep("welcome");
+      return <Navigate to="/onboarding/welcome" replace />;
     }
-    return <Navigate to="/onboarding" replace />;
+    const progress = getOnboardingProgress();
+    const targetStep = progress?.lastStepId ?? "welcome";
+    return <Navigate to={`/onboarding/${targetStep}`} replace />;
   }
 
-  // "has-openclaw" or "error" fallback to bots
-  return <Navigate to="/bots" replace />;
+  if (state === "error") {
+    useWizardStore.getState().goToStep("welcome");
+    return <Navigate to="/onboarding/welcome" replace />;
+  }
+
+  return <Navigate to="/onboarding/welcome" replace />;
 }

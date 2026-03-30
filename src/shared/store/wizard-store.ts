@@ -2,8 +2,7 @@
 import { create } from "zustand";
 
 export type WizardStepId =
-  | "intro"
-  | "env-check"
+  | "welcome"
   | "install"
   | "install-success"
   | "llm-key"
@@ -13,19 +12,18 @@ export type WizardStepId =
 
 export interface WizardStep {
   id: WizardStepId;
-  type: "intro" | "install" | "config" | "template" | "create" | "ready";
+  type: "welcome" | "install" | "config" | "template" | "create" | "ready";
   title?: string;
   navIndex?: number;
 }
 
 export const WIZARD_FLOW: WizardStep[] = [
-  { id: "intro", type: "intro" },
-  { id: "env-check", type: "install", title: "检查环境", navIndex: 1 },
-  { id: "install", type: "install", title: "安装 OpenClaw", navIndex: 2 },
+  { id: "welcome", type: "welcome" },
+  { id: "install", type: "install", title: "安装 OpenClaw", navIndex: 1 },
   { id: "install-success", type: "install" },
-  { id: "llm-key", type: "config", title: "连接 AI 服务", navIndex: 3 },
-  { id: "template-select", type: "template", title: "选择模板", navIndex: 4 },
-  { id: "assistant-create", type: "create", title: "开始对话", navIndex: 5 },
+  { id: "llm-key", type: "config", title: "连接 AI 服务", navIndex: 2 },
+  { id: "template-select", type: "template", title: "选择模板", navIndex: 3 },
+  { id: "assistant-create", type: "create", title: "开始对话", navIndex: 4 },
   { id: "ready", type: "ready" },
 ];
 
@@ -37,7 +35,7 @@ interface OnboardingProgress {
 const ONBOARDING_PROGRESS_KEY = "onboarding_progress_v2";
 
 function persistProgress(stepId: WizardStepId) {
-  const shouldStore = stepId !== "intro" && stepId !== "ready";
+  const shouldStore = stepId !== "welcome" && stepId !== "ready";
   if (!shouldStore) {
     localStorage.removeItem(ONBOARDING_PROGRESS_KEY);
     return;
@@ -75,8 +73,7 @@ export const useWizardStore = create<WizardStore>((set, get) => ({
 
   currentStep: () => WIZARD_FLOW[get().currentIdx],
 
-  goNext: () =>
-    set((s) => setIndexAndPersist(s.currentIdx + 1)),
+  goNext: () => set((s) => setIndexAndPersist(s.currentIdx + 1)),
 
   goPrev: () => set((s) => setIndexAndPersist(s.currentIdx - 1)),
 

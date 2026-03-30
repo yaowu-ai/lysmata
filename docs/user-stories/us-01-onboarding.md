@@ -22,8 +22,8 @@
 ## v1 主路径
 
 ```text
-intro
-  → env-check
+startup-guard(env-check)
+  → intro
   → install
   → install-success
   → llm-key
@@ -48,6 +48,7 @@ intro
 **验收标准（AC）**：
 
 - AC1：首次启动自动进入 `/onboarding`
+- AC1.1：外层由 `StartupGuard` 自动完成一次环境判断；已安装用户默认回主界面，未安装用户进入 `/onboarding/intro`
 - AC2：完成首次成功路径后写入完成标记，后续不再自动弹出
 - AC3：开发和测试时可手动重置该状态
 
@@ -64,7 +65,7 @@ intro
 
 - AC1：欢迎页标题与副标题明确强调“安装 OpenClaw”和“创建第一个助手”
 - AC2：主按钮为“开始安装 OpenClaw”
-- AC3：次按钮为“已安装，继续配置 LLM”
+- AC3：这一步没有上一步，也不能跳过
 - AC4：欢迎页不展示高级系统概念说明
 
 ---
@@ -78,10 +79,10 @@ intro
 **优先级**：P0
 **验收标准（AC）**：
 
-- AC1：自动检测安装前必要条件
+- AC1：由 `StartupGuard` 在进入 onboarding 前自动检测安装前必要条件
 - AC2：以用户可理解的方式展示结果，而不是只显示技术日志
 - AC3：失败时给出“如何修复”的解释
-- AC4：保留“继续安装 / 重试”的明确入口
+- AC4：进入安装后保留“继续安装 / 重试”的明确入口，而不是再展示独立 env-check 页面
 
 ---
 

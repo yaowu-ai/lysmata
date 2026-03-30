@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Step 6 · 选择模板 — Lysmata 首次成功向导</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f7fb; --surface: #ffffff; --surface-muted: #f8fafc;
+      --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+      --primary: #2563eb; --primary-hover: #1d4ed8;
+      --success: #16a34a; --warning: #d97706; --error: #dc2626;
+    }
+    * { box-sizing: border-box; font-family: "Inter", system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh;
+      background: radial-gradient(circle at top left, #dbeafe 0, transparent 24%),
+                  linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+      display: flex; align-items: center; justify-content: center; padding: 28px;
+    }
+    .wizard-shell {
+      width: 980px; min-height: 700px; background: var(--surface);
+      border: 1px solid rgba(226,232,240,0.9); border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(15,23,42,0.16); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .wizard-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; padding: 24px 28px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+    }
+    .brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(37,99,235,0.25);
+    }
+    .brand-copy h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .brand-copy p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+    .stepper { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .step-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    }
+    .step-chip.active { border-color: #bfdbfe; background: #eff6ff; color: var(--primary); }
+    .step-chip.done { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+    .step-index {
+      width: 20px; height: 20px; border-radius: 50%; background: #f1f5f9;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .step-chip.active .step-index { background: #dbeafe; }
+    .step-chip.done .step-index { background: #dcfce7; }
+    .icon-button {
+      width: 34px; height: 34px; border: none; border-radius: 10px;
+      background: transparent; color: #94a3b8; cursor: pointer;
+    }
+    .icon-button:hover { background: #f1f5f9; color: var(--text); }
+    .wizard-content { flex: 1; padding: 28px; overflow-y: auto; }
+    .title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 18px; margin-bottom: 18px;
+    }
+    .title-copy h2 { margin: 0; font-size: 28px; }
+    .title-copy p { margin: 6px 0 0; font-size: 14px; color: var(--text-muted); }
+    .mini-badge {
+      display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; background: #f1f5f9;
+    }
+    .template-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+    .template-card {
+      display: block; border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+      background: #fff; cursor: pointer; text-align: left;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    .template-card.active {
+      border-color: #93c5fd; background: #f8fbff;
+      box-shadow: 0 0 0 4px rgba(147,197,253,0.16);
+    }
+    .template-card:hover { transform: translateY(-1px); border-color: #93c5fd; }
+    .template-icon {
+      width: 48px; height: 48px; border-radius: 14px; display: flex;
+      align-items: center; justify-content: center; font-size: 22px;
+      margin-bottom: 12px; background: #eff6ff;
+    }
+    .template-card strong { display: block; margin-bottom: 6px; font-size: 14px; }
+    .template-card p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+    .template-foot {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 14px; font-size: 12px; color: var(--text-muted);
+    }
+    .button {
+      border: none; border-radius: 12px; padding: 11px 18px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .button:active { transform: translateY(1px); }
+    .button.primary { background: var(--primary); color: #fff; }
+    .button.primary:hover { background: var(--primary-hover); }
+    .button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .wizard-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 18px 28px; border-top: 1px solid var(--border); background: #fafcff;
+    }
+    .footer-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .footer-actions { display: flex; align-items: center; gap: 10px; }
+    @media (max-width: 1100px) {
+      body { padding: 0; }
+      .wizard-shell { width: 100vw; min-height: 100vh; border-radius: 0; border: none; }
+      .template-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wizard-shell">
+  <div class="wizard-header">
+    <div>
+      <div class="brand-row">
+        <div class="brand-logo">L</div>
+        <div class="brand-copy">
+          <h1>Lysmata 首次成功向导</h1>
+          <p>安装 OpenClaw、连接 AI 服务、创建第一个助手，并立刻开始第一次对话。</p>
+        </div>
+      </div>
+      <div class="stepper">
+        <div class="step-chip done"><span class="step-index">✓</span><span>检查环境</span></div>
+        <div class="step-chip done"><span class="step-index">✓</span><span>安装 OpenClaw</span></div>
+        <div class="step-chip done"><span class="step-index">✓</span><span>连接 AI 服务</span></div>
+        <div class="step-chip active"><span class="step-index">4</span><span>选择模板</span></div>
+        <div class="step-chip"><span class="step-index">5</span><span>创建助手</span></div>
+        <div class="step-chip"><span class="step-index">6</span><span>开始对话</span></div>
+      </div>
+    </div>
+    <div>
+      <button class="icon-button" onclick="window.location.href='ui-bot-management.html'" title="退出向导" aria-label="退出向导">✕</button>
+    </div>
+  </div>
+
+  <main class="wizard-content">
+    <div class="title-row">
+      <div class="title-copy">
+        <h2>选择第一个助手模板</h2>
+        <p>先选一个最接近你当前需求的助手类型，创建后随时还能继续调整。</p>
+      </div>
+      <div class="mini-badge">3 个 v1 模板</div>
+    </div>
+
+    <div class="template-grid">
+      <div class="template-card active" id="tpl-general" onclick="selectTemplate('通用助手', this)">
+        <div class="template-icon">✨</div>
+        <strong>通用助手</strong>
+        <p>适合大多数日常提问、讨论、总结和简单协作，是最稳妥的默认入口。</p>
+        <div class="template-foot"><span>最适合第一次开始</span><span>默认推荐</span></div>
+      </div>
+      <div class="template-card" id="tpl-info" onclick="selectTemplate('信息助手', this)">
+        <div class="template-icon" style="background:#f0fdf4">🔎</div>
+        <strong>信息助手</strong>
+        <p>适合检索、整理、解释与归纳信息，帮助你更快理解复杂内容。</p>
+        <div class="template-foot"><span>偏信息收集</span><span>容易上手</span></div>
+      </div>
+      <div class="template-card" id="tpl-task" onclick="selectTemplate('日常任务助手', this)">
+        <div class="template-icon" style="background:#fff7ed">✅</div>
+        <strong>日常任务助手</strong>
+        <p>适合拆解待办、撰写文本、安排事务，让你更快把想法变成可执行动作。</p>
+        <div class="template-foot"><span>偏行动导向</span><span>结果导向</span></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="wizard-footer">
+    <div class="footer-note">先选最接近你当前需求的模板，后续随时可以继续调整。</div>
+    <div class="footer-actions">
+      <button class="button secondary" onclick="window.location.href='us-01-onboarding-5-llm-key.html'">上一步</button>
+      <button class="button primary" onclick="goNext()">使用这个模板</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let selected = '通用助手';
+
+  function selectTemplate(name, el) {
+    document.querySelectorAll('.template-card').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    selected = name;
+  }
+
+  function goNext() {
+    sessionStorage.setItem('selectedTemplate', selected);
+    window.location.href = 'us-01-onboarding-7-assistant-create.html';
+  }
+</script>
+</body>
+</html>

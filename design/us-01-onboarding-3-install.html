@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Step 3 · 安装中 — Lysmata 首次成功向导</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f7fb; --surface: #ffffff; --surface-muted: #f8fafc;
+      --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+      --primary: #2563eb; --primary-hover: #1d4ed8;
+      --success: #16a34a; --warning: #d97706; --error: #dc2626;
+    }
+    * { box-sizing: border-box; font-family: "Inter", system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh;
+      background: radial-gradient(circle at top left, #dbeafe 0, transparent 24%),
+                  linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+      display: flex; align-items: center; justify-content: center; padding: 28px;
+    }
+    .wizard-shell {
+      width: 980px; min-height: 700px; background: var(--surface);
+      border: 1px solid rgba(226,232,240,0.9); border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(15,23,42,0.16); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .wizard-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; padding: 24px 28px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+    }
+    .brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(37,99,235,0.25);
+    }
+    .brand-copy h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .brand-copy p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+    .stepper { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .step-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    }
+    .step-chip.active { border-color: #bfdbfe; background: #eff6ff; color: var(--primary); }
+    .step-chip.done { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+    .step-index {
+      width: 20px; height: 20px; border-radius: 50%; background: #f1f5f9;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .step-chip.active .step-index { background: #dbeafe; }
+    .step-chip.done .step-index { background: #dcfce7; }
+    .icon-button {
+      width: 34px; height: 34px; border: none; border-radius: 10px;
+      background: transparent; color: #94a3b8; cursor: pointer;
+    }
+    .icon-button:hover { background: #f1f5f9; color: var(--text); }
+    .wizard-content { flex: 1; padding: 28px; overflow-y: auto; }
+    .title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 18px; margin-bottom: 18px;
+    }
+    .title-copy h2 { margin: 0; font-size: 28px; }
+    .title-copy p { margin: 6px 0 0; font-size: 14px; color: var(--text-muted); }
+    .mini-badge {
+      display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; background: #f1f5f9;
+    }
+    .mini-badge.ok { color: #15803d; background: #f0fdf4; }
+    .panel-card {
+      padding: 22px; border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.05);
+    }
+    .progress-wrap { margin-top: 0; }
+    .progress-head {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 10px; font-size: 13px; font-weight: 600;
+    }
+    .progress-bar { height: 8px; border-radius: 999px; background: #e2e8f0; overflow: hidden; }
+    .progress-value {
+      height: 100%; border-radius: inherit;
+      background: linear-gradient(90deg, #60a5fa, #2563eb);
+      transition: width 0.4s ease;
+    }
+    .timeline { margin-top: 18px; display: grid; gap: 10px; }
+    .timeline-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px; border-radius: 14px; border: 1px solid var(--border); background: #f8fafc;
+    }
+    .timeline-row strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    .timeline-row span { font-size: 12px; color: var(--text-muted); }
+    .mini-badge-inline {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #f1f5f9;
+    }
+    .mini-badge-inline.ok { color: #15803d; background: #f0fdf4; }
+    .mini-badge-inline.warn { color: #b45309; background: #fffbeb; }
+    .log-panel {
+      background: #1e293b; color: #cbd5e1; border-radius: 16px; padding: 16px;
+      font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; line-height: 1.7;
+      display: grid; gap: 6px; max-height: 220px; overflow: auto; margin-top: 16px;
+    }
+    .log-line.success { color: #34d399; }
+    .log-line.warn { color: #fbbf24; }
+    .log-line.error { color: #f87171; }
+    .status-note {
+      margin-top: 16px; padding: 14px 16px; border-radius: 14px;
+      background: #f8fafc; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px; line-height: 1.7;
+    }
+    .button {
+      border: none; border-radius: 12px; padding: 11px 18px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .button:active { transform: translateY(1px); }
+    .button.primary { background: var(--primary); color: #fff; }
+    .button.primary:hover { background: var(--primary-hover); }
+    .button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .button[disabled] { opacity: 0.55; cursor: not-allowed; }
+    .wizard-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 18px 28px; border-top: 1px solid var(--border); background: #fafcff;
+    }
+    .footer-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .footer-actions { display: flex; align-items: center; gap: 10px; }
+    @media (max-width: 1100px) {
+      body { padding: 0; }
+      .wizard-shell { width: 100vw; min-height: 100vh; border-radius: 0; border: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="wizard-shell">
+  <div class="wizard-header">
+    <div>
+      <div class="brand-row">
+        <div class="brand-logo">L</div>
+        <div class="brand-copy">
+          <h1>Lysmata 首次成功向导</h1>
+          <p>安装 OpenClaw、连接 AI 服务、创建第一个助手，并立刻开始第一次对话。</p>
+        </div>
+      </div>
+      <div class="stepper">
+        <div class="step-chip done"><span class="step-index">✓</span><span>检查环境</span></div>
+        <div class="step-chip active"><span class="step-index">2</span><span>安装 OpenClaw</span></div>
+        <div class="step-chip"><span class="step-index">3</span><span>连接 AI 服务</span></div>
+        <div class="step-chip"><span class="step-index">4</span><span>选择模板</span></div>
+        <div class="step-chip"><span class="step-index">5</span><span>创建助手</span></div>
+        <div class="step-chip"><span class="step-index">6</span><span>开始对话</span></div>
+      </div>
+    </div>
+    <div>
+      <button class="icon-button" onclick="window.location.href='ui-bot-management.html'" title="退出向导" aria-label="退出向导">✕</button>
+    </div>
+  </div>
+
+  <main class="wizard-content">
+    <div class="title-row">
+      <div class="title-copy">
+        <h2>正在安装 OpenClaw</h2>
+        <p>安装过程会展示实时进度和日志；如果失败，可以直接重试或返回检测。</p>
+      </div>
+      <div class="mini-badge ok">自动执行</div>
+    </div>
+
+    <div class="panel-card">
+      <div class="progress-wrap">
+        <div class="progress-head">
+          <span id="progress-label">正在准备核心组件</span>
+          <span id="progress-pct">76%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-value" id="progress-bar" style="width:76%"></div>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-row">
+          <div><strong>下载并校验安装包</strong><span>确保文件完整可用，避免半安装状态。</span></div>
+          <div class="mini-badge-inline ok">已完成</div>
+        </div>
+        <div class="timeline-row">
+          <div><strong>配置 OpenClaw 运行目录</strong><span>系统正在创建默认运行环境，无需你手动打开终端。</span></div>
+          <div class="mini-badge-inline ok">已完成</div>
+        </div>
+        <div class="timeline-row" id="step-gateway">
+          <div><strong>启动基础服务</strong><span>完成后会自动进入下一步最少配置，而不是跳去控制台。</span></div>
+          <div class="mini-badge-inline warn" id="step-gateway-badge">进行中</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-panel">
+      <div class="log-line success">[ok] Node.js v22.3.0 ready</div>
+      <div class="log-line success">[ok] curl available</div>
+      <div class="log-line warn">[run] downloading openclaw package...</div>
+      <div class="log-line warn" id="log-last">[run] starting gateway service...</div>
+    </div>
+
+    <div class="status-note">
+      如果超过 1 分钟仍停在这里，页面会显示错误原因、重试按钮和手动安装说明。
+    </div>
+  </main>
+
+  <div class="wizard-footer">
+    <div class="footer-note">安装完成后会自动进入下一步；如果失败，会提供重试入口。</div>
+    <div class="footer-actions">
+      <button class="button secondary" onclick="window.location.href='us-01-onboarding-2-env-check.html'">上一步</button>
+      <button class="button primary" id="next-btn" disabled>安装进行中</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // 模拟安装进度，2.5 秒后自动跳转
+  let pct = 76;
+  const bar = document.getElementById('progress-bar');
+  const pctLabel = document.getElementById('progress-pct');
+  const progressLabel = document.getElementById('progress-label');
+  const nextBtn = document.getElementById('next-btn');
+  const logLast = document.getElementById('log-last');
+  const gatewayBadge = document.getElementById('step-gateway-badge');
+
+  const timer = setInterval(() => {
+    pct = Math.min(pct + 8, 100);
+    bar.style.width = pct + '%';
+    pctLabel.textContent = pct + '%';
+    if (pct >= 100) {
+      clearInterval(timer);
+      progressLabel.textContent = '安装完成';
+      gatewayBadge.textContent = '已完成';
+      gatewayBadge.className = 'mini-badge-inline ok';
+      logLast.className = 'log-line success';
+      logLast.textContent = '[ok] gateway service started';
+      nextBtn.disabled = false;
+      nextBtn.textContent = '继续';
+      nextBtn.onclick = () => window.location.href = 'us-01-onboarding-4-install-success.html';
+      setTimeout(() => window.location.href = 'us-01-onboarding-4-install-success.html', 800);
+    }
+  }, 500);
+</script>
+</body>
+</html>

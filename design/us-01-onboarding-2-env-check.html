@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Step 2 · 环境检查 — Lysmata 首次成功向导</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f7fb; --surface: #ffffff; --surface-muted: #f8fafc;
+      --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+      --primary: #2563eb; --primary-hover: #1d4ed8;
+      --success: #16a34a; --warning: #d97706; --error: #dc2626;
+    }
+    * { box-sizing: border-box; font-family: "Inter", system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh;
+      background: radial-gradient(circle at top left, #dbeafe 0, transparent 24%),
+                  linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+      display: flex; align-items: center; justify-content: center; padding: 28px;
+    }
+    .wizard-shell {
+      width: 980px; min-height: 700px; background: var(--surface);
+      border: 1px solid rgba(226,232,240,0.9); border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(15,23,42,0.16); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .wizard-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; padding: 24px 28px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+    }
+    .brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(37,99,235,0.25);
+    }
+    .brand-copy h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .brand-copy p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+    .stepper { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .step-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    }
+    .step-chip.active { border-color: #bfdbfe; background: #eff6ff; color: var(--primary); }
+    .step-chip.done { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+    .step-index {
+      width: 20px; height: 20px; border-radius: 50%; background: #f1f5f9;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .step-chip.active .step-index { background: #dbeafe; }
+    .step-chip.done .step-index { background: #dcfce7; }
+    .icon-button {
+      width: 34px; height: 34px; border: none; border-radius: 10px;
+      background: transparent; color: #94a3b8; cursor: pointer;
+    }
+    .icon-button:hover { background: #f1f5f9; color: var(--text); }
+    .wizard-content { flex: 1; padding: 28px; overflow-y: auto; }
+    .title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 18px; margin-bottom: 18px;
+    }
+    .title-copy h2 { margin: 0; font-size: 28px; }
+    .title-copy p { margin: 6px 0 0; font-size: 14px; color: var(--text-muted); }
+    .mini-badge {
+      display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; background: #f1f5f9;
+    }
+    .mini-badge.warn { color: #b45309; background: #fffbeb; }
+    .status-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 18px; }
+    .status-card {
+      padding: 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-muted);
+    }
+    .status-card strong { display: block; font-size: 14px; margin-bottom: 6px; }
+    .status-card p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+    .status-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; margin-top: 12px;
+    }
+    .status-tag::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .status-ok { color: var(--success); }
+    .status-warning { color: var(--warning); }
+    .status-action { display: flex; align-items: stretch; gap: 16px; }
+    .action-card {
+      flex: 1; padding: 18px; border-radius: 16px; border: 1px solid var(--border); background: #f8fafc;
+    }
+    .action-card strong { display: block; margin-bottom: 8px; }
+    .action-card ul { margin: 0; padding-left: 18px; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
+    .status-note {
+      margin-top: 16px; padding: 14px 16px; border-radius: 14px;
+      background: #f8fafc; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px; line-height: 1.7;
+    }
+    .button {
+      border: none; border-radius: 12px; padding: 11px 18px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .button:active { transform: translateY(1px); }
+    .button.primary { background: var(--primary); color: #fff; }
+    .button.primary:hover { background: var(--primary-hover); }
+    .button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .button.secondary:hover { background: #f8fafc; }
+    .wizard-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 18px 28px; border-top: 1px solid var(--border); background: #fafcff;
+    }
+    .footer-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .footer-actions { display: flex; align-items: center; gap: 10px; }
+    @media (max-width: 1100px) {
+      body { padding: 0; }
+      .wizard-shell { width: 100vw; min-height: 100vh; border-radius: 0; border: none; }
+      .status-grid, .status-action { grid-template-columns: 1fr; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<div class="wizard-shell">
+  <div class="wizard-header">
+    <div>
+      <div class="brand-row">
+        <div class="brand-logo">L</div>
+        <div class="brand-copy">
+          <h1>Lysmata 首次成功向导</h1>
+          <p>安装 OpenClaw、连接 AI 服务、创建第一个助手，并立刻开始第一次对话。</p>
+        </div>
+      </div>
+      <div class="stepper">
+        <div class="step-chip active"><span class="step-index">1</span><span>检查环境</span></div>
+        <div class="step-chip"><span class="step-index">2</span><span>安装 OpenClaw</span></div>
+        <div class="step-chip"><span class="step-index">3</span><span>连接 AI 服务</span></div>
+        <div class="step-chip"><span class="step-index">4</span><span>选择模板</span></div>
+        <div class="step-chip"><span class="step-index">5</span><span>创建助手</span></div>
+        <div class="step-chip"><span class="step-index">6</span><span>开始对话</span></div>
+      </div>
+    </div>
+    <div>
+      <button class="icon-button" onclick="window.location.href='ui-bot-management.html'" title="退出向导" aria-label="退出向导">✕</button>
+    </div>
+  </div>
+
+  <main class="wizard-content">
+    <div class="title-row">
+      <div class="title-copy">
+        <h2>安装前环境检查</h2>
+        <p>先检查 OpenClaw、Node.js、网络工具和安装连接，确认可以继续再开始安装。</p>
+      </div>
+      <div class="mini-badge warn">预计 30 秒</div>
+    </div>
+
+    <div class="status-grid">
+      <div class="status-card">
+        <strong>OpenClaw</strong>
+        <p>先确认系统里是否已经有可用版本，避免重复安装。</p>
+        <div class="status-tag status-warning">未安装，将自动处理</div>
+      </div>
+      <div class="status-card">
+        <strong>Node.js</strong>
+        <p>版本要求 v22.0 或以上，满足时会直接继续。</p>
+        <div class="status-tag status-ok">已准备好</div>
+      </div>
+      <div class="status-card">
+        <strong>网络工具与连通</strong>
+        <p>检查 curl 和安装服务器可达性；异常时会给出修复方向。</p>
+        <div class="status-tag status-warning">正在检测</div>
+      </div>
+    </div>
+
+    <div class="status-action">
+      <div class="action-card">
+        <strong>如果这里卡住，我们会这样提示</strong>
+        <ul>
+          <li>用用户语言说明"为什么卡住"</li>
+          <li>告诉你下一步该点哪里或该做什么</li>
+          <li>保留"重试检测"和"继续安装"的明确入口</li>
+        </ul>
+      </div>
+      <div class="action-card">
+        <strong>你通常只需要做这些事</strong>
+        <ul>
+          <li>网络问题：切换网络后点击"重新检测"</li>
+          <li>权限问题：按提示允许安装所需访问权限</li>
+          <li>运行环境问题：按提示补齐缺失项后再继续</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="status-note">
+      如果这一页没有全部通过，也不会清空你已经完成的步骤；修复后重新检测即可。
+    </div>
+  </main>
+
+  <div class="wizard-footer">
+    <div class="footer-note">如果中途退出，Lysmata 会尽量保留你已经完成的步骤。</div>
+    <div class="footer-actions">
+      <button class="button secondary" onclick="window.location.href='us-01-onboarding-1-intro.html'">上一步</button>
+      <button class="button primary" onclick="window.location.href='us-01-onboarding-3-install.html'">开始安装 OpenClaw</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

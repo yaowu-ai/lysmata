@@ -162,6 +162,28 @@ fn capture_shell_env() -> CapturedShellEnv {
 }
 
 #[tauri::command]
+async fn check_openclaw_installed() -> Result<serde_json::Value, String> {
+    // Try to run `openclaw --version` in the user's default shell so that
+    // PATH entries set by shell init files (e.g. ~/.zshrc) are respected.
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+
+    let output = std::process::Command::new(&shell)
+        .args(["-l", "-c", "openclaw --version"])
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout).trim().to_string();
+            eprintln!("[check_openclaw_installed] stdout: {:?}", stdout);
+            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            let version = if !stdout.is_empty() { stdout } else { stderr };
+            Ok(serde_json::json!({ "installed": true, "version": version }))
+        }
+        _ => Ok(serde_json::json!({ "installed": false, "version": null })),
+    }
+}
+
+#[tauri::command]
 async fn start_sidecar(app: tauri::AppHandle) -> Result<(), String> {
     use std::time::SystemTime;
     
@@ -448,7 +470,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![start_sidecar, get_sidecar_logs, stop_sidecar])
+        .invoke_handler(tauri::generate_handler![check_openclaw_installed, start_sidecar, get_sidecar_logs, stop_sidecar])
         .on_menu_event(|app, event| {
             if event.id() == "devtools" {
                 if let Some(window) = app.get_webview_window("main") {

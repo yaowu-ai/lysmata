@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Step 5 · 连接 AI 服务 — Lysmata 首次成功向导</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f7fb; --surface: #ffffff; --surface-muted: #f8fafc;
+      --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+      --primary: #2563eb; --primary-hover: #1d4ed8;
+      --success: #16a34a; --warning: #d97706; --error: #dc2626;
+    }
+    * { box-sizing: border-box; font-family: "Inter", system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh;
+      background: radial-gradient(circle at top left, #dbeafe 0, transparent 24%),
+                  linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+      display: flex; align-items: center; justify-content: center; padding: 28px;
+    }
+    .wizard-shell {
+      width: 980px; min-height: 700px; background: var(--surface);
+      border: 1px solid rgba(226,232,240,0.9); border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(15,23,42,0.16); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .wizard-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; padding: 24px 28px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+    }
+    .brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(37,99,235,0.25);
+    }
+    .brand-copy h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .brand-copy p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+    .stepper { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .step-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    }
+    .step-chip.active { border-color: #bfdbfe; background: #eff6ff; color: var(--primary); }
+    .step-chip.done { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+    .step-index {
+      width: 20px; height: 20px; border-radius: 50%; background: #f1f5f9;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .step-chip.active .step-index { background: #dbeafe; }
+    .step-chip.done .step-index { background: #dcfce7; }
+    .icon-button {
+      width: 34px; height: 34px; border: none; border-radius: 10px;
+      background: transparent; color: #94a3b8; cursor: pointer;
+    }
+    .icon-button:hover { background: #f1f5f9; color: var(--text); }
+    .wizard-content { flex: 1; padding: 28px; overflow-y: auto; }
+    .form-panel { max-width: 760px; }
+    .title-row {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 18px; margin-bottom: 18px;
+    }
+    .title-copy h2 { margin: 0; font-size: 28px; }
+    .title-copy p { margin: 6px 0 0; font-size: 14px; color: var(--text-muted); }
+    .mini-badge {
+      display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; background: #f1f5f9;
+    }
+    .mini-badge.ok { color: #15803d; background: #f0fdf4; }
+    .hint-banner {
+      padding: 14px 16px; border-radius: 14px; border: 1px solid #dbeafe;
+      background: #eff6ff; color: #1d4ed8; font-size: 13px; line-height: 1.7; margin-bottom: 18px;
+    }
+    .panel-card {
+      padding: 22px; border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.05);
+    }
+    .panel-card h3 { margin: 0 0 16px; font-size: 20px; }
+    .provider-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 18px; }
+    .provider-option {
+      display: block; border: 1px solid var(--border); border-radius: 16px; padding: 16px;
+      background: #fff; cursor: pointer; text-align: left;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    }
+    .provider-option.active {
+      border-color: #93c5fd; background: #f8fbff;
+      box-shadow: 0 0 0 4px rgba(147,197,253,0.16);
+    }
+    .provider-option:hover { transform: translateY(-1px); border-color: #93c5fd; }
+    .provider-option strong { display: block; margin-bottom: 6px; font-size: 14px; }
+    .provider-option p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+    .provider-meta {
+      margin-top: 10px; display: inline-flex; padding: 4px 8px; border-radius: 999px;
+      background: #f1f5f9; color: var(--text-muted); font-size: 11px; font-weight: 600;
+    }
+    .status-note {
+      margin-bottom: 16px; padding: 14px 16px; border-radius: 14px;
+      background: #f8fafc; border: 1px solid var(--border);
+      color: var(--text-muted); font-size: 13px; line-height: 1.7;
+    }
+    .field-grid { display: grid; gap: 16px; grid-template-columns: repeat(2,1fr); }
+    .field { margin-bottom: 16px; }
+    .field.full { grid-column: 1 / -1; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+    input {
+      width: 100%; border-radius: 12px; border: 1px solid var(--border);
+      padding: 11px 13px; font-size: 14px; color: var(--text); background: #fff;
+      outline: 2px solid transparent;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    input:focus-visible { border-color: #93c5fd; box-shadow: 0 0 0 4px rgba(147,197,253,0.2); }
+    .field-hint { margin-top: 6px; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .field-error { margin-top: 8px; color: var(--error); font-size: 12px; font-weight: 600; }
+    .field.has-error input { border-color: rgba(220,38,38,0.7); box-shadow: 0 0 0 4px rgba(220,38,38,0.12); }
+    .advanced-details {
+      margin-top: 18px; border: 1px solid var(--border); border-radius: 16px;
+      background: var(--surface-muted); overflow: hidden;
+    }
+    .advanced-details summary {
+      list-style: none; cursor: pointer; padding: 14px 16px;
+      font-size: 13px; font-weight: 600; color: var(--text);
+    }
+    .advanced-details summary::-webkit-details-marker { display: none; }
+    .advanced-details[open] summary { border-bottom: 1px solid var(--border); }
+    .advanced-body { padding: 16px; }
+    .muted-link {
+      display: inline-flex; align-items: center; gap: 6px; margin-top: 10px;
+      border: none; background: transparent; color: var(--text-muted);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+    .button {
+      border: none; border-radius: 12px; padding: 11px 18px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .button:active { transform: translateY(1px); }
+    .button.primary { background: var(--primary); color: #fff; }
+    .button.primary:hover { background: var(--primary-hover); }
+    .button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .button.link { background: transparent; color: var(--text-muted); padding: 0; }
+    .button.link:hover { color: var(--text); }
+    .wizard-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 18px 28px; border-top: 1px solid var(--border); background: #fafcff;
+    }
+    .footer-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .footer-actions { display: flex; align-items: center; gap: 10px; }
+    .toast {
+      position: fixed; right: 24px; bottom: 24px; padding: 12px 16px; border-radius: 14px;
+      background: #fff; border-left: 4px solid var(--error);
+      box-shadow: 0 18px 40px rgba(15,23,42,0.16); font-size: 13px; font-weight: 600;
+      color: var(--text); opacity: 0; transform: translateY(12px);
+      transition: opacity 0.2s ease, transform 0.2s ease; pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    @media (max-width: 1100px) {
+      body { padding: 0; }
+      .wizard-shell { width: 100vw; min-height: 100vh; border-radius: 0; border: none; }
+      .provider-row, .field-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wizard-shell">
+  <div class="wizard-header">
+    <div>
+      <div class="brand-row">
+        <div class="brand-logo">L</div>
+        <div class="brand-copy">
+          <h1>Lysmata 首次成功向导</h1>
+          <p>安装 OpenClaw、连接 AI 服务、创建第一个助手，并立刻开始第一次对话。</p>
+        </div>
+      </div>
+      <div class="stepper">
+        <div class="step-chip done"><span class="step-index">✓</span><span>检查环境</span></div>
+        <div class="step-chip done"><span class="step-index">✓</span><span>安装 OpenClaw</span></div>
+        <div class="step-chip active"><span class="step-index">3</span><span>连接 AI 服务</span></div>
+        <div class="step-chip"><span class="step-index">4</span><span>选择模板</span></div>
+        <div class="step-chip"><span class="step-index">5</span><span>创建助手</span></div>
+        <div class="step-chip"><span class="step-index">6</span><span>开始对话</span></div>
+      </div>
+    </div>
+    <div>
+      <button class="icon-button" onclick="window.location.href='ui-bot-management.html'" title="退出向导" aria-label="退出向导">✕</button>
+    </div>
+  </div>
+
+  <main class="wizard-content">
+    <div class="form-panel">
+      <div class="title-row">
+        <div class="title-copy">
+          <h2>连接 AI 服务</h2>
+          <p>首次成功主路径里，这一步只需要填写 1 个 AI 服务密钥（LLM Key），其它项都可以稍后再调。</p>
+        </div>
+        <div class="mini-badge ok">主路径必填</div>
+      </div>
+
+      <div class="hint-banner">
+        如果你以前配过，系统会尽量自动复用旧设置。现在只想先跑通也没关系，保持推荐项即可继续。
+      </div>
+
+      <div class="panel-card">
+        <h3>选择要连接的服务</h3>
+        <div class="provider-row">
+          <div class="provider-option active" id="opt-openai" onclick="selectProvider('OpenAI','gpt-4o-mini',this)">
+            <strong>OpenAI</strong>
+            <p>默认推荐，适合先把第一次成功跑通。</p>
+            <div class="provider-meta">已检测到旧配置，可自动预填</div>
+          </div>
+          <div class="provider-option" id="opt-anthropic" onclick="selectProvider('Anthropic','claude-3-5-sonnet',this)">
+            <strong>Anthropic</strong>
+            <p>适合长对话和长文本处理，也可以直接作为默认选择。</p>
+            <div class="provider-meta">可直接切换</div>
+          </div>
+          <div class="provider-option" id="opt-moonshot" onclick="selectProvider('Moonshot','moonshot-v1-8k',this)">
+            <strong>Moonshot</strong>
+            <p>适合常见国内使用场景，后续也可以在设置里替换。</p>
+            <div class="provider-meta">后续可在设置中替换</div>
+          </div>
+        </div>
+
+        <div class="status-note">
+          当前已选：<strong id="selected-provider-name">OpenAI</strong>。默认会带出推荐模型；如果你现在只想先跑通，直接填写 API Key 就可以继续。
+        </div>
+
+        <div class="field-grid">
+          <div class="field full" id="api-key-field">
+            <label for="api-key">API Key</label>
+            <input id="api-key" type="password" value="sk-live-••••••••••old" autocomplete="off" spellcheck="false" />
+            <div class="field-hint">已有配置会自动预填并允许更新，保存后会用安全方式存储。</div>
+            <div class="field-error" id="api-key-error" style="display:none">请输入你的 AI 服务密钥后再继续。</div>
+          </div>
+        </div>
+
+        <details class="advanced-details">
+          <summary>需要时，再调整推荐模型</summary>
+          <div class="advanced-body">
+            <div class="field" style="margin-bottom:0">
+              <label for="model-name">推荐模型（可选）</label>
+              <input id="model-name" value="gpt-4o-mini" autocomplete="off" spellcheck="false" />
+              <div class="field-hint">已自动带出推荐模型。你可以保持默认，后续也能在设置里继续调整。</div>
+            </div>
+          </div>
+        </details>
+
+        <button class="muted-link">查看高级设置入口</button>
+      </div>
+    </div>
+  </main>
+
+  <div class="wizard-footer">
+    <div class="footer-note">高级设置不会阻断主路径。需要时可以去设置页继续调整。</div>
+    <div class="footer-actions">
+      <button class="button link" onclick="window.location.href='ui-bot-management.html'">稍后继续</button>
+      <button class="button secondary" onclick="window.location.href='us-01-onboarding-4-install-success.html'">上一步</button>
+      <button class="button primary" onclick="handleNext()">保存并继续</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">请先填写 AI 服务密钥。</div>
+
+<script>
+  function selectProvider(name, model, el) {
+    document.querySelectorAll('.provider-option').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('selected-provider-name').textContent = name;
+    document.getElementById('model-name').value = model;
+  }
+
+  function handleNext() {
+    const key = document.getElementById('api-key').value.trim();
+    const field = document.getElementById('api-key-field');
+    const err = document.getElementById('api-key-error');
+    if (!key) {
+      field.classList.add('has-error');
+      err.style.display = 'block';
+      showToast();
+      document.getElementById('api-key').focus();
+      return;
+    }
+    field.classList.remove('has-error');
+    err.style.display = 'none';
+    window.location.href = 'us-01-onboarding-6-template-select.html';
+  }
+
+  document.getElementById('api-key').addEventListener('input', () => {
+    document.getElementById('api-key-field').classList.remove('has-error');
+    document.getElementById('api-key-error').style.display = 'none';
+  });
+
+  function showToast() {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2600);
+  }
+</script>
+</body>
+</html>

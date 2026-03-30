@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Step 1 · 欢迎介绍 — Lysmata 首次成功向导</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f7fb; --surface: #ffffff; --surface-muted: #f8fafc;
+      --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b;
+      --primary: #2563eb; --primary-hover: #1d4ed8;
+      --success: #16a34a; --warning: #d97706; --error: #dc2626;
+    }
+    * { box-sizing: border-box; font-family: "Inter", system-ui, sans-serif; }
+    body {
+      margin: 0; min-height: 100vh;
+      background: radial-gradient(circle at top left, #dbeafe 0, transparent 24%),
+                  linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--text); -webkit-font-smoothing: antialiased;
+      display: flex; align-items: center; justify-content: center; padding: 28px;
+    }
+    .wizard-shell {
+      width: 980px; min-height: 700px; background: var(--surface);
+      border: 1px solid rgba(226,232,240,0.9); border-radius: 24px;
+      box-shadow: 0 24px 80px rgba(15,23,42,0.16); overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .wizard-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 20px; padding: 24px 28px 18px; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+    }
+    .brand-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .brand-logo {
+      width: 40px; height: 40px; border-radius: 12px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; font-weight: 700;
+      box-shadow: 0 10px 24px rgba(37,99,235,0.25);
+    }
+    .brand-copy h1 { margin: 0; font-size: 18px; font-weight: 700; }
+    .brand-copy p { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); }
+    .stepper { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .step-chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 600;
+    }
+    .step-chip.active { border-color: #bfdbfe; background: #eff6ff; color: var(--primary); }
+    .step-chip.done { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+    .step-index {
+      width: 20px; height: 20px; border-radius: 50%; background: #f1f5f9;
+      display: inline-flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .step-chip.active .step-index { background: #dbeafe; }
+    .step-chip.done .step-index { background: #dcfce7; }
+    .icon-button {
+      width: 34px; height: 34px; border: none; border-radius: 10px;
+      background: transparent; color: #94a3b8; cursor: pointer;
+    }
+    .icon-button:hover { background: #f1f5f9; color: var(--text); }
+    .wizard-content { flex: 1; padding: 28px; overflow-y: auto; }
+    .hero {
+      display: grid; grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px; align-items: center; min-height: 520px;
+    }
+    .hero-copy h2 { margin: 0 0 14px; font-size: 38px; line-height: 1.1; letter-spacing: -0.03em; }
+    .hero-copy p { margin: 0 0 22px; font-size: 15px; line-height: 1.75; color: var(--text-muted); }
+    .mini-badge {
+      display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 600; background: #f1f5f9;
+    }
+    .mini-badge.ok { color: #15803d; background: #f0fdf4; }
+    .hero-card {
+      padding: 22px; border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.05);
+      background: linear-gradient(180deg, rgba(239,246,255,0.9), rgba(255,255,255,0.98));
+    }
+    .intro-summary h3 { margin: 14px 0 10px; font-size: 22px; line-height: 1.25; }
+    .intro-summary p { margin: 0; font-size: 13px; line-height: 1.7; color: var(--text-muted); }
+    .intro-summary ol { margin: 18px 0; padding-left: 18px; display: grid; gap: 12px; }
+    .intro-summary li { padding-left: 4px; color: var(--text-muted); }
+    .intro-summary li::marker { color: var(--primary); font-weight: 700; }
+    .intro-summary li strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 14px; }
+    .checklist { display: grid; gap: 12px; margin-top: 20px; }
+    .check-row {
+      display: flex; align-items: flex-start; gap: 12px; padding: 14px;
+      border: 1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,0.84);
+    }
+    .check-icon {
+      width: 26px; height: 26px; border-radius: 50%; background: #dbeafe; color: var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; font-weight: 700; flex-shrink: 0;
+    }
+    .check-row strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    .check-row span { font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+    .button {
+      border: none; border-radius: 12px; padding: 11px 18px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: transform 0.12s ease, background 0.15s ease;
+    }
+    .button:active { transform: translateY(1px); }
+    .button.primary { background: var(--primary); color: #fff; }
+    .button.primary:hover { background: var(--primary-hover); }
+    .button.secondary { background: #fff; color: var(--text); border: 1px solid var(--border); }
+    .button.secondary:hover { background: #f8fafc; }
+    .wizard-footer {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 16px; padding: 18px 28px; border-top: 1px solid var(--border); background: #fafcff;
+    }
+    .footer-note { font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+    .footer-actions { display: flex; align-items: center; gap: 10px; }
+    @media (max-width: 1100px) {
+      body { padding: 0; }
+      .wizard-shell { width: 100vw; min-height: 100vh; border-radius: 0; border: none; }
+      .hero { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="wizard-shell">
+  <div class="wizard-header">
+    <div>
+      <div class="brand-row">
+        <div class="brand-logo">L</div>
+        <div class="brand-copy">
+          <h1>Lysmata 首次成功向导</h1>
+          <p>安装 OpenClaw、连接 AI 服务、创建第一个助手，并立刻开始第一次对话。</p>
+        </div>
+      </div>
+      <div class="stepper"><!-- intro 步骤不显示 stepper --></div>
+    </div>
+    <div>
+      <button class="icon-button" onclick="window.location.href='ui-bot-management.html'" title="退出向导" aria-label="退出向导">✕</button>
+    </div>
+  </div>
+
+  <main class="wizard-content">
+    <div class="hero">
+      <div class="hero-copy">
+        <div class="mini-badge ok">首次成功主线</div>
+        <h2>先安装 OpenClaw，再创建你的第一个助手。</h2>
+        <p>跟着这条主线走，你只需要完成安装、连接 1 个 AI 服务，然后从 3 个模板里选一个。不用先学复杂配置，也不用先进入空白管理页。</p>
+        <div style="display:flex;gap:12px;flex-wrap:wrap">
+          <button class="button primary" onclick="window.location.href='us-01-onboarding-2-env-check.html'">开始安装 OpenClaw</button>
+          <button class="button secondary" onclick="window.location.href='us-01-onboarding-5-llm-key.html'">已安装，继续配置 LLM</button>
+        </div>
+        <div class="checklist">
+          <div class="check-row">
+            <div class="check-icon">1</div>
+            <div><strong>少填信息</strong><span>这次只需要补 1 个关键凭证，其余默认项会尽量自动准备好。</span></div>
+          </div>
+          <div class="check-row">
+            <div class="check-icon">2</div>
+            <div><strong>直接开始</strong><span>创建完成后会立刻进入第一次对话，而不是把你带回管理页。</span></div>
+          </div>
+          <div class="check-row">
+            <div class="check-icon">3</div>
+            <div><strong>可随时回来</strong><span>中途退出也会保留进度，下次可以从上次停下的位置继续。</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-card intro-summary">
+        <div class="mini-badge">大约 3 分钟</div>
+        <h3>你会完成这 3 步</h3>
+        <ol>
+          <li><strong>确认环境并完成安装</strong>自动检查必要条件，卡住时直接告诉你下一步怎么做。</li>
+          <li><strong>连接 1 个 AI 服务</strong>只填写你真正必须提供的 AI 服务密钥（LLM Key），推荐项会自动带出。</li>
+          <li><strong>选模板并创建助手</strong>从 3 个模板里选一个，创建完成后直接进入第一次对话。</li>
+        </ol>
+        <p>首次成功的终点不是"完成配置"，而是"现在真的可以开始用了"。</p>
+      </div>
+    </div>
+  </main>
+
+  <div class="wizard-footer">
+    <div class="footer-note">v1 默认先卖"结果"，后续再承接"系统"。高级能力可在设置中继续维护。</div>
+    <div class="footer-actions">
+      <button class="button primary" onclick="window.location.href='us-01-onboarding-2-env-check.html'">开始安装</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
