@@ -2,8 +2,8 @@ import { Navigate, useLocation, useParams } from "react-router-dom";
 import { OnboardingPage as Page1Welcome } from "./Page1Welcome";
 import { OnboardingPage as Page2Install } from "./Page2Install";
 import { OnboardingPage as Page3Provider } from "./Page3Provider";
-import { OnboardingPage as Page4Template } from "./Page4template";
-import { OnboardingPage as Page5Assistant } from "./Page5assistant";
+import { OnboardingPage as Page4Template } from "./Page4Template";
+import { OnboardingPage as Page5Assistant } from "./Page5Assistant";
 import { OnboardingPage as Page5Ready } from "./Page5Ready";
 
 type WizardStep = {

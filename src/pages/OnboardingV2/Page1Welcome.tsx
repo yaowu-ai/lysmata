@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOnboardingRuntimeState } from "../../shared/store/onboarding-runtime-store";
+import { StandardFooter } from "./StandardFooter";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
@@ -79,27 +80,25 @@ export function OnboardingPage() {
         </div>
       </main>
 
-      <footer className="flex items-center justify-between gap-4 border-t border-[#E2E8F0] bg-[#FAFCFF] px-7 py-[18px]">
-        <div className="text-xs leading-6 text-[#64748B]">你之后仍可从设置重新进入这条向导。</div>
-        <div className="flex items-center gap-2.5">
-          {hasOpenClaw && (
-            <button
-              type="button"
-              onClick={() => navigate("/bots")}
-              className="rounded-xl border border-[#E2E8F0] bg-white px-[18px] py-[11px] text-sm font-semibold text-[#475569] hover:bg-[#F8FAFC]"
-            >
-              退出向导
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => navigate("/onboarding/install")}
-            className="rounded-xl bg-[#2563EB] px-[18px] py-[11px] text-sm font-semibold text-white hover:bg-[#1D4ED8]"
-          >
-            安装
-          </button>
-        </div>
-      </footer>
+      <StandardFooter
+        hint="你之后仍可从设置重新进入这条向导。"
+        actions={[
+          ...(hasOpenClaw
+            ? [
+                {
+                  label: "退出向导",
+                  onClick: () => navigate("/bots"),
+                  variant: "secondary" as const,
+                },
+              ]
+            : []),
+          {
+            label: "安装",
+            onClick: () => navigate("/onboarding/install"),
+            variant: "primary" as const,
+          },
+        ]}
+      />
     </>
   );
 }

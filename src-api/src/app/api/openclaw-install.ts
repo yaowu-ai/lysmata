@@ -15,6 +15,7 @@ import { stream } from "hono/streaming";
 import { readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { updateGatewayConfig } from "../../core/openclaw-config-file";
+import { AppLogger } from "../../shared/app-logger";
 import {
   getAvailableWindowsShellOptions,
   resetOpenclawBinCache,
@@ -29,7 +30,6 @@ import {
   writeRuntimePreferences,
   type WindowsShellPreference,
 } from "../../shared/runtime-preferences";
-import { AppLogger } from "../../shared/app-logger";
 
 const app = new Hono();
 const MIN_NODE_MAJOR = 22;
@@ -69,16 +69,25 @@ async function exec(
 // ── SSE event types ──────────────────────────────────────────────────────────
 
 type InstallErrorKind = "network" | "permission" | "timeout" | "server_error" | "unknown";
+type InstallStage =
+  | "idle"
+  | "checking"
+  | "preparing"
+  | "installing"
+  | "configuring"
+  | "verifying"
+  | "completed";
 
 interface InstallEvent {
-  step?: string;
+  stage?: InstallStage;
   message?: string;
-  progress?: number;
   log?: string;
+  summary?: string;
   error?: string;
   errorKind?: InstallErrorKind;
   platform?: string;
-  success?: boolean;
+  waitingForPrivilege?: boolean;
+  done?: boolean;
 }
 
 // ── Install lock & active process ───────────────────────────────────────────
@@ -182,7 +191,7 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "";
   const pathNode = await which("node");
   const pathNpm = await which("npm");
-  
+
   // 记录初始检测结果
   AppLogger.info("开始检测 Node.js 工具链", {
     module: "inspectNodeTooling",
@@ -224,7 +233,11 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
   AppLogger.info("Node.js 候选路径", {
     module: "inspectNodeTooling",
     candidateCount: candidates.length,
-    candidates: candidates.map(c => ({ path: c.nodePath, source: c.source, priority: c.priority })),
+    candidates: candidates.map((c) => ({
+      path: c.nodePath,
+      source: c.source,
+      priority: c.priority,
+    })),
   });
 
   const inspected = await Promise.all(
@@ -238,7 +251,7 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
         });
         return null;
       }
-      
+
       const versionResult = await exec([nodePath, "--version"]);
       if (versionResult.exitCode !== 0 || !versionResult.stdout) {
         AppLogger.warn("无法获取 Node.js 版本", {
@@ -284,7 +297,7 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
     module: "inspectNodeTooling",
     totalCandidates: candidates.length,
     validTools: filtered.length,
-    tools: filtered.map(t => ({
+    tools: filtered.map((t) => ({
       path: t.nodePath,
       version: t.nodeVersion,
       major: t.nodeMajor,
@@ -292,7 +305,7 @@ async function inspectNodeTooling(): Promise<NodeTooling[]> {
       priority: t.priority,
       hasNpm: !!t.npmPath,
     })),
-    sortedOrder: filtered.sort(compareNodeTooling).map(t => t.source),
+    sortedOrder: filtered.sort(compareNodeTooling).map((t) => t.source),
   });
 
   return filtered.sort(compareNodeTooling);
@@ -303,22 +316,24 @@ async function resolveNodeTooling(): Promise<NodeTooling | null> {
   const compatible = inspected.filter(
     (candidate) => (candidate.nodeMajor ?? 0) >= MIN_NODE_MAJOR && candidate.npmPath,
   );
-  
+
   const result = compatible[0] ?? inspected[0] ?? null;
-  
+
   AppLogger.info("解析 Node.js 工具链结果", {
     module: "resolveNodeTooling",
     totalInspected: inspected.length,
     compatibleCount: compatible.length,
     minNodeMajor: MIN_NODE_MAJOR,
-    selectedTool: result ? {
-      path: result.nodePath,
-      version: result.nodeVersion,
-      major: result.nodeMajor,
-      source: result.source,
-      hasNpm: !!result.npmPath,
-    } : null,
-    allTools: inspected.map(t => ({
+    selectedTool: result
+      ? {
+          path: result.nodePath,
+          version: result.nodeVersion,
+          major: result.nodeMajor,
+          source: result.source,
+          hasNpm: !!result.npmPath,
+        }
+      : null,
+    allTools: inspected.map((t) => ({
       path: t.nodePath,
       version: t.nodeVersion,
       major: t.nodeMajor,
@@ -327,13 +342,13 @@ async function resolveNodeTooling(): Promise<NodeTooling | null> {
       priority: t.priority,
     })),
   });
-  
+
   return result;
 }
 
 async function checkEnvironment(): Promise<EnvCheckResult> {
   const platform = process.platform;
-  
+
   AppLogger.info("开始环境检查", {
     module: "checkEnvironment",
     platform,
@@ -368,7 +383,8 @@ async function checkEnvironment(): Promise<EnvCheckResult> {
 
   // Network reachability: only needed when install.sh download path will be used
   // (npm install uses npm registry, not openclaw.ai/install.sh)
-  const needsInstallScript = !hasOpenClaw && !(hasNode && hasNpm) && hasCurl && platform !== "win32";
+  const needsInstallScript =
+    !hasOpenClaw && !(hasNode && hasNpm) && hasCurl && platform !== "win32";
   let networkReachable: boolean | undefined;
   if (needsInstallScript && curlPath) {
     networkReachable = await checkNetworkReachability(curlPath);
@@ -470,13 +486,26 @@ async function withTimeout<T extends ReturnType<typeof Bun.spawn>>(
   }
 }
 
-function classifyInstallError(exitCode: number, output: string): { kind: InstallErrorKind; hint: string } {
+function classifyInstallError(
+  exitCode: number,
+  output: string,
+): { kind: InstallErrorKind; hint: string } {
   if (output.match(/EACCES|permission denied|EPERM/i)) {
-    return { kind: "permission", hint: "权限不足。尝试在终端运行 sudo npm install -g openclaw@latest，或检查全局 npm 目录权限" };
+    return {
+      kind: "permission",
+      hint: "权限不足。尝试在终端运行 sudo npm install -g openclaw@latest，或检查全局 npm 目录权限",
+    };
   }
-  if (output.match(/ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|getaddrinfo|network|socket hang up/i) ||
-      [6, 7, 28].includes(exitCode)) {
-    return { kind: "network", hint: "网络连接失败。请检查网络连接、DNS 设置，或确认是否需要配置代理" };
+  if (
+    output.match(
+      /ECONNREFUSED|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|getaddrinfo|network|socket hang up/i,
+    ) ||
+    [6, 7, 28].includes(exitCode)
+  ) {
+    return {
+      kind: "network",
+      hint: "网络连接失败。请检查网络连接、DNS 设置，或确认是否需要配置代理",
+    };
   }
   if (exitCode === 22) {
     return { kind: "server_error", hint: "安装服务器返回错误，请稍后重试" };
@@ -538,18 +567,28 @@ async function streamProcessOutput(
 
 // ── Install logic ────────────────────────────────────────────────────────────
 
-async function runNpmInstall(send: SendEvent, npmPath: string): Promise<{ ok: boolean; stderr: string; exitCode: number }> {
-  send({ step: "installing", message: "正在通过 npm 安装 OpenClaw...", progress: 40 });
+async function runNpmInstall(
+  send: SendEvent,
+  npmPath: string,
+): Promise<{ ok: boolean; stderr: string; exitCode: number }> {
+  send({
+    stage: "installing",
+    message: "正在通过 npm 安装 OpenClaw...",
+    summary: "将使用系统 npm 安装 OpenClaw CLI。",
+  });
   send({ log: `npm path: ${npmPath}` });
   send({ log: "$ npm install -g openclaw@latest --fetch-timeout=60000" });
 
-  const proc = spawnWithPath([npmPath, "install", "-g", "openclaw@latest", "--fetch-timeout=60000"], {
-    stdout: "pipe",
-    stderr: "pipe",
-    env: {
-      SHARP_IGNORE_GLOBAL_LIBVIPS: "1",
+  const proc = spawnWithPath(
+    [npmPath, "install", "-g", "openclaw@latest", "--fetch-timeout=60000"],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+      env: {
+        SHARP_IGNORE_GLOBAL_LIBVIPS: "1",
+      },
     },
-  });
+  );
 
   const [, stderrOutput, exitCode] = await Promise.all([
     streamProcessOutput(proc.stdout as ReadableStream<Uint8Array>, send),
@@ -566,10 +605,18 @@ async function runNpmInstall(send: SendEvent, npmPath: string): Promise<{ ok: bo
   return { ok: true, stderr: "", exitCode: 0 };
 }
 
-async function runPosixInstallScript(send: SendEvent): Promise<{ ok: boolean; stderr: string; exitCode: number }> {
+async function runPosixInstallScript(
+  send: SendEvent,
+): Promise<{ ok: boolean; stderr: string; exitCode: number }> {
   // Phase 1: Download script to a temp file (safe — no piping to bash)
-  send({ step: "installing", message: "正在下载安装脚本...", progress: 20 });
-  send({ log: "$ curl -fsSL --connect-timeout 15 --max-time 180 -o /tmp/openclaw-install.sh https://openclaw.ai/install.sh" });
+  send({
+    stage: "preparing",
+    message: "正在下载安装脚本...",
+    summary: "先下载官方安装脚本，再以非交互模式执行。",
+  });
+  send({
+    log: "$ curl -fsSL --connect-timeout 15 --max-time 180 -o /tmp/openclaw-install.sh https://openclaw.ai/install.sh",
+  });
 
   const tmpFile = `/tmp/openclaw-install-${Date.now()}.sh`;
   const curlProc = spawnInUserShell(
@@ -600,7 +647,11 @@ async function runPosixInstallScript(send: SendEvent): Promise<{ ok: boolean; st
   send({ log: "安装脚本下载完成，开始执行..." });
 
   // Phase 2: Execute the downloaded script
-  send({ step: "installing", message: "正在执行安装脚本...", progress: 30 });
+  send({
+    stage: "installing",
+    message: "正在执行安装脚本...",
+    summary: "将执行下载到本地的安装脚本。",
+  });
   send({ log: `$ bash ${tmpFile} --no-onboard` });
 
   const bashProc = spawnInUserShell(
@@ -630,7 +681,11 @@ async function runPosixInstallScript(send: SendEvent): Promise<{ ok: boolean; st
 }
 
 async function verifyInstallation(send: SendEvent): Promise<boolean> {
-  send({ step: "verifying", message: "验证安装结果...", progress: 85 });
+  send({
+    stage: "verifying",
+    message: "验证安装结果...",
+    summary: "确认 openclaw 可执行文件和版本信息。",
+  });
 
   // Clear stale cache so resolveOpenclawBin() rescans after fresh install
   resetOpenclawBinCache();
@@ -644,7 +699,7 @@ async function verifyInstallation(send: SendEvent): Promise<boolean> {
   if (r.exitCode === 0) {
     send({ log: `找到 openclaw: ${openclawPath}` });
     send({ log: `openclaw 版本: ${r.stdout}` });
-    send({ step: "verifying", message: "安装验证通过", progress: 95 });
+    send({ stage: "verifying", message: "安装验证通过", summary: "安装已经验证通过。" });
     return true;
   }
 
@@ -654,6 +709,11 @@ async function verifyInstallation(send: SendEvent): Promise<boolean> {
 
 async function installGatewayService(send: SendEvent): Promise<void> {
   const openclawPath = await resolveOpenclawBin();
+  send({
+    stage: "configuring",
+    message: "正在配置 Gateway 服务...",
+    summary: "尝试注册或刷新 OpenClaw Gateway 服务。",
+  });
   send({ log: `$ ${openclawPath} gateway install` });
   const proc = spawnWithPath([openclawPath, "gateway", "install"], {
     stdout: "pipe",
@@ -674,7 +734,11 @@ async function installGatewayService(send: SendEvent): Promise<void> {
 
 async function installOpenClaw(send: SendEvent): Promise<void> {
   try {
-    send({ step: "checking", message: "检查系统环境...", progress: 5 });
+    send({
+      stage: "checking",
+      message: "检查系统环境...",
+      summary: "检测 Node.js、npm、curl 和已安装的 OpenClaw。",
+    });
     const env = await checkEnvironment();
     const platform = env.platform;
 
@@ -691,14 +755,24 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
       try {
         await installGatewayService(send);
       } catch (err) {
-        send({ log: `⚠ Gateway 服务注册出错（非致命）: ${err instanceof Error ? err.message : String(err)}` });
+        send({
+          log: `⚠ Gateway 服务注册出错（非致命）: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
-      send({ step: "success", message: `OpenClaw 已安装 (${env.openclawVersion})`, progress: 100 });
-      send({ success: true });
+      send({
+        stage: "completed",
+        message: `OpenClaw 已安装 (${env.openclawVersion})`,
+        summary: "已检测到现有安装，当前页面可直接继续下一步。",
+        done: true,
+      });
       return;
     }
 
-    let installResult: { ok: boolean; stderr: string; exitCode: number } = { ok: false, stderr: "", exitCode: -1 };
+    let installResult: { ok: boolean; stderr: string; exitCode: number } = {
+      ok: false,
+      stderr: "",
+      exitCode: -1,
+    };
 
     // Path 1: Node.js 22+ + npm available → npm install -g
     if (env.hasNode && env.hasNpm && env.npmPath) {
@@ -718,9 +792,10 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
 
     if (!installResult.ok) {
       const { kind, hint } = classifyInstallError(installResult.exitCode, installResult.stderr);
-      const baseMsg = platform === "win32"
-        ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
-        : "自动安装失败";
+      const baseMsg =
+        platform === "win32"
+          ? "未找到可用的 Node.js/npm。请先安装 Node.js 22+，然后重新打开应用再安装 OpenClaw。"
+          : "自动安装失败";
       send({
         error: `${baseMsg}。${hint}`,
         errorKind: kind,
@@ -735,10 +810,16 @@ async function installOpenClaw(send: SendEvent): Promise<void> {
       try {
         await installGatewayService(send);
       } catch (err) {
-        send({ log: `⚠ Gateway 服务注册出错（非致命）: ${err instanceof Error ? err.message : String(err)}` });
+        send({
+          log: `⚠ Gateway 服务注册出错（非致命）: ${err instanceof Error ? err.message : String(err)}`,
+        });
       }
-      send({ step: "success", message: "OpenClaw 安装成功！", progress: 100 });
-      send({ success: true });
+      send({
+        stage: "completed",
+        message: "OpenClaw 安装成功！",
+        summary: "安装和验证已经完成。你可以先检查日志，再手动进入下一步。",
+        done: true,
+      });
     } else {
       send({
         error: "安装已完成但未能验证。请打开终端运行 openclaw --version 确认，然后点击重试。",

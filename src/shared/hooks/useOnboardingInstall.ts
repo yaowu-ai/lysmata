@@ -4,36 +4,69 @@ import { API_BASE_URL } from "../../config";
 import { apiClient } from "../api-client";
 
 export type InstallErrorKind = "network" | "permission" | "timeout" | "server_error" | "unknown";
+export type InstallStage =
+  | "idle"
+  | "checking"
+  | "preparing"
+  | "installing"
+  | "configuring"
+  | "verifying"
+  | "completed";
 
 export interface InstallState {
   logs: string[];
-  progress: number;
+  stage: InstallStage;
   statusLabel: string;
+  summary: string;
+  progress: number;
+  isInstalling: boolean;
+  isCompleted: boolean;
   isDone: boolean;
   isError: boolean;
   errorMsg: string;
   errorKind?: InstallErrorKind;
   platform?: string;
+  waitingForPrivilege: boolean;
+  canContinue: boolean;
   retryCount: number;
 }
 
 const INITIAL_STATE: InstallState = {
   logs: [],
+  stage: "idle",
+  statusLabel: "准备安装",
+  summary: "将在当前页面完成检测、安装和验证。",
   progress: 0,
-  statusLabel: "准备中...",
+  isInstalling: false,
+  isCompleted: false,
   isDone: false,
   isError: false,
   errorMsg: "",
   errorKind: undefined,
   platform: undefined,
+  waitingForPrivilege: false,
+  canContinue: false,
   retryCount: 0,
 };
 
-const STEP_LABELS: Record<string, string> = {
+const STAGE_LABELS: Record<string, string> = {
+  idle: "准备安装",
   checking: "检查系统环境...",
+  preparing: "准备安装依赖...",
   installing: "正在安装 OpenClaw...",
+  configuring: "配置 OpenClaw 服务...",
   verifying: "验证安装结果...",
-  success: "安装成功",
+  completed: "安装完成",
+};
+
+const STAGE_PROGRESS: Record<InstallStage, number> = {
+  idle: 0,
+  checking: 10,
+  preparing: 25,
+  installing: 60,
+  configuring: 80,
+  verifying: 92,
+  completed: 100,
 };
 
 function connectInstall(
@@ -48,28 +81,37 @@ function connectInstall(
   es.onmessage = (e) => {
     try {
       const event = JSON.parse(e.data) as {
-        step?: string;
+        stage?: InstallStage;
         message?: string;
-        progress?: number;
         log?: string;
+        summary?: string;
         error?: string;
         errorKind?: InstallErrorKind;
         platform?: string;
-        success?: boolean;
+        waitingForPrivilege?: boolean;
+        done?: boolean;
       };
       setState((prev) => ({
         ...prev,
         logs: event.log ? [...prev.logs, event.log] : prev.logs,
-        progress: event.progress ?? prev.progress,
+        stage: event.stage ?? prev.stage,
+        progress: event.stage ? STAGE_PROGRESS[event.stage] : prev.progress,
         statusLabel:
-          event.message ?? (event.step ? STEP_LABELS[event.step] : undefined) ?? prev.statusLabel,
-        isDone: !!event.success,
+          event.message ??
+          (event.stage ? STAGE_LABELS[event.stage] : undefined) ??
+          prev.statusLabel,
+        summary: event.summary ?? prev.summary,
+        isInstalling: !event.done && !event.error,
+        isCompleted: !!event.done,
+        isDone: !!event.done,
         isError: !!event.error,
         errorMsg: event.error ?? prev.errorMsg,
         errorKind: event.errorKind ?? prev.errorKind,
         platform: event.platform ?? prev.platform,
+        waitingForPrivilege: event.waitingForPrivilege ?? false,
+        canContinue: !!event.done,
       }));
-      if (event.success || event.error) es.close();
+      if (event.done || event.error) es.close();
     } catch {
       /* ignore parse errors */
     }
@@ -78,32 +120,58 @@ function connectInstall(
   es.onerror = () => {
     setState((prev) => ({
       ...prev,
+      progress: prev.progress,
+      isInstalling: false,
+      isDone: false,
       isError: true,
-      errorMsg: "与本地服务的连接中断（sidecar 可能已停止）。请检查应用是否正常运行，然后点击重试。",
+      errorMsg:
+        "与本地服务的连接中断（sidecar 可能已停止）。请检查应用是否正常运行，然后点击重试。",
       errorKind: "unknown",
+      summary: "安装连接已中断，请检查本地服务后重试。",
+      waitingForPrivilege: false,
     }));
     es.close();
   };
 }
 
-export function useOnboardingInstall(run: boolean) {
+export function useOnboardingInstall(run = false) {
   const [state, setState] = useState<InstallState>(INITIAL_STATE);
   const esRef = useRef<EventSource | null>(null);
 
-  useEffect(() => {
-    if (!run) return;
-    connectInstall(setState, esRef);
-    return () => {
+  useEffect(
+    () => () => {
       esRef.current?.close();
-    };
-  }, [run]);
+    },
+    [],
+  );
 
-  const retry = useCallback(() => {
+  const start = useCallback(() => {
     setState((prev) => ({
       ...INITIAL_STATE,
-      retryCount: prev.retryCount + 1,
+      retryCount: prev.retryCount,
+      isInstalling: true,
+      stage: "checking",
+      progress: STAGE_PROGRESS.checking,
+      statusLabel: STAGE_LABELS.checking,
+      summary: "正在准备安装 OpenClaw。",
     }));
     connectInstall(setState, esRef);
+  }, []);
+
+  useEffect(() => {
+    if (!run) return;
+    start();
+  }, [run, start]);
+
+  const retry = useCallback(() => {
+    setState((prev) => ({ ...prev, retryCount: prev.retryCount + 1 }));
+    start();
+  }, [start]);
+
+  const reset = useCallback(() => {
+    esRef.current?.close();
+    esRef.current = null;
+    setState(INITIAL_STATE);
   }, []);
 
   const cancel = useCallback(async () => {
@@ -114,7 +182,14 @@ export function useOnboardingInstall(run: boolean) {
     } catch {
       /* best effort */
     }
+    setState((prev) => ({
+      ...prev,
+      isInstalling: false,
+      waitingForPrivilege: false,
+      summary: "安装已取消。你可以重新开始安装。",
+      statusLabel: "安装已取消",
+    }));
   }, []);
 
-  return { ...state, retry, cancel };
+  return { ...state, start, retry, cancel, reset };
 }
