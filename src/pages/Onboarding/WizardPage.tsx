@@ -47,13 +47,13 @@ export function WizardPage() {
 
   function handleRestartWizard() {
     clearProgress();
-    setSelectedTemplateId("general");
+    setSelectedTemplateId("export-owner");
     setAssistantName("我的第一个助手");
-    goToStep("intro");
+    goToStep("welcome");
   }
 
   async function handleNext() {
-    if (step.id === "env-check" && envCheck?.hasOpenClaw) {
+    if (step.id === "install-success" && envCheck?.hasOpenClaw) {
       goToStep("llm-key");
       return;
     }
@@ -78,7 +78,7 @@ export function WizardPage() {
   }
 
   const getFooterProps = () => {
-    if (step.id === "env-check") {
+    if (step.id === "install-success") {
       const checking = envCheck === null;
       const alreadyInstalled = envCheck?.hasOpenClaw === true;
       return {
@@ -144,8 +144,8 @@ export function WizardPage() {
   };
 
   const footerProps = getFooterProps();
-  const showHeader = step.id !== "intro" && step.id !== "ready";
-  const showFooter = !["intro", "install-success", "ready"].includes(step.id);
+  const showHeader = step.id !== "welcome" && step.id !== "ready";
+  const showFooter = !["welcome", "install-success", "ready"].includes(step.id);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#F7F7F8]">
@@ -179,23 +179,23 @@ export function WizardPage() {
         )}
 
         <div className="flex-1 px-8 py-7 overflow-y-auto">
-          {step.id === "intro" && (
-            <IntroView onStartInstall={() => goToStep("env-check")} onSkipToConfig={() => goToStep("llm-key")} />
+          {step.id === "welcome" && (
+            <IntroView onStartInstall={() => goToStep("install-success")} onSkipToConfig={() => goToStep("llm-key")} />
           )}
 
-          {step.id === "env-check" && <EnvCheckView onEnvReady={setEnvCheck} />}
+          {step.id === "install-success" && <EnvCheckView onEnvReady={setEnvCheck} />}
 
           {step.id === "install" && (
             <InstallingView
               onSuccess={() => goToStep("install-success")}
               onBackToEnvCheck={() => {
                 setEnvCheck(null);
-                goToStep("env-check");
+                goToStep("install-success");
               }}
             />
           )}
 
-          {step.id === "install-success" && (
+          {step.id === "llm-key" && false && (
             <InstallSuccessView
               onConfigNow={() => goToStep("llm-key")}
               onDefer={handleExitWizard}

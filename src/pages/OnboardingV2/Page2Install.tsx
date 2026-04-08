@@ -88,6 +88,10 @@ export function OnboardingPage() {
           setOnboardingRuntimeState({
             ...runtimeState,
             hasOpenClaw: true,
+            selectedTemplateId: runtimeState.selectedTemplateId,
+            initializedAssistantAt: runtimeState.initializedAssistantAt,
+            assistantName: runtimeState.assistantName,
+            assistantWorkspacePath: runtimeState.assistantWorkspacePath,
           });
         }
       })

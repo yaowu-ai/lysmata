@@ -11,7 +11,7 @@ export function DoneView() {
   }
 
   function handleReenter() {
-    goToStep("intro");
+    goToStep("welcome");
   }
 
   return (

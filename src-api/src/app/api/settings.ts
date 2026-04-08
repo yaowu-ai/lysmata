@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   readLlmSettings,
   updateLlmSettings,
+  applyOnboardingTemplate,
   deleteProviderSettings,
   readProviderApiKey,
   writeProviderApiKey,
@@ -51,6 +52,10 @@ const llmSettingsSchema = z.object({
   }),
 });
 
+const onboardingTemplateSchema = z.object({
+  templateId: z.enum(["general", "info", "task"]),
+});
+
 settings.get("/llm", async (c) => {
   try {
     const data = await readLlmSettings();
@@ -67,6 +72,17 @@ settings.put("/llm", zValidator("json", llmSettingsSchema), async (c) => {
     return c.json({ success: true });
   } catch {
     return c.json({ error: "Failed to update LLM settings" }, 500);
+  }
+});
+
+settings.post("/apply-template", zValidator("json", onboardingTemplateSchema), async (c) => {
+  try {
+    const body = c.req.valid("json");
+    const data = await applyOnboardingTemplate(body.templateId);
+    return c.json({ success: true, data });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to apply onboarding template";
+    return c.json({ error: message }, 400);
   }
 });
 

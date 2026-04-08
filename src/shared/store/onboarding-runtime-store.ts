@@ -3,6 +3,10 @@ type StartupCheckState = "unknown" | "ready" | "failed";
 export interface OnboardingRuntimeState {
   startupCheck: StartupCheckState;
   hasOpenClaw: boolean;
+  selectedTemplateId: string | null;
+  initializedAssistantAt: number | null;
+  assistantName: string | null;
+  assistantWorkspacePath: string | null;
 }
 
 const STORAGE_KEY = "onboarding_runtime_state_v1";
@@ -10,6 +14,10 @@ const STORAGE_KEY = "onboarding_runtime_state_v1";
 const defaultState: OnboardingRuntimeState = {
   startupCheck: "unknown",
   hasOpenClaw: false,
+  selectedTemplateId: null,
+  initializedAssistantAt: null,
+  assistantName: null,
+  assistantWorkspacePath: null,
 };
 
 function canUseStorage() {
@@ -34,6 +42,12 @@ export function getOnboardingRuntimeState(): OnboardingRuntimeState {
           ? parsed.startupCheck
           : "unknown",
       hasOpenClaw: parsed.hasOpenClaw === true,
+      selectedTemplateId: typeof parsed.selectedTemplateId === "string" ? parsed.selectedTemplateId : null,
+      initializedAssistantAt:
+        typeof parsed.initializedAssistantAt === "number" ? parsed.initializedAssistantAt : null,
+      assistantName: typeof parsed.assistantName === "string" ? parsed.assistantName : null,
+      assistantWorkspacePath:
+        typeof parsed.assistantWorkspacePath === "string" ? parsed.assistantWorkspacePath : null,
     };
   } catch {
     return defaultState;

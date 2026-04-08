@@ -20,6 +20,10 @@ export function StartupGuard() {
       setOnboardingRuntimeState({
         startupCheck: "unknown",
         hasOpenClaw: false,
+        selectedTemplateId: null,
+        initializedAssistantAt: null,
+        assistantName: null,
+        assistantWorkspacePath: null,
       });
       setState("no-openclaw");
       return () => {
@@ -34,6 +38,10 @@ export function StartupGuard() {
         setOnboardingRuntimeState({
           startupCheck: "ready",
           hasOpenClaw: res.hasOpenClaw,
+          selectedTemplateId: null,
+          initializedAssistantAt: null,
+          assistantName: null,
+          assistantWorkspacePath: null,
         });
         setState(res.hasOpenClaw ? "has-openclaw" : "no-openclaw");
       })
@@ -42,6 +50,10 @@ export function StartupGuard() {
         setOnboardingRuntimeState({
           startupCheck: "failed",
           hasOpenClaw: false,
+          selectedTemplateId: null,
+          initializedAssistantAt: null,
+          assistantName: null,
+          assistantWorkspacePath: null,
         });
         setState("error");
       });
@@ -56,7 +68,7 @@ export function StartupGuard() {
       <div className="flex items-center justify-center min-h-screen bg-[#F7F7F8]">
         <div className="flex flex-col items-center gap-5">
           <div
-            className="w-[72px] h-[72px] rounded-[18px] flex items-center justify-center"
+            className="flex h-18 w-18 items-center justify-center rounded-[18px]"
             style={{
               background: "linear-gradient(135deg, #3B82F6, #2563EB)",
               boxShadow: "0 4px 20px rgba(37,99,235,0.3)",

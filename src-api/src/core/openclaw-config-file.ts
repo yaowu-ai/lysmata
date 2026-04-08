@@ -221,6 +221,33 @@ export interface LlmSettings {
   };
 }
 
+export type OnboardingTemplateId = "general" | "info" | "task";
+
+const TEMPLATE_FALLBACKS: Record<OnboardingTemplateId, string[]> = {
+  general: [],
+  info: [],
+  task: [],
+};
+
+export async function applyOnboardingTemplate(templateId: OnboardingTemplateId): Promise<LlmSettings> {
+  const current = await readLlmSettings();
+
+  if (!current.defaultModel.primary) {
+    throw new Error("请先完成 AI 服务配置，再选择模板。");
+  }
+
+  const nextSettings: LlmSettings = {
+    providers: current.providers,
+    defaultModel: {
+      primary: current.defaultModel.primary,
+      fallbacks: TEMPLATE_FALLBACKS[templateId],
+    },
+  };
+
+  await updateLlmSettings(nextSettings);
+  return nextSettings;
+}
+
 export async function readLlmSettings(): Promise<LlmSettings> {
   const config = await readOpenClawConfig();
 

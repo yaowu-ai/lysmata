@@ -9,9 +9,9 @@ interface Props {
 const NAV_STEPS = WIZARD_FLOW.filter((s) => s.navIndex);
 
 function currentNavIndex(step: WizardStep): number {
-  if (step.id === "intro") return 0;
+  if (step.id === "welcome") return 0;
   if (step.id === "install-success") return 2;
-  if (step.id === "ready") return 5;
+  if (step.id === "ready") return 4;
   return step.navIndex ?? 0;
 }
 

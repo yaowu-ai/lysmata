@@ -13,6 +13,7 @@ import { ApiError } from "./shared/errors";
 import settings from "./app/api/settings";
 import openclawInstall from "./app/api/openclaw-install";
 import agents from "./app/api/agents";
+import onboardingWorkspace from "./app/api/onboarding-workspace";
 
 const app = new Hono();
 
@@ -39,6 +40,7 @@ app.route("/conversations/:conversationId/messages", messages);
 app.route("/settings", settings);
 app.route("/openclaw", openclawInstall);
 app.route("/agents", agents);
+app.route("/onboarding", onboardingWorkspace);
 
 // Global error handler
 app.onError((err, c) => {

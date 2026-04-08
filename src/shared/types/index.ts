@@ -195,3 +195,50 @@ export interface BindAgentInput {
   agent: string;
   bindings: string[];            // Array of "channel:accountId" strings
 }
+
+// ── Onboarding Workspace Templates ──────────────────────────────────────────
+export type WorkspaceTemplateId = "export-owner" | "equipment-rental" | "platform-ops";
+
+export interface WorkspaceTemplateMeta {
+  id: WorkspaceTemplateId;
+  name: string;
+  description: string;
+  icon: string;
+  badge: string;
+  footnote: string;
+  outcome: string;
+  generatedFiles: string[];
+}
+
+export interface WorkspaceTemplateField {
+  key: "assistantName" | "assistantGoal" | "toneStyle";
+  label: string;
+  type: "text" | "textarea";
+  required: boolean;
+  placeholder?: string;
+  maxLength?: number;
+}
+
+export interface WorkspaceTemplateSchema {
+  template: WorkspaceTemplateMeta;
+  defaults: {
+    assistantName: string;
+    assistantGoal: string;
+    toneStyle: string;
+  };
+  fields: WorkspaceTemplateField[];
+}
+
+export interface WorkspaceInitResult {
+  success: true;
+  assistantId: string;
+  assistantName: string;
+  workspacePath: string;
+  writtenFiles: Array<{
+    kind: "agents" | "soul" | "tools" | "memory" | "assistant-profile";
+    relativePath: string;
+    absolutePath: string;
+    sourceTemplate: WorkspaceTemplateId;
+  }>;
+  warnings: string[];
+}
