@@ -66,6 +66,8 @@ export function OnboardingPage() {
       initializedAssistantAt: null,
       assistantName: runtimeState.assistantName,
       assistantWorkspacePath: null,
+      createdBotId: null,
+      createdBotName: null,
     });
     navigate("/onboarding/assistant");
   }

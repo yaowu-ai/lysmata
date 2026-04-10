@@ -1,12 +1,15 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOnboardingRuntimeState } from "../../shared/store/onboarding-runtime-store";
+import { isOnboardingComplete } from "../../shared/store/wizard-store";
 import { OnboardingPageShell } from "./OnboardingPageShell";
 
 export function OnboardingPage() {
   const navigate = useNavigate();
   const runtimeState = useMemo(() => getOnboardingRuntimeState(), []);
   const hasOpenClaw = runtimeState.hasOpenClaw;
+  const hadCompletedOnboarding = useMemo(() => isOnboardingComplete(), []);
+  const needsReinstall = hadCompletedOnboarding && !hasOpenClaw;
   const footer = {
     hint: "你之后仍可从设置重新进入这条向导。",
     actions: [
@@ -86,16 +89,20 @@ export function OnboardingPage() {
       <section className="rounded-[24px] border border-[#E2E8F0] bg-[linear-gradient(180deg,#F8FAFC_0%,#FFFFFF_100%)] p-6 shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
         <div className="text-[13px] font-semibold text-[#2563EB]">下一步</div>
         <div className="mt-3 text-[24px] font-semibold leading-[1.3] text-[#0F172A]">
-          {hasOpenClaw ? "已检测到 OpenClaw" : "开始安装 OpenClaw"}
+          {hasOpenClaw ? "已检测到 OpenClaw" : needsReinstall ? "需要重新安装 OpenClaw" : "开始安装 OpenClaw"}
         </div>
         <p className="mt-3 text-[14px] leading-7 text-[#64748B]">
           {hasOpenClaw
             ? "你可以直接退出向导，或者重新进入安装流程。"
-            : "当前还没有检测到 OpenClaw，建议先完成安装再继续。"}
+            : needsReinstall
+              ? "检测到你之前已经完成过初始化，但当前没有找到 OpenClaw，可能已被手动卸载，建议先重新安装。"
+              : "当前还没有检测到 OpenClaw，建议先完成安装再继续。"}
         </p>
 
         <div className="mt-6 rounded-2xl border border-[#E2E8F0] bg-white px-4 py-4 text-[13px] leading-6 text-[#64748B]">
-          这一步只做一个决定：继续安装，或者在已安装时直接退出向导。
+          {needsReinstall
+            ? "这一步会引导你修复当前缺失的 OpenClaw 环境，完成后再继续后续配置。"
+            : "这一步只做一个决定：继续安装，或者在已安装时直接退出向导。"}
         </div>
       </section>
     </OnboardingPageShell>

@@ -22,11 +22,13 @@ export function OnboardingPage() {
           Step 6 / 开始对话
         </div>
         <h2 className="mt-4 text-[28px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#0F172A]">
-          第一个助手已经初始化完成
+          第一个助手和默认 Bot 已创建完成
         </h2>
         <p className="mt-3 text-[14px] leading-7 text-[#64748B]">
           <span className="font-semibold text-[#0F172A]">{result?.assistantName ?? runtimeState.assistantName ?? "我的助手"}</span>
-          的专属 workspace 已创建完成，现在可以直接进入对话，也可以先查看生成结果。
+          的专属 workspace 已创建完成，系统也已经自动生成第一个 Bot：
+          <span className="font-semibold text-[#0F172A]"> {result?.botName ?? runtimeState.createdBotName ?? "默认 Bot"}</span>
+          。现在可以直接进入对话，也可以先查看生成结果。
         </p>
 
         <div className="mt-6 rounded-3xl border border-[#E2E8F0] bg-white p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)]">
@@ -34,6 +36,10 @@ export function OnboardingPage() {
 
           <div className="mt-4 rounded-2xl border border-[#DBEAFE] bg-[#F8FBFF] px-4 py-4 text-[13px] leading-7 text-[#2563EB]">
             Workspace 路径：{result?.workspacePath ?? runtimeState.assistantWorkspacePath ?? "未记录"}
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-[#DCFCE7] bg-[#F0FDF4] px-4 py-4 text-[13px] leading-7 text-[#166534]">
+            已创建 Bot：{result?.botName ?? runtimeState.createdBotName ?? "默认 Bot"}
           </div>
 
           <div className="mt-4 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4 text-[13px] leading-7 text-[#64748B]">

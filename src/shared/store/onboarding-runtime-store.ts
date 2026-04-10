@@ -7,6 +7,8 @@ export interface OnboardingRuntimeState {
   initializedAssistantAt: number | null;
   assistantName: string | null;
   assistantWorkspacePath: string | null;
+  createdBotId: string | null;
+  createdBotName: string | null;
 }
 
 const STORAGE_KEY = "onboarding_runtime_state_v1";
@@ -18,6 +20,8 @@ const defaultState: OnboardingRuntimeState = {
   initializedAssistantAt: null,
   assistantName: null,
   assistantWorkspacePath: null,
+  createdBotId: null,
+  createdBotName: null,
 };
 
 function canUseStorage() {
@@ -48,6 +52,8 @@ export function getOnboardingRuntimeState(): OnboardingRuntimeState {
       assistantName: typeof parsed.assistantName === "string" ? parsed.assistantName : null,
       assistantWorkspacePath:
         typeof parsed.assistantWorkspacePath === "string" ? parsed.assistantWorkspacePath : null,
+      createdBotId: typeof parsed.createdBotId === "string" ? parsed.createdBotId : null,
+      createdBotName: typeof parsed.createdBotName === "string" ? parsed.createdBotName : null,
     };
   } catch {
     return defaultState;

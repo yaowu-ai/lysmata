@@ -2,6 +2,8 @@ import { mkdir, access } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { BotService } from "./bot-service";
+import { readGatewaySettings } from "./openclaw-config-file";
 
 export type WorkspaceTemplateId = "export-owner" | "equipment-rental" | "platform-ops";
 
@@ -53,6 +55,8 @@ export interface ApplyWorkspaceTemplateResult {
   success: true;
   assistantId: string;
   assistantName: string;
+  botId: string;
+  botName: string;
   workspacePath: string;
   writtenFiles: WrittenWorkspaceFile[];
   warnings: string[];
@@ -73,6 +77,12 @@ const GENERATED_FILES = [
   "MEMORY.md",
   "assistants/profile.md",
 ];
+
+const TEMPLATE_BOT_EMOJI: Record<WorkspaceTemplateId, string> = {
+  "export-owner": "🌍",
+  "equipment-rental": "🏗️",
+  "platform-ops": "📈",
+};
 
 function slugify(value: string): string {
   const normalized = value
@@ -472,10 +482,30 @@ export async function applyWorkspaceTemplate(
     });
   }
 
+  const gatewaySettings = await readGatewaySettings().catch(() => null);
+  const defaultGatewayPort = gatewaySettings?.port ?? 18789;
+  const defaultGatewayUrl = `ws://localhost:${defaultGatewayPort}/ws`;
+  const defaultGatewayToken =
+    gatewaySettings?.authMode === "token" ? gatewaySettings.authToken ?? undefined : undefined;
+  const bot = BotService.create({
+    name: assistantName,
+    avatar_emoji: TEMPLATE_BOT_EMOJI[input.templateId],
+    description: assistantGoal,
+    skills_config: [],
+    mcp_config: {},
+    llm_config: {},
+    openclaw_ws_url: defaultGatewayUrl,
+    openclaw_ws_token: defaultGatewayToken,
+    openclaw_agent_id: "main",
+    is_active: true,
+  });
+
   return {
     success: true,
     assistantId,
     assistantName,
+    botId: bot.id,
+    botName: bot.name,
     workspacePath,
     writtenFiles,
     warnings: [],

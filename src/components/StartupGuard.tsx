@@ -2,39 +2,26 @@ import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { apiClient } from "../shared/api-client";
 import { setOnboardingRuntimeState } from "../shared/store/onboarding-runtime-store.ts";
-import { getOnboardingProgress, useWizardStore } from "../shared/store/wizard-store";
+import { getOnboardingProgress, isOnboardingComplete, useWizardStore } from "../shared/store/wizard-store";
 
-type CheckState = "loading" | "has-openclaw" | "no-openclaw" | "error";
+type CheckState = "loading" | "installed" | "resume-onboarding" | "start-onboarding" | "error";
 
 export function StartupGuard() {
   const [state, setState] = useState<CheckState>("loading");
-  const [hasProgress, setHasProgress] = useState(false);
+  const [targetStep, setTargetStep] = useState("welcome");
 
   useEffect(() => {
     let cancelled = false;
-
-    const progress = getOnboardingProgress();
-    if (progress) {
-      useWizardStore.getState().goToStep(progress.lastStepId);
-      setHasProgress(true);
-      setOnboardingRuntimeState({
-        startupCheck: "unknown",
-        hasOpenClaw: false,
-        selectedTemplateId: null,
-        initializedAssistantAt: null,
-        assistantName: null,
-        assistantWorkspacePath: null,
-      });
-      setState("no-openclaw");
-      return () => {
-        cancelled = true;
-      };
-    }
 
     apiClient
       .get<{ hasOpenClaw: boolean }>("/openclaw/check-environment")
       .then((res) => {
         if (cancelled) return;
+
+        const progress = getOnboardingProgress();
+        const completed = isOnboardingComplete();
+        const nextStep = progress?.lastStepId ?? "welcome";
+
         setOnboardingRuntimeState({
           startupCheck: "ready",
           hasOpenClaw: res.hasOpenClaw,
@@ -42,8 +29,18 @@ export function StartupGuard() {
           initializedAssistantAt: null,
           assistantName: null,
           assistantWorkspacePath: null,
+          createdBotId: null,
+          createdBotName: null,
         });
-        setState(res.hasOpenClaw ? "has-openclaw" : "no-openclaw");
+
+        if (res.hasOpenClaw) {
+          setState("installed");
+          return;
+        }
+
+        useWizardStore.getState().goToStep(nextStep);
+        setTargetStep(nextStep);
+        setState(progress || completed ? "resume-onboarding" : "start-onboarding");
       })
       .catch(() => {
         if (cancelled) return;
@@ -54,6 +51,8 @@ export function StartupGuard() {
           initializedAssistantAt: null,
           assistantName: null,
           assistantWorkspacePath: null,
+          createdBotId: null,
+          createdBotName: null,
         });
         setState("error");
       });
@@ -108,14 +107,17 @@ export function StartupGuard() {
     );
   }
 
-  if (state === "no-openclaw" || state === "has-openclaw" || state === "error") {
-    if (!hasProgress) {
-      useWizardStore.getState().goToStep("welcome");
-      return <Navigate to="/onboarding/welcome" replace />;
-    }
-    const progress = getOnboardingProgress();
-    const targetStep = progress?.lastStepId ?? "welcome";
+  if (state === "installed") {
+    return <Navigate to="/bots" replace />;
+  }
+
+  if (state === "resume-onboarding") {
     return <Navigate to={`/onboarding/${targetStep}`} replace />;
+  }
+
+  if (state === "start-onboarding") {
+    useWizardStore.getState().goToStep("welcome");
+    return <Navigate to="/onboarding/welcome" replace />;
   }
 
   if (state === "error") {

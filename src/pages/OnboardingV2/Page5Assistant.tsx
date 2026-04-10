@@ -4,12 +4,12 @@ import {
   applyWorkspaceTemplate,
   fetchWorkspaceTemplateSchema,
 } from "../../shared/hooks/useOnboardingWorkspace";
-import { getTemplateMeta } from "../Onboarding/views/template-meta";
 import {
   getOnboardingRuntimeState,
   setOnboardingRuntimeState,
 } from "../../shared/store/onboarding-runtime-store";
 import type { WorkspaceTemplateSchema } from "../../shared/types";
+import { getTemplateMeta } from "../Onboarding/views/template-meta";
 import { OnboardingPageShell } from "./OnboardingPageShell";
 
 export function OnboardingPage() {
@@ -61,6 +61,8 @@ export function OnboardingPage() {
         initializedAssistantAt: Date.now(),
         assistantName: result.assistantName,
         assistantWorkspacePath: result.workspacePath,
+        createdBotId: result.botId,
+        createdBotName: result.botName,
       });
 
       navigate("/onboarding/ready", { state: result });
@@ -87,13 +89,21 @@ export function OnboardingPage() {
         },
         variant: "primary" as const,
         disabled:
-          isSaving || !assistantName.trim() || !assistantGoal.trim() || !toneStyle.trim() || !schema,
+          isSaving ||
+          !assistantName.trim() ||
+          !assistantGoal.trim() ||
+          !toneStyle.trim() ||
+          !schema,
       },
     ],
   };
 
   return (
-    <OnboardingPageShell footer={footer} mainClassName="items-start" contentClassName="max-w-[760px]">
+    <OnboardingPageShell
+      footer={footer}
+      mainClassName="items-start"
+      contentClassName="max-w-[760px]"
+    >
       <section>
         <div className="inline-flex items-center rounded-full bg-[#EFF6FF] px-3 py-1 text-[11px] font-semibold text-[#2563EB]">
           Step 5 / 创建助手
@@ -103,7 +113,10 @@ export function OnboardingPage() {
         </h2>
         <p className="mt-3 text-[14px] leading-7 text-[#64748B]">
           当前模板为
-          <span className="font-semibold text-[#0F172A]"> {templateMeta.icon} {templateMeta.name}</span>
+          <span className="font-semibold text-[#0F172A]">
+            {" "}
+            {templateMeta.icon} {templateMeta.name}
+          </span>
           。补齐助手名称、目标和协作风格后，系统会为它创建独立 workspace 并写入初始化 markdown。
         </p>
 
@@ -123,7 +136,9 @@ export function OnboardingPage() {
             </div>
 
             <div>
-              <label className="block text-[13px] font-semibold text-[#0F172A]">你最希望它帮你推进什么</label>
+              <label className="block text-[13px] font-semibold text-[#0F172A]">
+                你最希望它帮你推进什么
+              </label>
               <textarea
                 value={assistantGoal}
                 onChange={(event) => setAssistantGoal(event.target.value)}
@@ -134,7 +149,9 @@ export function OnboardingPage() {
             </div>
 
             <div>
-              <label className="block text-[13px] font-semibold text-[#0F172A]">你希望它的协作风格</label>
+              <label className="block text-[13px] font-semibold text-[#0F172A]">
+                你希望它的协作风格
+              </label>
               <textarea
                 value={toneStyle}
                 onChange={(event) => setToneStyle(event.target.value)}
@@ -143,10 +160,6 @@ export function OnboardingPage() {
                 className="mt-2 w-full rounded-2xl border border-[#E2E8F0] bg-white px-4 py-3 text-sm text-[#0F172A] outline-none focus:border-[#93C5FD] focus:shadow-[0_0_0_4px_rgba(147,197,253,0.18)]"
               />
             </div>
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4 text-[13px] leading-7 text-[#64748B]">
-            创建后会生成：AGENTS.md、SOUL.md、TOOLS.md、MEMORY.md 和助手 profile markdown。
           </div>
 
           {error ? (

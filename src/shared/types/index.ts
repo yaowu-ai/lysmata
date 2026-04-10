@@ -233,6 +233,8 @@ export interface WorkspaceInitResult {
   success: true;
   assistantId: string;
   assistantName: string;
+  botId: string;
+  botName: string;
   workspacePath: string;
   writtenFiles: Array<{
     kind: "agents" | "soul" | "tools" | "memory" | "assistant-profile";
