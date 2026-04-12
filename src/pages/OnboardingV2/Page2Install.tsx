@@ -167,17 +167,7 @@ export function OnboardingPage() {
       footer={footer}
     >
       <section className="rounded-[28px] border border-[#D9E2F2] bg-[linear-gradient(180deg,#F9FBFF_0%,#F2F7FF_100%)] p-6 shadow-[0_16px_44px_rgba(37,99,235,0.08)]">
-        <div className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[#2563EB] shadow-sm">
-          Step 2 / 安装 OpenClaw
-        </div>
-        <h2 className="mt-4 text-[28px] font-semibold leading-[1.2] tracking-[-0.03em] text-[#0F172A]">
-          在当前页面完成安装
-        </h2>
-        <p className="mt-3 text-[14px] leading-7 text-[#5B6B81]">
-          安装会尽量保持接近命令行的输出。完成后不会自动跳转，你可以先确认日志，再自行进入下一步。
-        </p>
-
-        <div className="mt-6 space-y-3">
+        <div className="space-y-3">
           <div className="rounded-2xl border border-white/80 bg-white/85 px-4 py-4">
             <div className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#64748B]">
               当前状态
@@ -272,7 +262,7 @@ export function OnboardingPage() {
           </div>
         </div>
 
-        <div className="h-[440px] overflow-y-auto px-5 py-4 font-mono text-[12px] leading-6">
+        <div className="h-[390px] overflow-y-auto px-5 py-4 font-mono text-[12px] leading-6">
           {logs.length === 0 ? (
             <div className="text-[#475569]">等待安装命令输出...</div>
           ) : (
