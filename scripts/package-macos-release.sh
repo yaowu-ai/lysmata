@@ -139,11 +139,12 @@ echo "===== Signing sidecar ====="
 if ! codesign \
   --force \
   --timestamp \
+  --options runtime \
   --sign "${APPLE_SIGNING_IDENTITY}" \
   --identifier "${SIDECAR_IDENTIFIER}" \
   "${SIDECAR_PATH}"; then
-  echo "Sidecar signing without entitlements failed, binary diagnostics:" >&2
-  debug_binary "bundled sidecar after failed signing without entitlements" "${SIDECAR_PATH}"
+  echo "Sidecar signing with hardened runtime failed, binary diagnostics:" >&2
+  debug_binary "bundled sidecar after failed signing with hardened runtime" "${SIDECAR_PATH}"
 
   echo "===== Signing sidecar with entitlements ====="
   if ! codesign \
