@@ -105,9 +105,6 @@ export function OnboardingPage() {
       contentClassName="max-w-[760px]"
     >
       <section>
-        <div className="inline-flex items-center rounded-full bg-[#EFF6FF] px-3 py-1 text-[11px] font-semibold text-[#2563EB]">
-          Step 5 / 创建助手
-        </div>
         <h2 className="mt-4 text-[28px] font-semibold leading-[1.15] tracking-[-0.03em] text-[#0F172A]">
           完善你的第一个助手
         </h2>

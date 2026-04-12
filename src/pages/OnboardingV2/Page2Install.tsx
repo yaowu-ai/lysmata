@@ -272,7 +272,7 @@ export function OnboardingPage() {
           </div>
         </div>
 
-        <div className="h-[520px] overflow-y-auto px-5 py-4 font-mono text-[12px] leading-6">
+        <div className="h-[440px] overflow-y-auto px-5 py-4 font-mono text-[12px] leading-6">
           {logs.length === 0 ? (
             <div className="text-[#475569]">等待安装命令输出...</div>
           ) : (

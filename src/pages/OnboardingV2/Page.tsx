@@ -4,7 +4,7 @@ import { OnboardingPage as Page2Install } from "./Page2Install";
 import { OnboardingPage as Page3Provider } from "./Page3Provider";
 import { OnboardingPage as Page4Template } from "./Page4Template";
 import { OnboardingPage as Page5Assistant } from "./Page5Assistant";
-import { OnboardingPage as Page5Ready } from "./Page5Ready";
+import { OnboardingPage as Page6Ready } from "./Page6Ready";
 
 type WizardStep = {
   id: string;
@@ -47,7 +47,7 @@ export function OnboardingV2Page() {
       case "assistant":
         return <Page5Assistant />;
       case "ready":
-        return <Page5Ready />;
+        return <Page6Ready />;
       default:
         return <Navigate to="/onboarding/welcome" replace />;
     }
