@@ -86,14 +86,25 @@ echo "===== Signing sidecar ====="
 if ! codesign \
   --force \
   --timestamp \
-  --options runtime \
   --sign "${APPLE_SIGNING_IDENTITY}" \
   --identifier "${SIDECAR_IDENTIFIER}" \
-  --entitlements src-tauri/SidecarEntitlements.plist \
   "${SIDECAR_PATH}"; then
-  echo "Sidecar signing failed, binary diagnostics:" >&2
-  debug_binary "bundled sidecar after failed signing" "${SIDECAR_PATH}"
-  exit 1
+  echo "Sidecar signing without entitlements failed, binary diagnostics:" >&2
+  debug_binary "bundled sidecar after failed signing without entitlements" "${SIDECAR_PATH}"
+
+  echo "===== Signing sidecar with entitlements ====="
+  if ! codesign \
+    --force \
+    --timestamp \
+    --options runtime \
+    --sign "${APPLE_SIGNING_IDENTITY}" \
+    --identifier "${SIDECAR_IDENTIFIER}" \
+    --entitlements src-tauri/SidecarEntitlements.plist \
+    "${SIDECAR_PATH}"; then
+    echo "Sidecar signing with entitlements failed, binary diagnostics:" >&2
+    debug_binary "bundled sidecar after failed signing with entitlements" "${SIDECAR_PATH}"
+    exit 1
+  fi
 fi
 
 codesign \
