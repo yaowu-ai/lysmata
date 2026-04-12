@@ -20,11 +20,51 @@ APP_PATH="${BUNDLE_ROOT}/macos/${APP_NAME}.app"
 APP_ZIP_PATH="${BUNDLE_ROOT}/macos/${APP_NAME}.zip"
 DMG_DIR="${BUNDLE_ROOT}/dmg"
 DMG_PATH="${DMG_DIR}/${APP_NAME}_${APP_VERSION}_${DMG_ARCH_SUFFIX}.dmg"
+SIDECAR_BUILD_PATH="src-tauri/bin/${SIDECAR_NAME}-${TARGET_TRIPLE}"
+SIDECAR_STABLE_PATH="src-tauri/bin/${SIDECAR_NAME}"
 SIDECAR_PATH="${APP_PATH}/Contents/MacOS/${SIDECAR_NAME}"
+
+debug_binary() {
+  local label="$1"
+  local path="$2"
+
+  echo "===== ${label} ====="
+  if [[ ! -e "${path}" ]]; then
+    echo "missing: ${path}"
+    return 0
+  fi
+
+  ls -l "${path}" || true
+  file "${path}" || true
+  xattr -l "${path}" || true
+  shasum -a 256 "${path}" || true
+  if command -v otool >/dev/null 2>&1; then
+    otool -hv "${path}" || true
+  fi
+  if command -v lipo >/dev/null 2>&1; then
+    lipo -info "${path}" || true
+  fi
+  if command -v codesign >/dev/null 2>&1; then
+    codesign -dv --verbose=4 "${path}" || true
+  fi
+  echo
+}
 
 rm -f "${APP_ZIP_PATH}" "${DMG_PATH}"
 
+echo "===== Build environment ====="
+uname -a || true
+sw_vers || true
+xcodebuild -version || true
+rustc -Vv || true
+bun --version || true
+echo "TARGET_TRIPLE=${TARGET_TRIPLE}"
+echo
+
 SIDECAR_TARGET="${TARGET_TRIPLE}" CI=true bun run tauri build --bundles app --target "${TARGET_TRIPLE}" --no-sign
+
+debug_binary "sidecar stable binary before bundle" "${SIDECAR_STABLE_PATH}"
+debug_binary "sidecar target binary before bundle" "${SIDECAR_BUILD_PATH}"
 
 if [[ ! -d "${APP_PATH}" ]]; then
   echo "Expected app bundle not found: ${APP_PATH}" >&2
@@ -36,16 +76,25 @@ if [[ ! -f "${SIDECAR_PATH}" ]]; then
   exit 1
 fi
 
+debug_binary "bundled sidecar before xattr cleanup" "${SIDECAR_PATH}"
+
 xattr -crs "${APP_PATH}"
 
-codesign \
+debug_binary "bundled sidecar after xattr cleanup" "${SIDECAR_PATH}"
+
+echo "===== Signing sidecar ====="
+if ! codesign \
   --force \
   --timestamp \
   --options runtime \
   --sign "${APPLE_SIGNING_IDENTITY}" \
   --identifier "${SIDECAR_IDENTIFIER}" \
   --entitlements src-tauri/SidecarEntitlements.plist \
-  "${SIDECAR_PATH}"
+  "${SIDECAR_PATH}"; then
+  echo "Sidecar signing failed, binary diagnostics:" >&2
+  debug_binary "bundled sidecar after failed signing" "${SIDECAR_PATH}"
+  exit 1
+fi
 
 codesign \
   --force \
