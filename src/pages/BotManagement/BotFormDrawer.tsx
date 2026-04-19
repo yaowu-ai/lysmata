@@ -23,7 +23,7 @@ import {
 } from "../../shared/hooks/useBots";
 import { useAgents } from "../../shared/hooks/useAgents";
 import { useGatewaySettings } from "../../shared/hooks/useGatewaySettings";
-import type { Bot, SkillConfig } from "../../shared/types";
+import type { Bot, SkillConfig, AgentBackendType } from "../../shared/types";
 import type { RemoteConfigResult } from "../../shared/hooks/useBots";
 import { cn } from "../../shared/lib/utils";
 
@@ -91,6 +91,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
   const [skills, setSkills] = useState<SkillConfig[]>([]);
 
   // 连接
+  const [backendType, setBackendType] = useState<AgentBackendType>("openclaw");
   const [gatewayUrl, setGatewayUrl] = useState("ws://localhost:18789/ws");
   const [agentId, setAgentId] = useState("main");
   const [wsToken, setWsToken] = useState("");
@@ -125,9 +126,10 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       const s = parseSafe<SkillConfig[]>(bot.skills_config, []);
       setSkills(Array.isArray(s) ? s : []);
 
-      setGatewayUrl(bot.openclaw_ws_url);
-      setAgentId(bot.openclaw_agent_id ?? "main");
-      setWsToken(bot.openclaw_ws_token ?? "");
+      setGatewayUrl(bot.backend_url);
+      setAgentId(bot.agent_id ?? "main");
+      setWsToken(bot.backend_token ?? "");
+      setBackendType(bot.backend_type ?? "openclaw");
     } else {
       setName("");
       setEmoji("🤖");
@@ -189,9 +191,10 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       description,
       skills_config: skills,
       mcp_config: typeof parsedMcp === "string" ? parsedMcp : JSON.stringify(parsedMcp),
-      openclaw_ws_url: gatewayUrl,
-      openclaw_agent_id: normalizedAgentId,
-      openclaw_ws_token: wsToken || undefined,
+      backend_type: backendType,
+      backend_url: gatewayUrl,
+      agent_id: normalizedAgentId,
+      backend_token: wsToken || undefined,
       is_active: isActive,
     };
     if (isEdit) await updateMut.mutateAsync(payload);
@@ -203,8 +206,8 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
     if (!bot) return;
     const r = await testMut.mutateAsync({
       id: bot.id,
-      openclaw_ws_url: gatewayUrl,
-      openclaw_ws_token: wsToken || undefined,
+      backend_url: gatewayUrl,
+      backend_token: wsToken || undefined,
     });
     setTestResult(r);
   }

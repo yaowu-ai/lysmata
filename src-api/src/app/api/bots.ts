@@ -2,7 +2,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { BotService } from "../../core/bot-service";
-import { OpenClawProxy } from "../../core/openclaw-proxy";
+import { getAdapter, detectBackendType } from "../../core/adapters/registry";
+import type { AgentBackendType } from "../../core/adapters/types";
 import { notFound } from "../../shared/errors";
 import { createPushSseResponse } from "../../shared/sse";
 
@@ -34,9 +35,10 @@ const createSchema = z.object({
   skills_config: z.array(z.object({ name: z.string(), description: z.string() })).optional(),
   mcp_config: z.unknown().optional(),
   llm_config: llmConfigSchema,
-  openclaw_ws_url: z.string().min(1),
-  openclaw_ws_token: z.string().optional(),
-  openclaw_agent_id: z.string().min(1).optional(),
+  backend_type: z.enum(["openclaw", "hermes", "openai-compatible"]).optional(),
+  backend_url: z.string().min(1),
+  backend_token: z.string().optional(),
+  agent_id: z.string().min(1).optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -54,14 +56,20 @@ bots.get("/:id", (c) => {
 });
 
 bots.post("/", zValidator("json", createSchema), (c) => {
-  const bot = BotService.create(c.req.valid("json"));
-  if (bot.openclaw_ws_url?.startsWith("ws")) {
-    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
+  const input = c.req.valid("json");
+  // Auto-detect backend_type from URL if not provided
+  const backendType: AgentBackendType = input.backend_type ?? detectBackendType(input.backend_url);
+  const bot = BotService.create({ ...input, backend_type: backendType });
+
+  // Set up push handler and prewarm connection for the adapter
+  const adapter = getAdapter(backendType);
+  if (adapter.setPushHandler) {
+    adapter.setPushHandler(bot.backend_url, (event) => {
       PushRelay.handlePush(event, bot.id);
     });
-    OpenClawProxy.prewarmConnection(bot.openclaw_ws_url, bot.openclaw_ws_token || undefined).catch(
-      () => {},
-    );
+  }
+  if (adapter.prewarmConnection) {
+    adapter.prewarmConnection(bot.backend_url, bot.backend_token || undefined).catch(() => {});
   }
   return c.json(bot, 201);
 });
@@ -69,13 +77,16 @@ bots.post("/", zValidator("json", createSchema), (c) => {
 bots.put("/:id", zValidator("json", updateSchema), (c) => {
   const bot = BotService.update(c.req.param("id"), c.req.valid("json"));
   if (!bot) throw notFound("Bot");
-  if (bot.openclaw_ws_url?.startsWith("ws")) {
-    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
+
+  // Re-register push handler and prewarm for the adapter
+  const adapter = getAdapter(bot.backend_type);
+  if (adapter.setPushHandler) {
+    adapter.setPushHandler(bot.backend_url, (event) => {
       PushRelay.handlePush(event, bot.id);
     });
-    OpenClawProxy.prewarmConnection(bot.openclaw_ws_url, bot.openclaw_ws_token || undefined).catch(
-      () => {},
-    );
+  }
+  if (adapter.prewarmConnection) {
+    adapter.prewarmConnection(bot.backend_url, bot.backend_token || undefined).catch(() => {});
   }
   return c.json(bot);
 });
@@ -96,10 +107,14 @@ bots.get("/:id/conversations-count", (c) => {
 bots.get("/:id/remote-config", async (c) => {
   const bot = BotService.findById(c.req.param("id"));
   if (!bot) throw notFound("Bot");
-  const result = await OpenClawProxy.getConfig(
-    bot.openclaw_ws_url,
-    bot.openclaw_ws_token ?? undefined,
-    normalizeAgentId(bot.openclaw_agent_id),
+  const adapter = getAdapter(bot.backend_type);
+  if (!adapter.getRemoteConfig) {
+    return c.json({ success: false, message: "此 Agent 后端不支持远程配置读取" });
+  }
+  const result = await adapter.getRemoteConfig(
+    bot.backend_url,
+    bot.backend_token ?? "",
+    normalizeAgentId(bot.agent_id),
   );
   return c.json(result);
 });
@@ -108,9 +123,10 @@ bots.post("/:id/test-connection", async (c) => {
   const bot = BotService.findById(c.req.param("id"));
   if (!bot) throw notFound("Bot");
   const body = await c.req.json().catch(() => ({}));
-  const url = body.openclaw_ws_url || bot.openclaw_ws_url;
-  const token = body.openclaw_ws_token ?? bot.openclaw_ws_token ?? undefined;
-  const result = await OpenClawProxy.testConnection(url, token);
+  const url = body.backend_url || bot.backend_url;
+  const token = body.backend_token ?? bot.backend_token ?? undefined;
+  const adapter = getAdapter(bot.backend_type);
+  const result = await adapter.testConnection(url, token);
   BotService.updateStatus(bot.id, result.success ? "connected" : "error");
   return c.json(result);
 });
@@ -118,6 +134,11 @@ bots.post("/:id/test-connection", async (c) => {
 bots.post("/:id/apply-config", async (c) => {
   const bot = BotService.findById(c.req.param("id"));
   if (!bot) throw notFound("Bot");
+
+  const adapter = getAdapter(bot.backend_type);
+  if (!adapter.applyRemoteConfig) {
+    return c.json({ success: false, message: "此 Agent 后端不支持远程配置写入" });
+  }
 
   let llm: Record<string, unknown> | undefined;
   try {
@@ -127,11 +148,11 @@ bots.post("/:id/apply-config", async (c) => {
   }
   if (llm && Object.keys(llm).length === 0) llm = undefined;
 
-  const result = await OpenClawProxy.applyConfig(
-    bot.openclaw_ws_url,
-    bot.openclaw_ws_token ?? undefined,
+  const result = await adapter.applyRemoteConfig(
+    bot.backend_url,
+    bot.backend_token ?? "",
     {
-      agentId: normalizeAgentId(bot.openclaw_agent_id),
+      agentId: normalizeAgentId(bot.agent_id),
       ...(llm ? { llm } : {}),
     },
   );

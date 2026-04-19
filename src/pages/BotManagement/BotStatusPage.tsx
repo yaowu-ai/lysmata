@@ -140,7 +140,7 @@ export function BotStatusPage() {
         </div>
         <div>
           <h1 className="text-[16px] font-semibold text-[#0F172A] leading-tight">{bot.name}</h1>
-          <p className="text-[12px] text-[#94A3B8] font-mono">{bot.openclaw_ws_url}</p>
+          <p className="text-[12px] text-[#94A3B8] font-mono">{bot.backend_url}</p>
         </div>
         {status?.isShutdown && (
           <div className="ml-auto flex items-center gap-1.5 text-[12px] font-medium text-[#B91C1C] bg-[#FEF2F2] border border-[#FECACA] px-2.5 py-1 rounded-full">
@@ -176,7 +176,7 @@ export function BotStatusPage() {
                 )}
               />
             </div>
-            <Row label="Agent ID" value={bot.openclaw_agent_id} />
+            <Row label="Agent ID" value={bot.agent_id} />
             <Row label="Gateway 关闭" value={status?.isShutdown ? "是" : "否"} />
           </StatusCard>
 

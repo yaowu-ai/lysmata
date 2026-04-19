@@ -108,7 +108,7 @@ export function NewConversationDialog({ open, mode, bots, onClose, onCreated }: 
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold text-[13px]">{bot.name}</div>
                   <div className="text-[11px] text-[#64748B] truncate">
-                    {bot.description || bot.openclaw_ws_url}
+                    {bot.description || bot.backend_url}
                   </div>
                 </div>
                 {checked && <span className="text-[#2563EB] text-[18px]">✓</span>}

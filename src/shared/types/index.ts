@@ -3,6 +3,8 @@ export type ConnectionStatus = "connected" | "disconnected" | "error" | "connect
 
 export type LlmProvider = "openai" | "anthropic" | "google" | "openrouter" | "custom";
 
+export type AgentBackendType = "openclaw" | "hermes" | "openai-compatible";
+
 export interface LlmConfig {
   provider: LlmProvider;
   model: string;
@@ -21,10 +23,11 @@ export interface Bot {
   skills_config: SkillConfig[];
   mcp_config: string; // raw JSON string
   llm_config: LlmConfig | null;
-  openclaw_ws_url: string;
-  openclaw_ws_token?: string;
-  /** Target OpenClaw Agent ID (default: "main"). Supports agent alias names. */
-  openclaw_agent_id: string;
+  backend_type: AgentBackendType;
+  backend_url: string;
+  backend_token?: string;
+  /** Target Agent ID within the backend (default: "main"). */
+  agent_id: string;
   connection_status: ConnectionStatus;
   is_active: boolean;
   created_at: string;
@@ -40,7 +43,7 @@ export type CreateBotInput = Omit<
   Bot,
   "id" | "connection_status" | "created_at" | "updated_at" | "llm_config"
 > & {
-  openclaw_agent_id?: string;
+  agent_id?: string;
   llm_config?: LlmConfig | null;
 };
 export type UpdateBotInput = Partial<CreateBotInput>;
@@ -75,7 +78,7 @@ export interface Message {
   bot_id?: string;
   content: string;
   mentioned_bot_id?: string;
-  message_type?: "text" | "approval" | "system_event";
+  message_type?: "text" | "approval" | "system_event" | "tool_call" | "tool_result";
   metadata?: string; // JSON string for storing complex payloads (like approval parameters)
   created_at: string;
   bot?: Bot;

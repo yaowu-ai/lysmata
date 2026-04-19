@@ -1,6 +1,7 @@
 import { BotService, type Bot } from "./bot-service";
 import { ConversationService } from "./conversation-service";
-import { OpenClawProxy } from "./openclaw-proxy";
+import { getAdapter } from "./adapters/registry";
+import type { AgentEvent } from "./adapters/types";
 import { getDb } from "../shared/db";
 import { randomUUID } from "crypto";
 import { ApiError, notFound } from "../shared/errors";
@@ -127,11 +128,11 @@ export const MessageRouter = {
       }
     }
 
-    // Forward to OpenClaw and collect reply
+    // Forward to agent backend via adapter and collect reply
+    const adapter = getAdapter(targetBot.backend_type);
     const normalizedAgentId =
-      (targetBot.openclaw_agent_id ?? "main").trim().toLowerCase() || "main";
-    // Gateway expects sessionKey in `agent:{agentId}:{sessionId}` shape for agent binding.
-    const gatewaySessionKey = `agent:${normalizedAgentId}:${conversationId}`;
+      (targetBot.agent_id ?? "main").trim().toLowerCase() || "main";
+    const sessionKey = adapter.buildSessionKey(normalizedAgentId, conversationId);
     let replyContent = "";
     GatewayLogger.logMessageRoute({
       phase: "target_selected",
@@ -140,29 +141,43 @@ export const MessageRouter = {
       userMsgId,
       targetBotId: targetBot.id,
       targetBotName: targetBot.name,
-      targetBotUrl: targetBot.openclaw_ws_url,
+      targetBotUrl: targetBot.backend_url,
       agentId: normalizedAgentId,
-      sessionKey: gatewaySessionKey,
+      sessionKey,
       mentionedBotId,
       userContentLength: userContent.length,
       enrichedContentLength: enrichedContent.length,
     });
     try {
-      await OpenClawProxy.sendMessage(
-        targetBot.openclaw_ws_url,
-        targetBot.openclaw_ws_token ?? undefined,
-        normalizedAgentId,
-        enrichedContent,
-        (chunk) => {
-          // Gateway pushes accumulated text (not deltas), so each chunk is the
-          // full content up to that point. Assign instead of append to avoid
-          // concatenating repeated prefixes into the final stored message.
+      await adapter.sendMessage({
+        url: targetBot.backend_url,
+        token: targetBot.backend_token ?? undefined,
+        agentId: normalizedAgentId,
+        content: enrichedContent,
+        onChunk: (chunk) => {
+          // Some backends push accumulated text (not deltas), so each chunk
+          // may be the full content up to that point. Assign instead of append
+          // to avoid concatenating repeated prefixes.
           replyContent = chunk;
           onChunk(chunk, targetBot!.id);
         },
-        gatewaySessionKey, // explicit gateway session key keeps agent binding consistent
+        onEvent: (event: AgentEvent) => {
+          // Handle structured events during streaming (tool_call, approval, etc.)
+          // For now, we log them. Full persistence will be added in push-relay refactor.
+          GatewayLogger.logMessageRoute({
+            phase: "stream_event",
+            conversationId,
+            conversationType: conv.type,
+            userMsgId,
+            targetBotId: targetBot!.id,
+            agentId: normalizedAgentId,
+            sessionKey,
+            eventType: event.type,
+          });
+        },
+        sessionId: sessionKey,
         signal,
-      );
+      });
     } catch (err) {
       GatewayLogger.logMessageRoute({
         phase: "error",
@@ -171,9 +186,9 @@ export const MessageRouter = {
         userMsgId,
         targetBotId: targetBot.id,
         targetBotName: targetBot.name,
-        targetBotUrl: targetBot.openclaw_ws_url,
+        targetBotUrl: targetBot.backend_url,
         agentId: normalizedAgentId,
-        sessionKey: gatewaySessionKey,
+        sessionKey,
         mentionedBotId,
         userContentLength: userContent.length,
         enrichedContentLength: enrichedContent.length,
@@ -206,9 +221,9 @@ export const MessageRouter = {
       userMsgId,
       targetBotId: targetBot.id,
       targetBotName: targetBot.name,
-      targetBotUrl: targetBot.openclaw_ws_url,
+      targetBotUrl: targetBot.backend_url,
       agentId: normalizedAgentId,
-      sessionKey: gatewaySessionKey,
+      sessionKey,
       mentionedBotId,
       botReplyLength: replyContent.length,
     });

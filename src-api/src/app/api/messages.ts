@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { MessageRouter } from "../../core/message-router";
 import { BotService } from "../../core/bot-service";
-import { OpenClawProxy } from "../../core/openclaw-proxy";
+import { getAdapter } from "../../core/adapters/registry";
 import { notFound } from "../../shared/errors";
 import { createPushSseResponse } from "../../shared/sse";
 import { GatewayLogger } from "../../shared/gateway-logger";
@@ -37,9 +37,13 @@ messages.post(
     const bot = BotService.findById(botId);
     if (!bot) throw notFound("Bot");
 
-    await OpenClawProxy.resolveApproval(
-      bot.openclaw_ws_url,
-      bot.openclaw_ws_token || undefined,
+    const adapter = getAdapter(bot.backend_type);
+    if (!adapter.resolveApproval) {
+      throw new Error("此 Agent 后端不支持审批操作");
+    }
+    await adapter.resolveApproval(
+      bot.backend_url,
+      bot.backend_token || "",
       approvalId,
       approved,
     );

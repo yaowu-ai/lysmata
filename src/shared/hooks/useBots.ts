@@ -76,8 +76,8 @@ export function useTestBotConnection() {
   return useMutation({
     mutationFn: (params: {
       id: string;
-      openclaw_ws_url?: string;
-      openclaw_ws_token?: string;
+      backend_url?: string;
+      backend_token?: string;
     }) => {
       const { id, ...body } = params;
       return apiClient.post<{ success: boolean; message: string; rttMs?: number }>(

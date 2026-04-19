@@ -494,9 +494,9 @@ export async function applyWorkspaceTemplate(
     skills_config: [],
     mcp_config: {},
     llm_config: {},
-    openclaw_ws_url: defaultGatewayUrl,
-    openclaw_ws_token: defaultGatewayToken,
-    openclaw_agent_id: "main",
+    backend_url: defaultGatewayUrl,
+    backend_token: defaultGatewayToken,
+    agent_id: "main",
     is_active: true,
   });
 

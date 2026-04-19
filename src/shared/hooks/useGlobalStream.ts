@@ -42,6 +42,16 @@ export function useGlobalStream() {
         botId?: string;
         payload?: Record<string, unknown>;
         metadata?: Record<string, unknown>;
+        // AgentEvent fields (flattened from push-relay broadcast)
+        health?: Record<string, unknown>;
+        presence?: Record<string, unknown>;
+        heartbeat?: Record<string, unknown>;
+        action?: string;
+        summary?: string;
+        toolName?: string;
+        callId?: string;
+        result?: unknown;
+        reason?: string;
       };
       try {
         data = JSON.parse(event.data as string);
@@ -67,6 +77,45 @@ export function useGlobalStream() {
         case "tick":
           break;
 
+        case "status":
+          qc.invalidateQueries({ queryKey: botKeys.all });
+          if (botId) {
+            const patch: Record<string, unknown> = {};
+            if (data.health) patch.health = data.health;
+            if (data.presence) patch.presence = data.presence;
+            if (data.heartbeat) patch.lastHeartbeat = data.heartbeat;
+            if (Object.keys(patch).length > 0) setBotStatus(botId, patch);
+          } else {
+            if (data.health) setHealth(data.health as Parameters<typeof setHealth>[0]);
+            if (data.presence) setPresence(data.presence as Record<string, unknown>);
+            if (data.heartbeat) setLastHeartbeat(data.heartbeat as Parameters<typeof setLastHeartbeat>[0]);
+          }
+          break;
+
+        case "shutdown":
+          if (botId) {
+            setBotStatus(botId, { isShutdown: true });
+            const cachedBots = qc.getQueryData<Bot[]>(botKeys.all);
+            const shutdownBot = cachedBots?.find((b) => b.id === botId);
+            showDesktopNotification(
+              "Bot 已断线",
+              shutdownBot ? `${shutdownBot.avatar_emoji} ${shutdownBot.name} 的 Gateway 已关闭` : "一个 Bot 的 Gateway 已关闭",
+            );
+          } else {
+            setShutdown(true);
+            showDesktopNotification("系统通知", "Agent 后端已关闭");
+          }
+          qc.invalidateQueries();
+          break;
+
+        case "cron":
+          if (botId) {
+            setBotStatus(botId, { lastCronAt: new Date().toISOString() });
+          }
+          qc.invalidateQueries({ queryKey: botKeys.all });
+          break;
+
+        // Legacy event types — kept for backward compatibility during migration
         case "system_presence":
           qc.invalidateQueries({ queryKey: botKeys.all });
           if (botId && data.metadata) {
@@ -103,23 +152,6 @@ export function useGlobalStream() {
           }
           break;
 
-        case "shutdown":
-          if (botId) {
-            setBotStatus(botId, { isShutdown: true });
-            // Desktop notification for bot-specific shutdown
-            const cachedBots = qc.getQueryData<Bot[]>(botKeys.all);
-            const shutdownBot = cachedBots?.find((b) => b.id === botId);
-            showDesktopNotification(
-              "Bot 已断线",
-              shutdownBot ? `${shutdownBot.avatar_emoji} ${shutdownBot.name} 的 Gateway 已关闭` : "一个 Bot 的 Gateway 已关闭",
-            );
-          } else {
-            setShutdown(true);
-            showDesktopNotification("系统通知", "OpenClaw Gateway 已关闭");
-          }
-          qc.invalidateQueries();
-          break;
-
         case "node_pair_requested":
           if (botId && data.payload) {
             addBotNodeRequest(botId, data.payload as Parameters<typeof addBotNodeRequest>[1]);
@@ -137,13 +169,6 @@ export function useGlobalStream() {
               data.payload.status as "approved" | "rejected",
             );
           }
-          break;
-
-        case "cron":
-          if (botId) {
-            setBotStatus(botId, { lastCronAt: new Date().toISOString() });
-          }
-          qc.invalidateQueries({ queryKey: botKeys.all });
           break;
 
         default:

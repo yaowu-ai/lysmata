@@ -1,16 +1,15 @@
 /**
- * PushRelay — routes all Gateway push events to the appropriate SSE channel.
+ * PushRelay — routes all backend push events to the appropriate SSE channel.
  *
  * Routing rules:
- *   Global events  → 'global' SSE channel  (health, presence, heartbeat, shutdown,
- *                                            node_pair_*, cron, tick, system_presence)
+ *   Global events  → 'global' SSE channel  (status, shutdown, tick, cron)
  *   Session events → conversation SSE channel (message, approval, chat,
+ *                                               tool_call, tool_result,
  *                                               exec_finished, exec_denied)
  *
  * Flow:
- *   Gateway WS push event
- *     → connection-pool handleEvent() → PushEvent discriminated union
- *     → OpenClawProxy / openclaw-proxy.ts setPushHandler callback
+ *   Backend push event (OpenClaw WS, Hermes SSE, etc.)
+ *     → AgentAdapter.setPushHandler() → translates to AgentEvent
  *     → PushRelay.handlePush()
  *         → (optional) persist to DB
  *         → broadcast SSE event to subscribers
@@ -18,7 +17,7 @@
 
 import { randomUUID } from 'crypto';
 import { getDb } from '../shared/db';
-import type { PushEvent } from './openclaw-proxy';
+import type { AgentEvent } from './adapters/types';
 
 type SseController = ReadableStreamDefaultController<Uint8Array>;
 
@@ -91,53 +90,31 @@ export const PushRelay = {
   },
 
   /**
-   * Handle any incoming Gateway PushEvent.
+   * Handle any incoming AgentEvent from any backend adapter.
    *
-   * @param event  The typed PushEvent from the connection pool
-   * @param botId  The Bot ID that owns the Gateway connection
+   * @param event  The backend-agnostic AgentEvent
+   * @param botId  The Bot ID that owns the connection
    */
-  handlePush(event: PushEvent, botId: string): void {
+  handlePush(event: AgentEvent, botId: string): void {
     switch (event.type) {
       // ── Global events (no session context) ──────────────────────────────
 
       case 'tick':
-        // Keep-alive pulse — emit to global channel for optional liveness monitoring
         broadcast('global', { type: 'tick', botId });
         return;
 
-      case 'system_presence':
-        broadcast('global', { type: 'system_presence', botId, metadata: event.metadata });
-        return;
-
-      case 'presence':
-        broadcast('global', { type: 'presence', botId, payload: event.payload });
-        return;
-
-      case 'health':
-        broadcast('global', { type: 'health', botId, payload: event.payload });
-        return;
-
-      case 'heartbeat':
-        broadcast('global', { type: 'heartbeat', botId, payload: event.payload });
+      case 'status':
+        broadcast('global', { type: 'status', botId, health: event.health, presence: event.presence, heartbeat: event.heartbeat });
         return;
 
       case 'shutdown':
         broadcast('global', { type: 'shutdown', botId });
         return;
 
-      case 'node_pair_requested':
-        broadcast('global', { type: 'node_pair_requested', botId, payload: event.payload });
-        return;
-
-      case 'node_pair_resolved':
-        broadcast('global', { type: 'node_pair_resolved', botId, payload: event.payload });
-        return;
-
       case 'cron': {
-        broadcast('global', { type: 'cron', botId, payload: event.payload });
+        broadcast('global', { type: 'cron', botId, action: event.action, summary: event.summary });
 
-        const { action, summary } = event.payload;
-        if (action === 'finished' && typeof summary === 'string' && summary.trim()) {
+        if (event.action === 'finished' && typeof event.summary === 'string' && event.summary.trim()) {
           const rows = getDb()
             .query<{ conversation_id: string }, [string]>(
               'SELECT conversation_id FROM conversation_bots WHERE bot_id = ?',
@@ -149,9 +126,9 @@ export const PushRelay = {
             const msgId = persistMessage({
               conversationId: conversation_id,
               botId: botId || null,
-              content: summary,
+              content: event.summary,
               messageType: 'system_event',
-              metadata: JSON.stringify(event.payload),
+              metadata: JSON.stringify({ action: event.action, summary: event.summary }),
             });
             broadcast(conversation_id, { msgId, conversationId: conversation_id, type: 'cron' });
           }
@@ -162,7 +139,7 @@ export const PushRelay = {
       // ── Session / conversation events ────────────────────────────────────
 
       case 'message': {
-        const { sessionId, agentId, content } = event;
+        const { sessionId, content } = event;
         if (!sessionId || !content) return;
         const conversationId = sessionId;
         if (!convExists(conversationId)) return;
@@ -172,7 +149,7 @@ export const PushRelay = {
           botId: botId || null,
           content,
           messageType: 'text',
-          metadata: agentId ? JSON.stringify({ agentId }) : null,
+          metadata: event.from ? JSON.stringify({ from: event.from }) : null,
         });
 
         broadcast(conversationId, { msgId, conversationId, type: 'message' });
@@ -180,7 +157,7 @@ export const PushRelay = {
       }
 
       case 'approval': {
-        const { sessionId, metadata } = event;
+        const { sessionId, approvalId, metadata } = event;
         if (!sessionId) return;
         const conversationId = sessionId;
         if (!convExists(conversationId)) return;
@@ -190,53 +167,58 @@ export const PushRelay = {
           botId: botId || null,
           content: '需要执行审批',
           messageType: 'approval',
-          metadata: JSON.stringify(metadata ?? {}),
+          metadata: JSON.stringify({ id: approvalId, ...metadata }),
         });
 
         broadcast(conversationId, { msgId, conversationId, type: 'approval' });
         return;
       }
 
-      case 'chat': {
-        // Cross-platform chat message arriving on a known session
-        const sessionId = event.payload.sessionKey;
-        if (!sessionId) {
-          // No session context — broadcast to global for informational purposes
-          broadcast('global', { type: 'chat', payload: event.payload });
-          return;
-        }
+      case 'tool_call': {
+        const { sessionId, toolName, args, callId } = event;
+        if (!sessionId) return;
         const conversationId = sessionId;
-        if (!convExists(conversationId)) {
-          broadcast('global', { type: 'chat', payload: event.payload });
-          return;
-        }
-
-        const content =
-          typeof event.payload.message === 'string'
-            ? event.payload.message
-            : JSON.stringify(event.payload.message ?? '');
+        if (!convExists(conversationId)) return;
 
         const msgId = persistMessage({
           conversationId,
           botId: botId || null,
-          content,
-          messageType: 'text',
-          metadata: JSON.stringify({ from: event.payload.from, raw: event.payload }),
+          content: `调用工具: ${toolName}`,
+          messageType: 'tool_call',
+          metadata: JSON.stringify({ toolName, args, callId }),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'chat' });
+        broadcast(conversationId, { msgId, conversationId, type: 'tool_call', toolName, callId });
+        return;
+      }
+
+      case 'tool_result': {
+        const { sessionId, callId, result, error } = event;
+        if (!sessionId) return;
+        const conversationId = sessionId;
+        if (!convExists(conversationId)) return;
+
+        const msgId = persistMessage({
+          conversationId,
+          botId: botId || null,
+          content: error ? `工具执行失败: ${error}` : '工具执行完成',
+          messageType: 'tool_result',
+          metadata: JSON.stringify({ callId, result, error }),
+        });
+
+        broadcast(conversationId, { msgId, conversationId, type: 'tool_result', callId });
         return;
       }
 
       case 'exec_finished': {
-        const { sessionId, payload } = event;
+        const { sessionId, result } = event;
         if (!sessionId) {
-          broadcast('global', { type: 'exec_finished', payload });
+          broadcast('global', { type: 'exec_finished', result });
           return;
         }
         const conversationId = sessionId;
         if (!convExists(conversationId)) {
-          broadcast('global', { type: 'exec_finished', payload });
+          broadcast('global', { type: 'exec_finished', result });
           return;
         }
 
@@ -245,34 +227,34 @@ export const PushRelay = {
           botId: botId || null,
           content: '命令执行完成',
           messageType: 'system_event',
-          metadata: JSON.stringify(payload),
+          metadata: JSON.stringify(result),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'exec_finished', payload });
+        broadcast(conversationId, { msgId, conversationId, type: 'exec_finished', result });
         return;
       }
 
       case 'exec_denied': {
-        const { sessionId, payload } = event;
+        const { sessionId, reason } = event;
         if (!sessionId) {
-          broadcast('global', { type: 'exec_denied', payload });
+          broadcast('global', { type: 'exec_denied', reason });
           return;
         }
         const conversationId = sessionId;
         if (!convExists(conversationId)) {
-          broadcast('global', { type: 'exec_denied', payload });
+          broadcast('global', { type: 'exec_denied', reason });
           return;
         }
 
         const msgId = persistMessage({
           conversationId,
           botId: botId || null,
-          content: `命令执行被拒绝${payload.reason ? `：${payload.reason}` : ''}`,
+          content: `命令执行被拒绝${reason ? `：${reason}` : ''}`,
           messageType: 'system_event',
-          metadata: JSON.stringify(payload),
+          metadata: JSON.stringify({ reason }),
         });
 
-        broadcast(conversationId, { msgId, conversationId, type: 'exec_denied', payload });
+        broadcast(conversationId, { msgId, conversationId, type: 'exec_denied', reason });
         return;
       }
     }
