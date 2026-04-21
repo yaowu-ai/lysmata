@@ -29,6 +29,7 @@
     "build:dmg:dev": "TAURI_SKIP_NOTARIZATION=true CI=true tauri build --bundles dmg"
   },
   "dependencies": {
+    "@ant-design/x": "^2.5.0",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-select": "^2.2.6",

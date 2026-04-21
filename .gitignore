@@ -34,3 +34,5 @@ src-tauri/bin/*
 /build
 tweet/*/*
 .gstack/
+
+.claude

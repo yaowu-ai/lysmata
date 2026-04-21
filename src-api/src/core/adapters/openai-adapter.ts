@@ -46,6 +46,8 @@ export const openaiCompatibleAdapter: AgentAdapter = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    // Contract: onChunk is called with accumulated text. See AgentAdapter.sendMessage JSDoc.
+    let accumulated = "";
 
     while (true) {
       const { done, value } = await reader.read();
@@ -63,7 +65,10 @@ export const openaiCompatibleAdapter: AgentAdapter = {
             choices?: Array<{ delta?: { content?: string } }>;
           };
           const text = chunk.choices?.[0]?.delta?.content;
-          if (text) onChunk(text);
+          if (text) {
+            accumulated += text;
+            onChunk(accumulated);
+          }
         } catch {
           /* ignore malformed chunks */
         }

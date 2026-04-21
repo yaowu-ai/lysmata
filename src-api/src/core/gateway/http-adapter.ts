@@ -40,6 +40,11 @@ export const OpenAIHttpAdapter = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    // Contract: onChunk receives accumulated reply text, not per-delta fragments.
+    // See AgentAdapter.sendMessage JSDoc. Upstream (message-router, frontend SSE)
+    // assigns the chunk directly to the rendering state, so per-delta would lose
+    // all but the last token.
+    let accumulated = "";
 
     while (true) {
       const { done, value } = await reader.read();
@@ -57,7 +62,10 @@ export const OpenAIHttpAdapter = {
             choices?: Array<{ delta?: { content?: string } }>;
           };
           const text = chunk.choices?.[0]?.delta?.content;
-          if (text) onChunk(text);
+          if (text) {
+            accumulated += text;
+            onChunk(accumulated);
+          }
         } catch {
           /* ignore malformed chunks */
         }

@@ -76,7 +76,12 @@ export interface AgentAdapter {
    * @param params.token      Auth token (if required)
    * @param params.agentId   Target agent within the backend (e.g. "main")
    * @param params.content   User message text (may include context injection)
-   * @param params.onChunk   Called with each streamed text chunk (accumulated, not delta)
+   * @param params.onChunk   Called with the accumulated reply text on every update.
+   *                          IMPORTANT: this is NOT per-delta. Each call should carry
+   *                          the full text built so far, because the upstream consumer
+   *                          (message-router → SSE → frontend) assigns it directly to
+   *                          the rendering state. HTTP/SSE-based adapters must
+   *                          accumulate internally before invoking this callback.
    * @param params.onEvent   Optional callback for structured events during streaming
    *                          (tool_call, tool_result, approval, etc.)
    * @param params.sessionId Session key for conversation isolation
@@ -115,11 +120,7 @@ export interface AgentAdapter {
   ): Promise<void>;
 
   /** Read remote agent configuration (optional). */
-  getRemoteConfig?(
-    url: string,
-    token: string,
-    agentId: string,
-  ): Promise<unknown>;
+  getRemoteConfig?(url: string, token: string, agentId: string): Promise<unknown>;
 
   /** Apply remote agent configuration (optional). */
   applyRemoteConfig?(

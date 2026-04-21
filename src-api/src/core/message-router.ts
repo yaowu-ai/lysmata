@@ -130,8 +130,7 @@ export const MessageRouter = {
 
     // Forward to agent backend via adapter and collect reply
     const adapter = getAdapter(targetBot.backend_type);
-    const normalizedAgentId =
-      (targetBot.agent_id ?? "main").trim().toLowerCase() || "main";
+    const normalizedAgentId = (targetBot.agent_id ?? "main").trim().toLowerCase() || "main";
     const sessionKey = adapter.buildSessionKey(normalizedAgentId, conversationId);
     let replyContent = "";
     GatewayLogger.logMessageRoute({
@@ -155,9 +154,9 @@ export const MessageRouter = {
         agentId: normalizedAgentId,
         content: enrichedContent,
         onChunk: (chunk) => {
-          // Some backends push accumulated text (not deltas), so each chunk
-          // may be the full content up to that point. Assign instead of append
-          // to avoid concatenating repeated prefixes.
+          // Adapters call onChunk with the accumulated reply text (not a delta).
+          // Contract defined in AgentAdapter.sendMessage.onChunk. Assignment here
+          // keeps the last complete snapshot; appending would duplicate prefixes.
           replyContent = chunk;
           onChunk(chunk, targetBot!.id);
         },

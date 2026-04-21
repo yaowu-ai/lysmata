@@ -237,6 +237,12 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
 
   const isPending = createMut.isPending || updateMut.isPending;
   const isHttpMode = gatewayUrl.startsWith("http://") || gatewayUrl.startsWith("https://");
+  const urlPlaceholder =
+    backendType === "openclaw"
+      ? "ws://localhost:18789/ws"
+      : backendType === "hermes"
+        ? "http://localhost:8642"
+        : "http://localhost:port/v1";
   const mcpServerCount = (() => {
     try {
       const parsed = JSON.parse(mcpJson) as { mcpServers?: Record<string, unknown> };
@@ -478,6 +484,22 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
         {/* ── 连接 ── */}
         {tab === "连接" && (
           <>
+            <Field
+              label="后端类型"
+              required
+              hint="选错类型会导致连接测试失败；URL 前缀会自动提示正确协议"
+            >
+              <select
+                value={backendType}
+                onChange={(e) => setBackendType(e.target.value as AgentBackendType)}
+                className={cn(inputCls, "font-medium")}
+              >
+                <option value="openclaw">OpenClaw Gateway (WebSocket)</option>
+                <option value="hermes">Hermes Agent (HTTP)</option>
+                <option value="openai-compatible">OpenAI-Compatible API (HTTP)</option>
+              </select>
+            </Field>
+
             {/* Protocol mode badge */}
             <div
               className={cn(
@@ -501,7 +523,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
               <input
                 value={gatewayUrl}
                 onChange={(e) => setGatewayUrl(e.target.value)}
-                placeholder="ws://localhost:18789/ws"
+                placeholder={urlPlaceholder}
                 className={cn(inputCls, "font-mono text-[13px]")}
               />
             </Field>
