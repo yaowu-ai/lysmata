@@ -88,6 +88,51 @@ export interface SendMessageInput {
   content: string;
 }
 
+// ── Agent Event (从 src-api/src/core/adapters/types.ts 手动同步) ──
+// 修改后端 AgentEvent 时，必须同步更新此镜像类型以保持字段一致。
+export type AgentEvent =
+  | { type: "message"; sessionId: string; content: string; from?: string }
+  | {
+      type: "approval";
+      sessionId: string;
+      approvalId: string;
+      metadata: Record<string, unknown>;
+    }
+  | {
+      type: "tool_call";
+      sessionId: string;
+      toolName: string;
+      args?: unknown;
+      callId?: string;
+    }
+  | {
+      type: "tool_result";
+      sessionId: string;
+      callId?: string;
+      result?: unknown;
+      error?: string;
+    }
+  | {
+      type: "status";
+      health?: unknown;
+      presence?: unknown;
+      heartbeat?: unknown;
+    }
+  | { type: "shutdown" }
+  | { type: "exec_finished"; sessionId?: string; result?: unknown }
+  | { type: "exec_denied"; sessionId?: string; reason?: string }
+  | { type: "cron"; action?: string; summary?: string }
+  | { type: "tick" };
+
+// ── Stream Frame (message-router → /stream SSE → 前端 useMessages) ──
+// 旧帧（chunk / done / error）无 `type` 字段，新帧有 `type === "event"`。
+// 前端解析器用 `"type" in frame` 判别。
+export type StreamFrame =
+  | { chunk: string }
+  | { done: true; botMsg: Message }
+  | { error: string }
+  | { type: "event"; event: AgentEvent };
+
 // ── Gateway Settings ─────────────────────────────────────────────
 export interface GatewaySettings {
   /** "local" = 本地模式；"remote" = 远程模式 */
@@ -140,7 +185,7 @@ export const OPENCLAW_API_TYPE_LABELS: Record<OpenClawApiType, string> = {
   "google-generative-ai": "Google Generative AI",
   "github-copilot": "GitHub Copilot",
   "bedrock-converse-stream": "Bedrock Converse Stream",
-  "ollama": "Ollama",
+  ollama: "Ollama",
 };
 
 export interface ProviderModel {
@@ -170,33 +215,33 @@ export interface LlmSettings {
 
 // ── Agent (OpenClaw CLI managed) ────────────────────────────────
 export interface Agent {
-  id: string;                    // Agent ID (e.g., "main", "production")
-  displayName?: string;          // Optional display name
-  identity?: string;             // Identity description (e.g., "🐧 Andrew (IDENTITY.md)")
-  workspace: string;             // Workspace directory path
-  agentDir: string;              // Agent state directory
-  model?: string;                // Primary model (e.g., "openrouter/deepseek/deepseek-v3.2-exp")
-  routingRules: number;          // Number of routing rules
-  isDefault: boolean;            // Whether this is the default agent
+  id: string; // Agent ID (e.g., "main", "production")
+  displayName?: string; // Optional display name
+  identity?: string; // Identity description (e.g., "🐧 Andrew (IDENTITY.md)")
+  workspace: string; // Workspace directory path
+  agentDir: string; // Agent state directory
+  model?: string; // Primary model (e.g., "openrouter/deepseek/deepseek-v3.2-exp")
+  routingRules: number; // Number of routing rules
+  isDefault: boolean; // Whether this is the default agent
 }
 
 export interface AgentBinding {
-  agent: string;                 // Agent ID
-  channel: string;               // Channel name (e.g., "telegram", "discord")
-  accountId?: string;            // Optional account ID within channel
+  agent: string; // Agent ID
+  channel: string; // Channel name (e.g., "telegram", "discord")
+  accountId?: string; // Optional account ID within channel
 }
 
 export interface CreateAgentInput {
-  name: string;                  // Agent ID (required)
-  workspace?: string;            // Workspace directory (optional)
-  agentDir?: string;             // Agent state directory (optional)
-  model?: string;                // Model ID (optional)
-  bindings?: string[];           // Initial bindings (e.g., ["telegram:account1"])
+  name: string; // Agent ID (required)
+  workspace?: string; // Workspace directory (optional)
+  agentDir?: string; // Agent state directory (optional)
+  model?: string; // Model ID (optional)
+  bindings?: string[]; // Initial bindings (e.g., ["telegram:account1"])
 }
 
 export interface BindAgentInput {
   agent: string;
-  bindings: string[];            // Array of "channel:accountId" strings
+  bindings: string[]; // Array of "channel:accountId" strings
 }
 
 // ── Onboarding Workspace Templates ──────────────────────────────────────────

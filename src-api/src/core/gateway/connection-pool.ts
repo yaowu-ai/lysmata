@@ -316,6 +316,53 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
 
   const run = entry.activeRuns.get(runId);
 
+  // ── Helper: parse tool_call / tool_result from a Gateway agent frame ─────
+  // OpenClaw emits these under stream names like 'tool_call', 'tool_use',
+  // 'tool_result', 'tool_response'. Normalize to RunEvent / PushEvent shapes.
+  const parseToolEvent = ():
+    | { kind: "tool_call"; toolName: string; args?: unknown; callId?: string }
+    | {
+        kind: "tool_result";
+        callId?: string;
+        result?: unknown;
+        error?: string;
+      }
+    | null => {
+    const s = stream ?? "";
+    const d = data ?? {};
+    if (s === "tool_call" || s === "tool_use") {
+      const toolName =
+        typeof d.name === "string"
+          ? d.name
+          : typeof d.toolName === "string"
+            ? d.toolName
+            : typeof d.tool === "string"
+              ? d.tool
+              : "unknown";
+      return {
+        kind: "tool_call",
+        toolName,
+        args: d.args ?? d.input ?? d.params,
+        callId:
+          (typeof d.callId === "string" && d.callId) ||
+          (typeof d.id === "string" && d.id) ||
+          undefined,
+      };
+    }
+    if (s === "tool_result" || s === "tool_response") {
+      return {
+        kind: "tool_result",
+        callId:
+          (typeof d.callId === "string" && d.callId) ||
+          (typeof d.id === "string" && d.id) ||
+          undefined,
+        result: d.result ?? d.output ?? d.content,
+        error: typeof d.error === "string" ? d.error : undefined,
+      };
+    }
+    return null;
+  };
+
   if (run) {
     // ── Request-response run (initiated by this client) ──
     if (stream === "assistant") {
@@ -341,6 +388,28 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
         entry.activeRuns.delete(runId);
         run.onError(new Error((data?.error as string | undefined) ?? "Agent error"));
       }
+      return;
+    }
+    // Structured event on an active run — forward to onEvent (e.g. ThoughtChain).
+    if (run.onEvent) {
+      const tool = parseToolEvent();
+      if (tool?.kind === "tool_call") {
+        run.onEvent({
+          type: "tool_call",
+          sessionId: sessionId ?? "",
+          toolName: tool.toolName,
+          args: tool.args,
+          callId: tool.callId,
+        });
+      } else if (tool?.kind === "tool_result") {
+        run.onEvent({
+          type: "tool_result",
+          sessionId: sessionId ?? "",
+          callId: tool.callId,
+          result: tool.result,
+          error: tool.error,
+        });
+      }
     }
     return;
   }
@@ -351,6 +420,30 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   // Guard against entries created before this field existed (e.g. live connections).
   entry.recentlyCompletedRuns ??= new Set();
   if (entry.recentlyCompletedRuns.has(runId)) return;
+
+  // Structured push-run events (tool_call / tool_result) — forward via onPushEvent
+  // so background activity (e.g. bot-initiated runs) can still drive the UI.
+  if (stream !== "assistant" && stream !== "lifecycle") {
+    const tool = parseToolEvent();
+    if (tool?.kind === "tool_call" && entry.onPushEvent) {
+      entry.onPushEvent({
+        type: "tool_call",
+        sessionId,
+        toolName: tool.toolName,
+        args: tool.args,
+        callId: tool.callId,
+      });
+    } else if (tool?.kind === "tool_result" && entry.onPushEvent) {
+      entry.onPushEvent({
+        type: "tool_result",
+        sessionId,
+        callId: tool.callId,
+        result: tool.result,
+        error: tool.error,
+      });
+    }
+    return;
+  }
 
   // Buffer the accumulated text; on lifecycle.end deliver via onPushMessage.
   if (stream === "assistant") {

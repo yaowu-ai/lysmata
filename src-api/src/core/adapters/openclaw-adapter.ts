@@ -96,6 +96,24 @@ function pushEventToAgentEvent(event: PushEvent, botId: string): AgentEvent | nu
         summary: event.payload.summary,
       };
 
+    case "tool_call":
+      return {
+        type: "tool_call",
+        sessionId: event.sessionId ?? "",
+        toolName: event.toolName,
+        args: event.args,
+        callId: event.callId,
+      };
+
+    case "tool_result":
+      return {
+        type: "tool_result",
+        sessionId: event.sessionId ?? "",
+        callId: event.callId,
+        result: event.result,
+        error: event.error,
+      };
+
     case "tick":
       return { type: "tick" };
 
@@ -125,12 +143,26 @@ export const openclawAdapter: AgentAdapter = {
     const { url, token, agentId, content, onChunk, onEvent, sessionId, signal } = params;
 
     if (isWsUrl(url)) {
-      // WS mode — delegate to GatewayWSAdapter
-      // Note: GatewayWSAdapter.sendMessage doesn't support onEvent natively.
-      // Structured events (tool_call, tool_result) from OpenClaw come via
-      // the push channel, not the streaming channel.  We pass onEvent through
-      // the push handler instead.
-      return GatewayWSAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId, signal);
+      // WS mode — delegate to GatewayWSAdapter.
+      // Structured tool events emitted during the current run are forwarded via
+      // the run's onEvent callback (below). Background push runs continue to go
+      // through setPushHandler → onPushEvent, so activeRuns and pushRuns stay
+      // strictly separated (no double-delivery).
+      return GatewayWSAdapter.sendMessage(
+        url,
+        token,
+        agentId,
+        content,
+        onChunk,
+        sessionId,
+        signal,
+        onEvent
+          ? (runEvent) => {
+              // RunEvent is a subset of AgentEvent (tool_call / tool_result).
+              onEvent(runEvent);
+            }
+          : undefined,
+      );
     }
 
     // HTTP mode — delegate to OpenAIHttpAdapter
@@ -196,11 +228,7 @@ export const openclawAdapter: AgentAdapter = {
     }
   },
 
-  async getRemoteConfig(
-    url: string,
-    token: string,
-    agentId: string,
-  ): Promise<unknown> {
+  async getRemoteConfig(url: string, token: string, agentId: string): Promise<unknown> {
     // Verify connectivity first
     if (isWsUrl(url)) {
       const entry = await getOrCreateWSConnection(url, token);

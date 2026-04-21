@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../../config";
 import { apiClient } from "../api-client";
-import type { Message, SendMessageInput } from "../types";
+import type { AgentEvent, Message, SendMessageInput, StreamFrame } from "../types";
 import { fetchWithEnv } from "../lib/utils";
 
 export const msgKeys = {
@@ -110,6 +110,7 @@ export function useSendMessageStream(conversationId: string) {
     content: string,
     onChunk: (text: string) => void,
     signal?: AbortSignal,
+    onEvent?: (event: AgentEvent) => void,
   ): Promise<{ error?: string }> => {
     // Optimistically append user message to the last page of the infinite query
     const optimisticId = `optimistic-${Date.now()}`;
@@ -136,8 +137,13 @@ export function useSendMessageStream(conversationId: string) {
 
     try {
       const res = await fetchWithEnv(
-        `${API_BASE_URL}/conversations/${conversationId}/messages/stream?content=${encodeURIComponent(content)}`,
-        { signal },
+        `${API_BASE_URL}/conversations/${conversationId}/messages/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+          signal,
+        },
       );
       if (!res.ok || !res.body) throw new Error(`Stream error: ${res.status}`);
 
@@ -158,20 +164,19 @@ export function useSendMessageStream(conversationId: string) {
           const raw = line.slice(6).trim();
           if (raw === "[DONE]") break outer; // legacy sentinel kept for compat
           try {
-            const parsed = JSON.parse(raw) as {
-              chunk?: string;
-              done?: boolean;
-              botMsg?: Message;
-              error?: string;
-            };
-            if (parsed.error) {
+            const parsed = JSON.parse(raw) as StreamFrame;
+            if ("type" in parsed && parsed.type === "event") {
+              onEvent?.(parsed.event);
+              continue;
+            }
+            if ("error" in parsed && parsed.error) {
               streamError = parsed.error;
               break outer;
             }
-            if (parsed.chunk) {
+            if ("chunk" in parsed && parsed.chunk) {
               onChunk(parsed.chunk);
             }
-            if (parsed.done && parsed.botMsg) {
+            if ("done" in parsed && parsed.done && parsed.botMsg) {
               botMsg = parsed.botMsg;
               break outer;
             }

@@ -71,6 +71,14 @@ export const hermesAdapter: AgentAdapter = {
     let buffer = "";
     // Contract: onChunk is called with accumulated text. See AgentAdapter.sendMessage JSDoc.
     let accumulated = "";
+    // Track the most recent `event:` line so the following `data:` line can be
+    // parsed in context. Hermes emits:
+    //   event: hermes.tool.start|progress|end
+    //   data: { ... }
+    // Default to "data" when no custom event is named (OpenAI-style chunks).
+    let currentEvent = "data";
+
+    const resolvedSessionId = sessionId ?? "";
 
     while (true) {
       const { done, value } = await reader.read();
@@ -82,10 +90,14 @@ export const hermesAdapter: AgentAdapter = {
       for (const line of lines) {
         const trimmed = line.trim();
 
-        // Handle custom SSE event types from Hermes
+        if (trimmed === "") {
+          // Blank line marks end of an SSE message — reset event name.
+          currentEvent = "data";
+          continue;
+        }
+
         if (trimmed.startsWith("event:")) {
-          // Next data line will contain the payload for this event type
-          // We'll process it when we see the data line
+          currentEvent = trimmed.slice(6).trim();
           continue;
         }
 
@@ -93,6 +105,49 @@ export const hermesAdapter: AgentAdapter = {
         const data = trimmed.slice(5).trim();
         if (data === "[DONE]") return;
 
+        // Hermes custom tool events — forward to onEvent for ThoughtChain UI.
+        if (currentEvent.startsWith("hermes.tool")) {
+          if (!onEvent) continue;
+          let parsed: Record<string, unknown> = {};
+          try {
+            parsed = JSON.parse(data) as Record<string, unknown>;
+          } catch {
+            /* drop malformed */
+            continue;
+          }
+          const callId =
+            (typeof parsed.call_id === "string" && parsed.call_id) ||
+            (typeof parsed.callId === "string" && parsed.callId) ||
+            (typeof parsed.id === "string" && parsed.id) ||
+            undefined;
+          if (currentEvent === "hermes.tool.start") {
+            const toolName =
+              (typeof parsed.name === "string" && parsed.name) ||
+              (typeof parsed.tool === "string" && parsed.tool) ||
+              (typeof parsed.toolName === "string" && parsed.toolName) ||
+              "unknown";
+            onEvent({
+              type: "tool_call",
+              sessionId: resolvedSessionId,
+              toolName,
+              args: parsed.args ?? parsed.input ?? parsed.params,
+              callId,
+            });
+          } else if (currentEvent === "hermes.tool.end") {
+            onEvent({
+              type: "tool_result",
+              sessionId: resolvedSessionId,
+              callId,
+              result: parsed.result ?? parsed.output ?? parsed.content,
+              error: typeof parsed.error === "string" ? parsed.error : undefined,
+            });
+          }
+          // hermes.tool.progress → intentionally no event (progress is in-flight noise
+          // without a clean callId bridge; ThoughtChain shows the pending state fine).
+          continue;
+        }
+
+        // Default OpenAI-style chat.completion chunk.
         try {
           const chunk = JSON.parse(data) as {
             choices?: Array<{ delta?: { content?: string } }>;

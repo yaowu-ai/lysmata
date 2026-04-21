@@ -62,6 +62,7 @@ export const MessageRouter = {
     userContent: string,
     onChunk: (chunk: string, botId: string) => void,
     signal?: AbortSignal,
+    onEvent?: (event: AgentEvent, botId: string) => void,
   ): Promise<Message> {
     const conv = ConversationService.findById(conversationId);
     if (!conv) throw notFound("Conversation");
@@ -161,8 +162,14 @@ export const MessageRouter = {
           onChunk(chunk, targetBot!.id);
         },
         onEvent: (event: AgentEvent) => {
-          // Handle structured events during streaming (tool_call, approval, etc.)
-          // For now, we log them. Full persistence will be added in push-relay refactor.
+          // Forward to caller (e.g., /stream SSE writer) for live UI updates.
+          // push-relay stays independent — it receives events via
+          // adapter.setPushHandler, not via this onEvent callback.
+          try {
+            onEvent?.(event, targetBot!.id);
+          } catch (err) {
+            console.warn("[message-router] onEvent callback threw:", err);
+          }
           GatewayLogger.logMessageRoute({
             phase: "stream_event",
             conversationId,

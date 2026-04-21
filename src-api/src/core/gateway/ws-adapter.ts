@@ -12,7 +12,14 @@ import {
   teardown,
   rpc,
 } from "./connection-pool";
-import type { PoolEntry, GatewayFrame, GatewayEvent, GatewayResponse, PushEvent } from "./types";
+import type {
+  PoolEntry,
+  GatewayFrame,
+  GatewayEvent,
+  GatewayResponse,
+  PushEvent,
+  RunEvent,
+} from "./types";
 
 /**
  * In-flight connection attempts keyed by URL.
@@ -351,6 +358,7 @@ export const GatewayWSAdapter = {
     onChunk: (text: string) => void,
     sessionId?: string,
     signal?: AbortSignal,
+    onEvent?: (event: RunEvent) => void,
   ): Promise<void> {
     // If the caller already aborted before we even start, bail immediately.
     if (signal?.aborted) throw new Error("Aborted before connect");
@@ -404,7 +412,7 @@ export const GatewayWSAdapter = {
           runId,
           error: `Agent stream timeout (${GATEWAY.STREAM_TIMEOUT_MS}ms)`,
         });
-        reject(new Error("Agent stream timeout (120s)"));
+        reject(new Error(`Agent stream timeout (${GATEWAY.STREAM_TIMEOUT_MS}ms)`));
       }, GATEWAY.STREAM_TIMEOUT_MS);
 
       const cleanup = () => {
@@ -414,6 +422,7 @@ export const GatewayWSAdapter = {
 
       entry.activeRuns.set(runId, {
         onChunk,
+        onEvent,
         onDone: () => {
           cleanup();
           resolve();

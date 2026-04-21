@@ -41,23 +41,21 @@ messages.post(
     if (!adapter.resolveApproval) {
       throw new Error("此 Agent 后端不支持审批操作");
     }
-    await adapter.resolveApproval(
-      bot.backend_url,
-      bot.backend_token || "",
-      approvalId,
-      approved,
-    );
+    await adapter.resolveApproval(bot.backend_url, bot.backend_token || "", approvalId, approved);
 
     return c.json({ success: true });
   },
 );
 
-// SSE streaming endpoint — streams bot reply chunks as they arrive
-messages.get("/stream", async (c) => {
-  const { content } = c.req.query();
-  if (!content) return c.json({ error: "content query param required" }, 400);
-  const convId = c.req.param("conversationId");
-  const enc = new TextEncoder();
+// SSE streaming endpoint — streams bot reply chunks as they arrive.
+// POST (not GET) so long user inputs aren't constrained by URL length limits.
+messages.post(
+  "/stream",
+  zValidator("json", z.object({ content: z.string().min(1) })),
+  async (c) => {
+    const { content } = c.req.valid("json");
+    const convId = c.req.param("conversationId");
+    const enc = new TextEncoder();
 
   // We need the bot's WS URL for stream_event logs. Resolve it lazily inside
   // the stream (MessageRouter.route determines the target bot).
@@ -114,6 +112,23 @@ messages.get("/stream", async (c) => {
               safeEnqueue(`data: ${JSON.stringify({ chunk })}\n\n`);
             },
             abortCtrl.signal,
+            (event) => {
+              // Stream structured events ({type:'event', event}) alongside {chunk}
+              // frames so the frontend can render ThoughtChain inflight.
+              let payload: string;
+              try {
+                payload = JSON.stringify({ type: "event", event });
+              } catch (err) {
+                GatewayLogger.logStreamEvent({
+                  phase: "error",
+                  url: logUrl,
+                  conversationId: convId,
+                  error: `event serialize failed: ${String(err)}`,
+                });
+                return;
+              }
+              safeEnqueue(`data: ${payload}\n\n`);
+            },
           );
 
           // Send the real bot message record before [DONE] so the frontend can
@@ -161,7 +176,8 @@ messages.get("/stream", async (c) => {
       },
       cancel() {
         // Browser closed tab / navigated away — abort the in-flight WS run
-        // so we don't keep waiting 120s and then silently discard everything.
+        // so we don't hold the run open up to STREAM_TIMEOUT_MS (1h) and then
+        // silently discard the reply.
         abortCtrl.abort();
         closed = true;
         GatewayLogger.logStreamEvent({

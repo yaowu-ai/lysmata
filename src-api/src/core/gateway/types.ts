@@ -1,9 +1,30 @@
 // ── Shared types for the OpenClaw Gateway protocol ───────────────────────────
 
+export interface ToolCallEvent {
+  type: "tool_call";
+  sessionId: string;
+  toolName: string;
+  args?: unknown;
+  callId?: string;
+}
+
+export interface ToolResultEvent {
+  type: "tool_result";
+  sessionId: string;
+  callId?: string;
+  result?: unknown;
+  error?: string;
+}
+
+/** Structured event surfaced during an in-flight agent run. */
+export type RunEvent = ToolCallEvent | ToolResultEvent;
+
 export interface PendingRun {
   onChunk: (text: string) => void;
   onDone: () => void;
   onError: (err: Error) => void;
+  /** Structured events during streaming (tool_call / tool_result / etc.) */
+  onEvent?: (event: RunEvent) => void;
 }
 
 // ── Per-event payload shapes ─────────────────────────────────────────────────
@@ -92,7 +113,15 @@ export type PushEvent =
   | { type: "node_pair_resolved"; payload: NodePairResolvedPayload }
   | { type: "cron"; payload: CronPayload }
   | { type: "exec_finished"; sessionId?: string; payload: ExecFinishedPayload }
-  | { type: "exec_denied"; sessionId?: string; payload: ExecDeniedPayload };
+  | { type: "exec_denied"; sessionId?: string; payload: ExecDeniedPayload }
+  | { type: "tool_call"; sessionId?: string; toolName: string; args?: unknown; callId?: string }
+  | {
+      type: "tool_result";
+      sessionId?: string;
+      callId?: string;
+      result?: unknown;
+      error?: string;
+    };
 
 // ── Connection pool entry ────────────────────────────────────────────────────
 
