@@ -4,6 +4,7 @@ import { z } from "zod";
 import { BotService } from "../../core/bot-service";
 import { getAdapter, detectBackendType } from "../../core/adapters/registry";
 import type { AgentBackendType } from "../../core/adapters/types";
+import { resolveBotConnectionDefaults } from "../../core/lysmata-config-file";
 import { notFound } from "../../shared/errors";
 import { createPushSseResponse } from "../../shared/sse";
 
@@ -36,9 +37,10 @@ const createSchema = z.object({
   mcp_config: z.unknown().optional(),
   llm_config: llmConfigSchema,
   backend_type: z.enum(["openclaw", "hermes", "openai-compatible"]).optional(),
-  backend_url: z.string().min(1),
+  backend_url: z.string().min(1).optional(),
   backend_token: z.string().optional(),
   agent_id: z.string().min(1).optional(),
+  openclaw_agent_id: z.string().min(1).optional(),
   is_active: z.boolean().optional(),
 });
 
@@ -55,11 +57,34 @@ bots.get("/:id", (c) => {
   return c.json(bot);
 });
 
-bots.post("/", zValidator("json", createSchema), (c) => {
+bots.post("/", zValidator("json", createSchema), async (c) => {
   const input = c.req.valid("json");
-  // Auto-detect backend_type from URL if not provided
-  const backendType: AgentBackendType = input.backend_type ?? detectBackendType(input.backend_url);
-  const bot = BotService.create({ ...input, backend_type: backendType });
+  const backendUrlCandidate = input.backend_url?.trim();
+  const requestedType =
+    input.backend_type ??
+    (backendUrlCandidate ? detectBackendType(backendUrlCandidate) : undefined);
+  const defaultConnection = await resolveBotConnectionDefaults(
+    requestedType === "openai-compatible" ? undefined : requestedType,
+  );
+  const backendType: AgentBackendType = requestedType ?? defaultConnection.backendType;
+  const backendUrl =
+    backendUrlCandidate ||
+    (backendType === "openai-compatible" ? "" : defaultConnection.backendUrl);
+
+  if (!backendUrl) {
+    return c.json({ error: "backend_url is required for openai-compatible backends" }, 400);
+  }
+
+  const { openclaw_agent_id: legacyAgentId, agent_id, ...rest } = input;
+  const bot = BotService.create({
+    ...rest,
+    backend_type: backendType,
+    backend_url: backendUrl,
+    backend_token:
+      input.backend_token ??
+      (backendType === "openai-compatible" ? undefined : defaultConnection.backendToken),
+    ...(agent_id || legacyAgentId ? { agent_id: agent_id ?? legacyAgentId } : {}),
+  });
 
   // Set up push handler and prewarm connection for the adapter
   const adapter = getAdapter(backendType);
@@ -75,7 +100,12 @@ bots.post("/", zValidator("json", createSchema), (c) => {
 });
 
 bots.put("/:id", zValidator("json", updateSchema), (c) => {
-  const bot = BotService.update(c.req.param("id"), c.req.valid("json"));
+  const input = c.req.valid("json");
+  const { openclaw_agent_id: legacyAgentId, agent_id, ...rest } = input;
+  const bot = BotService.update(c.req.param("id"), {
+    ...rest,
+    ...(agent_id || legacyAgentId ? { agent_id: agent_id ?? legacyAgentId } : {}),
+  });
   if (!bot) throw notFound("Bot");
 
   // Re-register push handler and prewarm for the adapter
@@ -125,7 +155,13 @@ bots.post("/:id/test-connection", async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const url = body.backend_url || bot.backend_url;
   const token = body.backend_token ?? bot.backend_token ?? undefined;
-  const adapter = getAdapter(bot.backend_type);
+  const backendType =
+    body.backend_type === "openclaw" ||
+    body.backend_type === "hermes" ||
+    body.backend_type === "openai-compatible"
+      ? body.backend_type
+      : bot.backend_type;
+  const adapter = getAdapter(backendType);
   const result = await adapter.testConnection(url, token);
   BotService.updateStatus(bot.id, result.success ? "connected" : "error");
   return c.json(result);
@@ -148,14 +184,10 @@ bots.post("/:id/apply-config", async (c) => {
   }
   if (llm && Object.keys(llm).length === 0) llm = undefined;
 
-  const result = await adapter.applyRemoteConfig(
-    bot.backend_url,
-    bot.backend_token ?? "",
-    {
-      agentId: normalizeAgentId(bot.agent_id),
-      ...(llm ? { llm } : {}),
-    },
-  );
+  const result = await adapter.applyRemoteConfig(bot.backend_url, bot.backend_token ?? "", {
+    agentId: normalizeAgentId(bot.agent_id),
+    ...(llm ? { llm } : {}),
+  });
 
   if (result.success) {
     BotService.updateStatus(bot.id, "connected");

@@ -1,31 +1,39 @@
-import { useEffect, useRef, useState } from "react";
 import {
-  X,
-  Plus,
-  Trash2,
-  Wifi,
-  CheckCircle,
-  XCircle,
-  Info,
-  Upload,
-  RefreshCw,
-  CloudDownload,
   AlertTriangle,
+  CheckCircle,
+  CloudDownload,
   FolderOpen,
+  Info,
+  Plus,
+  RefreshCw,
   RotateCcw,
+  Trash2,
+  Upload,
+  Wifi,
+  X,
+  XCircle,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useAgents } from "../../shared/hooks/useAgents";
+import type { RemoteConfigResult } from "../../shared/hooks/useBots";
 import {
-  useCreateBot,
-  useUpdateBot,
-  useTestBotConnection,
   useApplyBotConfig,
   useBotRemoteConfig,
+  useCreateBot,
+  useTestBotConnection,
+  useUpdateBot,
 } from "../../shared/hooks/useBots";
-import { useAgents } from "../../shared/hooks/useAgents";
 import { useGatewaySettings } from "../../shared/hooks/useGatewaySettings";
-import type { Bot, SkillConfig, AgentBackendType } from "../../shared/types";
-import type { RemoteConfigResult } from "../../shared/hooks/useBots";
+import { useAgentFrameworkSettings } from "../../shared/hooks/useLlmSettings";
+import { getFrameworkConnectionDefaults, isAgentFramework } from "../../shared/lib/agent-framework";
 import { cn } from "../../shared/lib/utils";
+import type {
+  AgentBackendType,
+  AgentFrameworkSettings,
+  Bot,
+  GatewaySettings,
+  SkillConfig,
+} from "../../shared/types";
 
 function isLocalGatewayUrl(gatewayUrl: string, gatewayPort: number): boolean {
   try {
@@ -39,7 +47,7 @@ function isLocalGatewayUrl(gatewayUrl: string, gatewayPort: number): boolean {
   }
 }
 
-const TABS = ["基础", "MCP", "Skills", "连接"] as const;
+const TABS = ["基础", "连接", "MCP", "Skills"] as const;
 type Tab = (typeof TABS)[number];
 
 interface Props {
@@ -58,6 +66,51 @@ function parseSafe<T>(v: unknown, fallback: T): T {
   }
 }
 
+function getDefaultConnectionForBackend(
+  backendType: AgentBackendType,
+  agentFrameworkSettings: AgentFrameworkSettings | undefined,
+  gatewaySettings: GatewaySettings | undefined,
+) {
+  if (!isAgentFramework(backendType)) {
+    return {
+      gatewayUrl: "http://localhost:port/v1",
+      token: "",
+    };
+  }
+
+  const frameworkDefaults = getFrameworkConnectionDefaults(agentFrameworkSettings, backendType);
+  const gatewayFallbackToken =
+    backendType === "openclaw" &&
+    gatewaySettings?.authMode === "token" &&
+    gatewaySettings.authToken &&
+    isLocalGatewayUrl(frameworkDefaults.backendUrl, gatewaySettings.port)
+      ? gatewaySettings.authToken
+      : "";
+
+  return {
+    gatewayUrl: frameworkDefaults.backendUrl,
+    token: frameworkDefaults.authToken || gatewayFallbackToken || "",
+  };
+}
+
+function getNewBotConnectionDefaults(
+  agentFrameworkSettings: AgentFrameworkSettings | undefined,
+  gatewaySettings: GatewaySettings | undefined,
+) {
+  const backendType = agentFrameworkSettings?.agentFramework ?? "openclaw";
+  const connection = getDefaultConnectionForBackend(
+    backendType,
+    agentFrameworkSettings,
+    gatewaySettings,
+  );
+
+  return {
+    backendType,
+    gatewayUrl: connection.gatewayUrl,
+    token: connection.token,
+  };
+}
+
 export function BotFormDrawer({ open, bot, onClose }: Props) {
   const isEdit = !!bot;
   const createMut = useCreateBot();
@@ -68,7 +121,10 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
   // Remote config: auto-fetch when editing an existing Bot
   const remoteConfig = useBotRemoteConfig(bot?.id ?? "", isEdit && open);
 
-  // Gateway settings: used to auto-fill wsToken for new bots
+  // Global connection defaults used when creating new bots
+  const { data: agentFrameworkSettings } = useAgentFrameworkSettings();
+
+  // Gateway settings: fallback token source for local OpenClaw URLs
   const { data: gatewaySettings } = useGatewaySettings();
 
   // Fetch available agents
@@ -92,7 +148,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
 
   // 连接
   const [backendType, setBackendType] = useState<AgentBackendType>("openclaw");
-  const [gatewayUrl, setGatewayUrl] = useState("ws://localhost:18789/ws");
+  const [gatewayUrl, setGatewayUrl] = useState("");
   const [agentId, setAgentId] = useState("main");
   const [wsToken, setWsToken] = useState("");
 
@@ -105,10 +161,20 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
 
   // Track whether we already merged remote config for this open session (avoid re-merging on re-renders)
   const remoteMergedRef = useRef(false);
+  const createConnectionTouchedRef = useRef({
+    backendType: false,
+    gatewayUrl: false,
+    token: false,
+  });
 
   // ── Step 1: populate from local DB on open ─────────────────────────────────
   useEffect(() => {
     remoteMergedRef.current = false;
+    createConnectionTouchedRef.current = {
+      backendType: false,
+      gatewayUrl: false,
+      token: false,
+    };
 
     if (bot) {
       setName(bot.name);
@@ -138,22 +204,41 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       setMcpJson("{}");
       setMcpJsonError("");
       setSkills([]);
-      const defaultUrl = "ws://localhost:18789/ws";
-      setGatewayUrl(defaultUrl);
+      const defaults = getNewBotConnectionDefaults(agentFrameworkSettings, gatewaySettings);
+      setBackendType(defaults.backendType);
+      setGatewayUrl(defaults.gatewayUrl);
       setAgentId("main");
-      const autoToken =
-        gatewaySettings?.authMode === "token" &&
-        gatewaySettings.authToken &&
-        isLocalGatewayUrl(defaultUrl, gatewaySettings.port)
-          ? gatewaySettings.authToken
-          : "";
-      setWsToken(autoToken);
+      setWsToken(defaults.token);
     }
     setTab("基础");
     setTestResult(null);
     setApplyResult(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bot, open]);
+
+  useEffect(() => {
+    if (!open || isEdit) return;
+
+    const defaults = getNewBotConnectionDefaults(agentFrameworkSettings, gatewaySettings);
+    const effectiveType = createConnectionTouchedRef.current.backendType
+      ? backendType
+      : defaults.backendType;
+    const nextConnection = getDefaultConnectionForBackend(
+      effectiveType,
+      agentFrameworkSettings,
+      gatewaySettings,
+    );
+
+    if (!createConnectionTouchedRef.current.backendType) {
+      setBackendType(defaults.backendType);
+    }
+    if (!createConnectionTouchedRef.current.gatewayUrl) {
+      setGatewayUrl(nextConnection.gatewayUrl);
+    }
+    if (!createConnectionTouchedRef.current.token) {
+      setWsToken(nextConnection.token);
+    }
+  }, [agentFrameworkSettings, backendType, gatewaySettings, isEdit, open]);
 
   // ── Step 2: merge remote config when it arrives ────────────────────────────
   useEffect(() => {
@@ -206,6 +291,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
     if (!bot) return;
     const r = await testMut.mutateAsync({
       id: bot.id,
+      backend_type: backendType,
       backend_url: gatewayUrl,
       backend_token: wsToken || undefined,
     });
@@ -235,14 +321,40 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
     void remoteConfig.refetch();
   }
 
+  function handleBackendTypeChange(nextType: AgentBackendType) {
+    if (isEdit) {
+      setBackendType(nextType);
+      return;
+    }
+
+    createConnectionTouchedRef.current.backendType = true;
+    createConnectionTouchedRef.current.gatewayUrl = false;
+    createConnectionTouchedRef.current.token = false;
+
+    const nextConnection = getDefaultConnectionForBackend(
+      nextType,
+      agentFrameworkSettings,
+      gatewaySettings,
+    );
+
+    setBackendType(nextType);
+    setGatewayUrl(nextConnection.gatewayUrl);
+    setWsToken(nextConnection.token);
+  }
+
   const isPending = createMut.isPending || updateMut.isPending;
   const isHttpMode = gatewayUrl.startsWith("http://") || gatewayUrl.startsWith("https://");
-  const urlPlaceholder =
+  const suggestedConnection = getDefaultConnectionForBackend(
+    backendType,
+    agentFrameworkSettings,
+    gatewaySettings,
+  );
+  const urlPlaceholder = suggestedConnection.gatewayUrl;
+  const agentIdHint =
     backendType === "openclaw"
-      ? "ws://localhost:18789/ws"
-      : backendType === "hermes"
-        ? "http://localhost:8642"
-        : "http://localhost:port/v1";
+      ? "目标 Agent ID，保存时会自动转为小写；留空使用默认 main"
+      : "请求时会作为目标 agent/model 标识传递，保存时会自动转为小写；留空使用默认 main";
+  const tokenHint = "优先带入 Agent Framework 中的认证 token，留空则不鉴权";
   const mcpServerCount = (() => {
     try {
       const parsed = JSON.parse(mcpJson) as { mcpServers?: Record<string, unknown> };
@@ -277,7 +389,7 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
       <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between flex-shrink-0">
         <div>
           <h2 className="font-semibold text-[17px]">{isEdit ? "编辑 Bot" : "新建 Bot"}</h2>
-          <p className="text-[12px] text-[#64748B] mt-0.5">配置 MCP、Skills 与 Gateway 连接</p>
+          <p className="text-[12px] text-[#64748B] mt-0.5">配置 MCP、Skills 与 Agent 连接</p>
         </div>
         <button
           onClick={onClose}
@@ -485,13 +597,13 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
         {tab === "连接" && (
           <>
             <Field
-              label="后端类型"
+              label="Agent Framework"
               required
-              hint="选错类型会导致连接测试失败；URL 前缀会自动提示正确协议"
+              hint="新建 Bot 时会默认带入设置页里对应框架的连接地址，你仍然可以继续修改"
             >
               <select
                 value={backendType}
-                onChange={(e) => setBackendType(e.target.value as AgentBackendType)}
+                onChange={(e) => handleBackendTypeChange(e.target.value as AgentBackendType)}
                 className={cn(inputCls, "font-medium")}
               >
                 <option value="openclaw">OpenClaw Gateway (WebSocket)</option>
@@ -522,17 +634,17 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
             >
               <input
                 value={gatewayUrl}
-                onChange={(e) => setGatewayUrl(e.target.value)}
+                onChange={(e) => {
+                  createConnectionTouchedRef.current.gatewayUrl = true;
+                  setGatewayUrl(e.target.value);
+                }}
                 placeholder={urlPlaceholder}
                 className={cn(inputCls, "font-mono text-[13px]")}
               />
             </Field>
 
-            <Field
-              label="Agent ID"
-              hint="目标 OpenClaw Agent 名称，区分大小写，保存时会自动转为小写；留空使用默认 main"
-            >
-              {agentsData?.success && agents.length > 0 ? (
+            <Field label="Agent ID" hint={agentIdHint}>
+              {backendType === "openclaw" && agentsData?.success && agents.length > 0 ? (
                 <select
                   value={agentId}
                   onChange={(e) => setAgentId(e.target.value)}
@@ -567,13 +679,13 @@ export function BotFormDrawer({ open, bot, onClose }: Props) {
               )}
             </Field>
 
-            <Field
-              label="鉴权 Token"
-              hint="对应 OPENCLAW_GATEWAY_TOKEN 或 gateway.auth.token，留空则无鉴权"
-            >
+            <Field label="鉴权 Token" hint={tokenHint}>
               <input
                 value={wsToken}
-                onChange={(e) => setWsToken(e.target.value)}
+                onChange={(e) => {
+                  createConnectionTouchedRef.current.token = true;
+                  setWsToken(e.target.value);
+                }}
                 type="password"
                 placeholder="留空则不鉴权"
                 className={inputCls}

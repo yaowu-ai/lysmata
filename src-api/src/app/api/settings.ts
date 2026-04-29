@@ -1,20 +1,24 @@
-import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
+import { Hono } from "hono";
 import { z } from "zod";
+import type { HookEntry } from "../../../../src/shared/types";
 import {
-  readLlmSettings,
-  updateLlmSettings,
+  readAgentFrameworkSettings,
+  updateAgentFrameworkSettings,
+} from "../../core/lysmata-config-file";
+import {
   applyOnboardingTemplate,
   deleteProviderSettings,
-  readProviderApiKey,
-  writeProviderApiKey,
-  readGatewaySettings,
-  updateGatewayConfig,
-  readChannelSettings,
-  updateChannelSettings,
   OPENCLAW_API_TYPES,
+  readChannelSettings,
+  readGatewaySettings,
+  readLlmSettings,
+  readProviderApiKey,
+  updateChannelSettings,
+  updateGatewayConfig,
+  updateLlmSettings,
+  writeProviderApiKey,
 } from "../../core/openclaw-config-file";
-import type { HookEntry } from "../../../../src/shared/types";
 import { getDb } from "../../shared/db";
 import { resolveOpenclawBin, spawnWithPath } from "../../shared/openclaw-bin";
 
@@ -103,6 +107,21 @@ const gatewayUpdateSchema = z.object({
   authToken: z.string().optional(),
 });
 
+const frameworkConnectionSchema = z.object({
+  endpoint: z.string().url().optional(),
+  authToken: z.string().optional(),
+});
+
+const agentFrameworkSettingsSchema = z.object({
+  agentFramework: z.enum(["openclaw", "hermes"]).optional(),
+  frameworks: z
+    .object({
+      openclaw: frameworkConnectionSchema.optional(),
+      hermes: frameworkConnectionSchema.optional(),
+    })
+    .optional(),
+});
+
 settings.put("/gateway", zValidator("json", gatewayUpdateSchema), async (c) => {
   try {
     const body = c.req.valid("json");
@@ -111,6 +130,26 @@ settings.put("/gateway", zValidator("json", gatewayUpdateSchema), async (c) => {
   } catch (err) {
     console.error("Failed to update gateway settings:", err);
     return c.json({ error: "Failed to update gateway settings" }, 500);
+  }
+});
+
+settings.get("/agent-framework", async (c) => {
+  try {
+    const data = await readAgentFrameworkSettings();
+    return c.json(data);
+  } catch {
+    return c.json({ error: "Failed to read agent framework settings" }, 500);
+  }
+});
+
+settings.put("/agent-framework", zValidator("json", agentFrameworkSettingsSchema), async (c) => {
+  try {
+    const body = c.req.valid("json");
+    const data = await updateAgentFrameworkSettings(body);
+    return c.json({ success: true, data });
+  } catch (err) {
+    console.error("Failed to update agent framework settings:", err);
+    return c.json({ error: "Failed to update agent framework settings" }, 500);
   }
 });
 
@@ -150,9 +189,7 @@ settings.delete("/llm/providers", async (c) => {
 
     const primaryProvider = current.defaultModel.primary?.split("/")[0];
     const defaultModel =
-      primaryProvider === providerKey
-        ? { primary: "", fallbacks: [] }
-        : current.defaultModel;
+      primaryProvider === providerKey ? { primary: "", fallbacks: [] } : current.defaultModel;
 
     await deleteProviderSettings(providerKey, { providers: remaining, defaultModel });
     return c.json({ success: true });
@@ -205,7 +242,10 @@ settings.post("/gateway-restart", async (c) => {
     }
 
     // 降级：Gateway 未注册为系统服务，改用 stop + start
-    console.warn("gateway restart failed (service mode), falling back to stop+start:", restartStderr);
+    console.warn(
+      "gateway restart failed (service mode), falling back to stop+start:",
+      restartStderr,
+    );
 
     const stopProc = spawnWithPath([bin, "gateway", "stop"], {
       stdout: "pipe",
@@ -272,10 +312,7 @@ settings.get("/hooks", async (c) => {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const [stdout, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      proc.exited,
-    ]);
+    const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
     if (exitCode !== 0) return c.json<HookEntry[]>([]);
     const parsed = JSON.parse(stdout) as {
       hooks: { name: string; description?: string; emoji?: string; disabled?: boolean }[];
@@ -323,15 +360,12 @@ settings.get("/models", async (c) => {
       stdout: "pipe",
       stderr: "pipe",
     });
-    const [stdout, exitCode] = await Promise.all([
-      new Response(proc.stdout).text(),
-      proc.exited,
-    ]);
+    const [stdout, exitCode] = await Promise.all([new Response(proc.stdout).text(), proc.exited]);
     if (exitCode !== 0) return c.json<string[]>([]);
     const models = stdout
       .split("\n")
       .map((l) => l.replace(ANSI_RE, "").trim()) // 去掉颜色码
-      .map((l) => l.split(/\s+/)[0])             // 只取第一列（模型 ID）
+      .map((l) => l.split(/\s+/)[0]) // 只取第一列（模型 ID）
       .filter((l) => !!l && !l.startsWith("-") && l !== "Model"); // 去掉表头/分隔线
     return c.json(models);
   } catch {

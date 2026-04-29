@@ -213,6 +213,18 @@ export interface LlmSettings {
   };
 }
 
+export type AgentFramework = "openclaw" | "hermes";
+
+export interface FrameworkConnectionConfig {
+  endpoint: string;
+  authToken?: string;
+}
+
+export interface AgentFrameworkSettings {
+  agentFramework: AgentFramework;
+  frameworks: Record<AgentFramework, FrameworkConnectionConfig>;
+}
+
 // ── Agent (OpenClaw CLI managed) ────────────────────────────────
 export interface Agent {
   id: string; // Agent ID (e.g., "main", "production")

@@ -43,6 +43,26 @@ export function handleFrame(entry: PoolEntry, data: string): void {
       entry.pendingRequests.delete(res.id);
       resolver(res);
     }
+
+    const runId = typeof res.payload?.runId === "string" ? res.payload.runId : undefined;
+    const run = runId ? entry.activeRuns.get(runId) : undefined;
+    if (run && res.ok) {
+      const payloads = Array.isArray(res.payload?.result?.payloads)
+        ? (res.payload.result.payloads as Array<Record<string, unknown>>)
+        : [];
+      const finalText = payloads
+        .map((item) => (typeof item?.text === "string" ? item.text : ""))
+        .join("")
+        .trim();
+
+      if (finalText) {
+        GatewayLogger.logPushEvent(url, "agent_rpc_final_text", {
+          runId,
+          textLength: finalText.length,
+        });
+        run.onDone(finalText);
+      }
+    }
     return;
   }
 

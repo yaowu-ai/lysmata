@@ -31,8 +31,10 @@ function ensureSchema(db: Database): void {
       skills_config      TEXT NOT NULL DEFAULT '[]',
       mcp_config         TEXT NOT NULL DEFAULT '{}',
       llm_config         TEXT NOT NULL DEFAULT '{}',
-      openclaw_ws_url    TEXT NOT NULL,
-      openclaw_ws_token  TEXT,
+      backend_type       TEXT NOT NULL DEFAULT 'openclaw',
+      backend_url        TEXT NOT NULL,
+      backend_token      TEXT,
+      agent_id           TEXT NOT NULL DEFAULT 'main',
       connection_status  TEXT NOT NULL DEFAULT 'disconnected',
       is_active          INTEGER NOT NULL DEFAULT 1,
       created_at         TEXT NOT NULL,
@@ -74,46 +76,4 @@ function ensureSchema(db: Database): void {
 
   // Cleanup: remove orphaned conversation_bots rows whose bot no longer exists
   db.exec(`DELETE FROM conversation_bots WHERE bot_id NOT IN (SELECT id FROM bots);`);
-
-  // Migration 2: add openclaw_agent_id and llm_config column (idempotent via PRAGMA table_info)
-  const cols = db
-    .query<{ name: string }, []>("PRAGMA table_info(bots)")
-    .all()
-    .map((r) => r.name);
-  if (!cols.includes("openclaw_agent_id")) {
-    db.exec(`ALTER TABLE bots ADD COLUMN openclaw_agent_id TEXT NOT NULL DEFAULT 'main';`);
-  }
-  if (!cols.includes("llm_config")) {
-    db.exec(`ALTER TABLE bots ADD COLUMN llm_config TEXT NOT NULL DEFAULT '{}';`);
-  }
-
-  // Migration 3: add message_type and metadata columns to messages table
-  const msgCols = db
-    .query<{ name: string }, []>("PRAGMA table_info(messages)")
-    .all()
-    .map((r) => r.name);
-  if (!msgCols.includes("message_type")) {
-    db.exec(`ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'text';`);
-  }
-  if (!msgCols.includes("metadata")) {
-    db.exec(`ALTER TABLE messages ADD COLUMN metadata TEXT;`);
-  }
-
-  // Migration 4: multi-agent — rename openclaw_* columns + add backend_type
-  const botCols4 = db
-    .query<{ name: string }, []>("PRAGMA table_info(bots)")
-    .all()
-    .map((r) => r.name);
-  if (botCols4.includes("openclaw_ws_url") && !botCols4.includes("backend_url")) {
-    db.exec(`ALTER TABLE bots RENAME COLUMN openclaw_ws_url TO backend_url;`);
-  }
-  if (botCols4.includes("openclaw_ws_token") && !botCols4.includes("backend_token")) {
-    db.exec(`ALTER TABLE bots RENAME COLUMN openclaw_ws_token TO backend_token;`);
-  }
-  if (botCols4.includes("openclaw_agent_id") && !botCols4.includes("agent_id")) {
-    db.exec(`ALTER TABLE bots RENAME COLUMN openclaw_agent_id TO agent_id;`);
-  }
-  if (!botCols4.includes("backend_type")) {
-    db.exec(`ALTER TABLE bots ADD COLUMN backend_type TEXT NOT NULL DEFAULT 'openclaw';`);
-  }
 }

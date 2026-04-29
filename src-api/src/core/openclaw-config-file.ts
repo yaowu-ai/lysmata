@@ -13,6 +13,7 @@
 
 import { homedir } from "os";
 import { join } from "path";
+import { readJsonFile, writeJsonFile } from "../shared/json-file";
 
 export const OPENCLAW_CONFIG_PATH =
   process.env.OPENCLAW_CONFIG_PATH ?? join(homedir(), ".openclaw", "openclaw.json");
@@ -92,14 +93,7 @@ export interface ParsedLlmConfig {
 // ── Reader ───────────────────────────────────────────────────────────────────
 
 export async function readOpenClawConfig(): Promise<OpenClawConfig | null> {
-  try {
-    const file = Bun.file(OPENCLAW_CONFIG_PATH);
-    const exists = await file.exists();
-    if (!exists) return null;
-    return (await file.json()) as OpenClawConfig;
-  } catch {
-    return null;
-  }
+  return readJsonFile<OpenClawConfig>(OPENCLAW_CONFIG_PATH);
 }
 
 /**
@@ -177,7 +171,7 @@ export async function updateOpenClawConfig(update: ConfigUpdatePayload): Promise
     };
   }
 
-  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+  await writeJsonFile(OPENCLAW_CONFIG_PATH, updated);
 }
 
 // ── Provider / LLM Settings helpers ─────────────────────────────────────────
@@ -229,7 +223,9 @@ const TEMPLATE_FALLBACKS: Record<OnboardingTemplateId, string[]> = {
   task: [],
 };
 
-export async function applyOnboardingTemplate(templateId: OnboardingTemplateId): Promise<LlmSettings> {
+export async function applyOnboardingTemplate(
+  templateId: OnboardingTemplateId,
+): Promise<LlmSettings> {
   const current = await readLlmSettings();
 
   if (!current.defaultModel.primary) {
@@ -328,7 +324,7 @@ export async function updateLlmSettings(settings: LlmSettings): Promise<void> {
   }
   updated.agents.defaults.models = aliasTable;
 
-  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+  await writeJsonFile(OPENCLAW_CONFIG_PATH, updated);
 }
 
 // ── Agent auth-profiles.json helpers ────────────────────────────────────────
@@ -440,7 +436,7 @@ export async function deleteProviderSettings(
       }
     }
     if (changed) {
-      await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(raw, null, 2));
+      await writeJsonFile(OPENCLAW_CONFIG_PATH, raw);
     }
   }
 }
@@ -507,7 +503,7 @@ export async function updateChannelSettings(channels: ChannelEntry[]): Promise<v
     updated.channels[ch.id] = { label: ch.label, token: ch.token, enabled: ch.enabled };
   }
   updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
-  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+  await writeJsonFile(OPENCLAW_CONFIG_PATH, updated);
 }
 
 // Hook settings are managed via CLI: `openclaw hooks enable/disable <name>`
@@ -537,7 +533,7 @@ export async function updateGatewayConfig(update: GatewayConfigUpdate): Promise<
   }
 
   updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
-  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+  await writeJsonFile(OPENCLAW_CONFIG_PATH, updated);
 }
 
 /**
@@ -559,5 +555,5 @@ export async function updateAgentModel(agentId: string, model: string): Promise<
   }
 
   updated.meta = { ...updated.meta, lastTouchedAt: new Date().toISOString() };
-  await Bun.write(OPENCLAW_CONFIG_PATH, JSON.stringify(updated, null, 2));
+  await writeJsonFile(OPENCLAW_CONFIG_PATH, updated);
 }

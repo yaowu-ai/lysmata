@@ -415,19 +415,31 @@ export const GatewayWSAdapter = {
         reject(new Error(`Agent stream timeout (${GATEWAY.STREAM_TIMEOUT_MS}ms)`));
       }, GATEWAY.STREAM_TIMEOUT_MS);
 
+      let lastChunk = "";
+      let settled = false;
+
       const cleanup = () => {
         clearTimeout(t);
         entry.activeRuns.delete(runId);
       };
 
       entry.activeRuns.set(runId, {
-        onChunk,
+        onChunk: (text) => {
+          lastChunk = text;
+          onChunk(text);
+        },
         onEvent,
-        onDone: () => {
+        onDone: (finalText) => {
+          if (settled) return;
+          settled = true;
           cleanup();
+          const resolvedText = finalText ?? lastChunk;
+          if (resolvedText && resolvedText !== lastChunk) onChunk(resolvedText);
           resolve();
         },
         onError: (e) => {
+          if (settled) return;
+          settled = true;
           cleanup();
           reject(e);
         },
@@ -439,7 +451,8 @@ export const GatewayWSAdapter = {
       signal?.addEventListener(
         "abort",
         () => {
-          if (!entry.activeRuns.has(runId)) return; // already done
+          if (!entry.activeRuns.has(runId) || settled) return; // already done
+          settled = true;
           cleanup();
           GatewayLogger.logSystem(url, "agent run aborted by client cancel", { runId, sessionId });
           reject(new Error("Aborted by client"));

@@ -21,7 +21,7 @@ export type RunEvent = ToolCallEvent | ToolResultEvent;
 
 export interface PendingRun {
   onChunk: (text: string) => void;
-  onDone: () => void;
+  onDone: (finalText?: string) => void;
   onError: (err: Error) => void;
   /** Structured events during streaming (tool_call / tool_result / etc.) */
   onEvent?: (event: RunEvent) => void;

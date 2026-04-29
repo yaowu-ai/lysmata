@@ -166,7 +166,7 @@ export const GatewayLogger = {
    * lower-level Gateway WS log so we can tell which bot/agent/session was selected.
    */
   logMessageRoute(opts: {
-    phase: "received" | "target_selected" | "completed" | "error";
+    phase: "received" | "target_selected" | "stream_event" | "completed" | "error";
     conversationId: string;
     conversationType?: string;
     userMsgId?: string;
@@ -179,6 +179,7 @@ export const GatewayLogger = {
     userContentLength?: number;
     enrichedContentLength?: number;
     botReplyLength?: number;
+    eventType?: string;
     error?: string;
   }): void {
     write({
@@ -200,6 +201,7 @@ export const GatewayLogger = {
         enrichedContentLength: opts.enrichedContentLength,
       }),
       ...(opts.botReplyLength !== undefined && { botReplyLength: opts.botReplyLength }),
+      ...(opts.eventType !== undefined && { eventType: opts.eventType }),
       ...(opts.error !== undefined && { error: opts.error }),
     });
   },

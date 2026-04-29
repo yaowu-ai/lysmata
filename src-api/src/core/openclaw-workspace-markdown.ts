@@ -3,7 +3,7 @@ import { constants as fsConstants } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { BotService } from "./bot-service";
-import { readGatewaySettings } from "./openclaw-config-file";
+import { resolveBotConnectionDefaults } from "./lysmata-config-file";
 
 export type WorkspaceTemplateId = "export-owner" | "equipment-rental" | "platform-ops";
 
@@ -70,13 +70,7 @@ interface WorkspaceTemplateDefinition {
 
 const MANAGED_HEADER = "<!-- Managed by Lysmata onboarding -->";
 
-const GENERATED_FILES = [
-  "AGENTS.md",
-  "SOUL.md",
-  "TOOLS.md",
-  "MEMORY.md",
-  "assistants/profile.md",
-];
+const GENERATED_FILES = ["AGENTS.md", "SOUL.md", "TOOLS.md", "MEMORY.md", "assistants/profile.md"];
 
 const TEMPLATE_BOT_EMOJI: Record<WorkspaceTemplateId, string> = {
   "export-owner": "🌍",
@@ -407,7 +401,9 @@ export function listWorkspaceTemplates(): WorkspaceTemplateMeta[] {
   return Object.values(TEMPLATE_DEFINITIONS).map((item) => item.meta);
 }
 
-export function getWorkspaceTemplateSchema(templateId: WorkspaceTemplateId): WorkspaceTemplateSchema {
+export function getWorkspaceTemplateSchema(
+  templateId: WorkspaceTemplateId,
+): WorkspaceTemplateSchema {
   const template = TEMPLATE_DEFINITIONS[templateId];
   return {
     template: template.meta,
@@ -482,11 +478,7 @@ export async function applyWorkspaceTemplate(
     });
   }
 
-  const gatewaySettings = await readGatewaySettings().catch(() => null);
-  const defaultGatewayPort = gatewaySettings?.port ?? 18789;
-  const defaultGatewayUrl = `ws://localhost:${defaultGatewayPort}/ws`;
-  const defaultGatewayToken =
-    gatewaySettings?.authMode === "token" ? gatewaySettings.authToken ?? undefined : undefined;
+  const defaultConnection = await resolveBotConnectionDefaults();
   const bot = BotService.create({
     name: assistantName,
     avatar_emoji: TEMPLATE_BOT_EMOJI[input.templateId],
@@ -494,8 +486,9 @@ export async function applyWorkspaceTemplate(
     skills_config: [],
     mcp_config: {},
     llm_config: {},
-    backend_url: defaultGatewayUrl,
-    backend_token: defaultGatewayToken,
+    backend_type: defaultConnection.backendType,
+    backend_url: defaultConnection.backendUrl,
+    backend_token: defaultConnection.backendToken,
     agent_id: "main",
     is_active: true,
   });

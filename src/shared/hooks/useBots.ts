@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api-client";
-import type { Bot, CreateBotInput, UpdateBotInput } from "../types";
+import type { AgentBackendType, Bot, CreateBotInput, UpdateBotInput } from "../types";
 
 export interface RemoteAgentConfig {
   agentId: string;
@@ -76,6 +76,7 @@ export function useTestBotConnection() {
   return useMutation({
     mutationFn: (params: {
       id: string;
+      backend_type?: AgentBackendType;
       backend_url?: string;
       backend_token?: string;
     }) => {

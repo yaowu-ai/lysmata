@@ -1,9 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../api-client";
-import type { LlmSettings } from "../types";
+import type { AgentFrameworkSettings, LlmSettings } from "../types";
 
 const llmSettingsKeys = {
   all: ["settings", "llm"] as const,
+};
+
+const agentFrameworkSettingsKeys = {
+  all: ["settings", "agent-framework"] as const,
 };
 
 export function useLlmSettings() {
@@ -18,6 +22,25 @@ export function useUpdateLlmSettings() {
   return useMutation({
     mutationFn: (settings: LlmSettings) => apiClient.put<void>("/settings/llm", settings),
     onSuccess: () => qc.invalidateQueries({ queryKey: llmSettingsKeys.all }),
+  });
+}
+
+export function useAgentFrameworkSettings() {
+  return useQuery({
+    queryKey: agentFrameworkSettingsKeys.all,
+    queryFn: () => apiClient.get<AgentFrameworkSettings>("/settings/agent-framework"),
+  });
+}
+
+export function useUpdateAgentFrameworkSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (settings: Partial<AgentFrameworkSettings>) =>
+      apiClient.put<{ success: boolean; data: AgentFrameworkSettings }>(
+        "/settings/agent-framework",
+        settings,
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: agentFrameworkSettingsKeys.all }),
   });
 }
 
