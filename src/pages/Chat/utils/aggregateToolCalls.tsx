@@ -1,5 +1,5 @@
 import type { ThoughtChainItemType } from "@ant-design/x/es/thought-chain/interface";
-import type { AgentEvent, Message } from "../../../shared/types";
+import type { AgentEvent, Message, ProcessEventKind } from "../../../shared/types";
 
 /** Union item consumed by ChatBody to render either a chat bubble or a ThoughtChain. */
 export type ChatItem =
@@ -36,7 +36,7 @@ function pickIcon(name: string): string {
 }
 
 function summarizeArgs(args: unknown): string {
-  if (args == null) return "";
+  if (args === null || args === undefined) return "";
   if (typeof args === "string") return args.length > 80 ? args.slice(0, 77) + "..." : args;
   if (typeof args === "object") {
     const obj = args as Record<string, unknown>;
@@ -55,7 +55,7 @@ function summarizeArgs(args: unknown): string {
 }
 
 function argsContent(args: unknown): string {
-  if (args == null) return "";
+  if (args === null || args === undefined) return "";
   try {
     return typeof args === "string" ? args : JSON.stringify(args, null, 2);
   } catch {
@@ -65,7 +65,7 @@ function argsContent(args: unknown): string {
 
 function resultContent(result: unknown, error?: string): string {
   if (error) return `Error: ${error}`;
-  if (result == null) return "";
+  if (result === null || result === undefined) return "";
   try {
     return typeof result === "string" ? result : JSON.stringify(result, null, 2);
   } catch {
@@ -102,6 +102,89 @@ function applyResult(item: ThoughtChainItemType, result: unknown, error?: string
     // Prefer showing result over args on success; for errors, keep both.
     item.content = error ? `${(item.content as string) ?? ""}\n\n${resultText}`.trim() : resultText;
   }
+}
+
+function processIcon(kind: ProcessEventKind): string {
+  switch (kind) {
+    case "thinking":
+      return "🤔";
+    case "todos":
+      return "📝";
+    case "task":
+      return "✅";
+    case "confirmation":
+      return "🙋";
+    case "authorization_required":
+      return "🔐";
+    case "plan":
+      return "🗺️";
+    case "progress":
+      return "📈";
+    case "tool_call":
+      return "🔧";
+    case "tool_result":
+      return "🔧";
+    default:
+      return "ℹ️";
+  }
+}
+
+function processTitle(kind: ProcessEventKind): string {
+  switch (kind) {
+    case "thinking":
+      return "thinking";
+    case "todos":
+      return "todos";
+    case "task":
+      return "task";
+    case "confirmation":
+      return "confirmation";
+    case "authorization_required":
+      return "authorization_required";
+    case "plan":
+      return "plan";
+    case "progress":
+      return "progress";
+    case "tool_call":
+      return "tool_call";
+    case "tool_result":
+      return "tool_result";
+    default:
+      return kind;
+  }
+}
+
+function processStatus(kind: ProcessEventKind, payload?: Record<string, unknown>): ThoughtChainItemType["status"] {
+  if (kind !== "todos") return "loading";
+
+  const maybeStatus = payload?.status;
+  const normalizedStatus = typeof maybeStatus === "string" ? maybeStatus.toLowerCase() : "";
+  const doneFlag = payload?.done === true || payload?.completed === true || payload?.finished === true;
+  if (doneFlag || normalizedStatus === "done" || normalizedStatus === "completed" || normalizedStatus === "finished") {
+    return "success";
+  }
+  if (normalizedStatus === "paused") {
+    return "error";
+  }
+  return "loading";
+}
+
+function makeProcessItem(
+  key: string,
+  kind: ProcessEventKind,
+  payload?: Record<string, unknown>,
+  rawStream?: string,
+): ThoughtChainItemType {
+  const title = rawStream && rawStream !== kind ? `${processTitle(kind)} (${rawStream})` : processTitle(kind);
+  const content = payload ? argsContent(payload) : undefined;
+  return {
+    key,
+    icon: <span>{processIcon(kind)}</span>,
+    title,
+    content,
+    status: processStatus(kind, payload),
+    collapsible: true,
+  };
 }
 
 /** Aggregate persisted messages for rendering: group tool_call/tool_result runs. */
@@ -195,6 +278,17 @@ export function aggregateEvents(events: AgentEvent[]): ThoughtChainItemType[] {
           collapsible: true,
         });
       }
+      continue;
+    }
+    if (ev.type === "process") {
+      items.push(
+        makeProcessItem(
+          `process-${ev.kind}-${ev.runId ?? "run"}-${fallbackSeq++}`,
+          ev.kind,
+          ev.payload,
+          ev.rawStream,
+        ),
+      );
       continue;
     }
     // Other events (presence / heartbeat / etc.) are not rendered in ThoughtChain.

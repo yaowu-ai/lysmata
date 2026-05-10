@@ -15,6 +15,17 @@ export type AgentBackendType = "openclaw" | "hermes" | "openai-compatible";
 // Every backend adapter translates its native events into this shape.
 // The `sessionId` field maps to the conversation ID in Lysmata's DB.
 
+export type ProcessEventKind =
+  | "thinking"
+  | "tool_call"
+  | "tool_result"
+  | "todos"
+  | "task"
+  | "confirmation"
+  | "authorization_required"
+  | "plan"
+  | "progress";
+
 export type AgentEvent =
   | { type: "message"; sessionId: string; content: string; from?: string }
   | {
@@ -38,6 +49,14 @@ export type AgentEvent =
       error?: string;
     }
   | {
+      type: "process";
+      kind: ProcessEventKind;
+      sessionId?: string;
+      runId?: string;
+      payload?: Record<string, unknown>;
+      rawStream?: string;
+    }
+  | {
       type: "status";
       health?: unknown;
       presence?: unknown;
@@ -48,6 +67,52 @@ export type AgentEvent =
   | { type: "exec_denied"; sessionId?: string; reason?: string }
   | { type: "cron"; action?: string; summary?: string }
   | { type: "tick" };
+
+export type CanonicalStreamEvent =
+  | {
+      v: 1;
+      type: "message_created";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload?: Record<string, unknown>;
+    }
+  | {
+      v: 1;
+      type: "text_start" | "text_delta" | "text_end";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload: { text: string };
+    }
+  | {
+      v: 1;
+      type: "process";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload: {
+        kind: ProcessEventKind;
+        data?: Record<string, unknown>;
+        rawStream?: string;
+      };
+    }
+  | {
+      v: 1;
+      type: "complete" | "error";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload?: Record<string, unknown>;
+    };
 
 // ── Connection test result ───────────────────────────────────────────────────
 

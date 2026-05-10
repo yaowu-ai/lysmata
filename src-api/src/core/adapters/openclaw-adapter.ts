@@ -114,16 +114,24 @@ function pushEventToAgentEvent(event: PushEvent, botId: string): AgentEvent | nu
         error: event.error,
       };
 
-    case "tick":
-      return { type: "tick" };
-
-    // OpenClaw-specific events without a direct AgentEvent equivalent.
-    // We map them to status or drop them.
     case "system_presence":
       return { type: "status", presence: event.metadata };
 
+
+    case "tick":
+      return { type: "tick" };
+
+    case "process":
+      return {
+        type: "process",
+        kind: event.kind,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        payload: event.payload,
+        rawStream: event.rawStream,
+      };
+
     case "node_pair_requested":
-      // No direct equivalent — could be a future "notification" event type
       return null;
 
     case "node_pair_resolved":
@@ -158,7 +166,7 @@ export const openclawAdapter: AgentAdapter = {
         signal,
         onEvent
           ? (runEvent) => {
-              // RunEvent is a subset of AgentEvent (tool_call / tool_result).
+              // RunEvent is a subset of AgentEvent (tool_call / tool_result / process).
               onEvent(runEvent);
             }
           : undefined,
@@ -166,7 +174,7 @@ export const openclawAdapter: AgentAdapter = {
     }
 
     // HTTP mode — delegate to OpenAIHttpAdapter
-    return OpenAIHttpAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId);
+    return OpenAIHttpAdapter.sendMessage(url, token, agentId, content, onChunk, sessionId, signal);
   },
 
   setPushHandler(url: string, handler: (event: AgentEvent) => void): void {

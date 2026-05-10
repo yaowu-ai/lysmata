@@ -90,6 +90,17 @@ export interface SendMessageInput {
 
 // ── Agent Event (从 src-api/src/core/adapters/types.ts 手动同步) ──
 // 修改后端 AgentEvent 时，必须同步更新此镜像类型以保持字段一致。
+export type ProcessEventKind =
+  | "thinking"
+  | "tool_call"
+  | "tool_result"
+  | "todos"
+  | "task"
+  | "confirmation"
+  | "authorization_required"
+  | "plan"
+  | "progress";
+
 export type AgentEvent =
   | { type: "message"; sessionId: string; content: string; from?: string }
   | {
@@ -113,6 +124,14 @@ export type AgentEvent =
       error?: string;
     }
   | {
+      type: "process";
+      kind: ProcessEventKind;
+      sessionId?: string;
+      runId?: string;
+      payload?: Record<string, unknown>;
+      rawStream?: string;
+    }
+  | {
       type: "status";
       health?: unknown;
       presence?: unknown;
@@ -123,6 +142,52 @@ export type AgentEvent =
   | { type: "exec_denied"; sessionId?: string; reason?: string }
   | { type: "cron"; action?: string; summary?: string }
   | { type: "tick" };
+
+export type CanonicalStreamEvent =
+  | {
+      v: 1;
+      type: "message_created";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload?: Record<string, unknown>;
+    }
+  | {
+      v: 1;
+      type: "text_start" | "text_delta" | "text_end";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload: { text: string };
+    }
+  | {
+      v: 1;
+      type: "process";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload: {
+        kind: ProcessEventKind;
+        data?: Record<string, unknown>;
+        rawStream?: string;
+      };
+    }
+  | {
+      v: 1;
+      type: "complete" | "error";
+      runId: string;
+      conversationId: string;
+      messageId?: string;
+      seq: number;
+      ts: string;
+      payload?: Record<string, unknown>;
+    };
 
 // ── Stream Frame (message-router → /stream SSE → 前端 useMessages) ──
 // 旧帧（chunk / done / error）无 `type` 字段，新帧有 `type === "event"`。

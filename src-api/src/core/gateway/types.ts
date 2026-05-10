@@ -1,5 +1,16 @@
 // ── Shared types for the OpenClaw Gateway protocol ───────────────────────────
 
+export type ProcessEventKind =
+  | "thinking"
+  | "tool_call"
+  | "tool_result"
+  | "todos"
+  | "task"
+  | "confirmation"
+  | "authorization_required"
+  | "plan"
+  | "progress";
+
 export interface ToolCallEvent {
   type: "tool_call";
   sessionId: string;
@@ -16,14 +27,23 @@ export interface ToolResultEvent {
   error?: string;
 }
 
+export interface ProcessEvent {
+  type: "process";
+  kind: ProcessEventKind;
+  sessionId?: string;
+  runId?: string;
+  payload?: Record<string, unknown>;
+  rawStream?: string;
+}
+
 /** Structured event surfaced during an in-flight agent run. */
-export type RunEvent = ToolCallEvent | ToolResultEvent;
+export type RunEvent = ToolCallEvent | ToolResultEvent | ProcessEvent;
 
 export interface PendingRun {
   onChunk: (text: string) => void;
   onDone: (finalText?: string) => void;
   onError: (err: Error) => void;
-  /** Structured events during streaming (tool_call / tool_result / etc.) */
+  /** Structured events during streaming (tool_call / tool_result / process). */
   onEvent?: (event: RunEvent) => void;
 }
 
@@ -121,6 +141,14 @@ export type PushEvent =
       callId?: string;
       result?: unknown;
       error?: string;
+    }
+  | {
+      type: "process";
+      kind: ProcessEventKind;
+      sessionId?: string;
+      runId?: string;
+      payload?: Record<string, unknown>;
+      rawStream?: string;
     };
 
 // ── Connection pool entry ────────────────────────────────────────────────────
@@ -183,3 +211,4 @@ export interface GatewayResponse extends GatewayFrame {
   payload?: Record<string, unknown>;
   error?: { code?: string; message?: string };
 }
+

@@ -16,6 +16,8 @@ import { ConversationsPane } from "./ConversationsPane";
 import { NewConversationDialog } from "./NewConversationDialog";
 import { SenderBox } from "./SenderBox";
 
+type RunState = "idle" | "active" | "stopping" | "terminal";
+
 interface Props {
   mode: "private" | "group";
 }
@@ -30,6 +32,14 @@ export function ChatContainer({ mode }: Props) {
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [, setRunState] = useState<RunState>("idle");
+  const runStateRef = useRef<RunState>("idle");
+  const runTokenRef = useRef(0);
+
+  const setRunStateSafe = (next: RunState) => {
+    runStateRef.current = next;
+    setRunState(next);
+  };
 
   const sidebarType = mode === "private" ? "single" : "group";
   const pageConvs = convs.filter((c) => c.type === sidebarType);
@@ -61,7 +71,9 @@ export function ChatContainer({ mode }: Props) {
     setStreamingContent(null);
     setStreamError(null);
     setIsSending(false);
+    setRunStateSafe("idle");
     abortRef.current = null;
+    runTokenRef.current += 1;
     clearEvents();
   }, [activeId, clearEvents]);
 
@@ -92,32 +104,58 @@ export function ChatContainer({ mode }: Props) {
   }
 
   function handleStop() {
+    if (runStateRef.current !== "active" && runStateRef.current !== "stopping") return;
+    setRunStateSafe("stopping");
     abortRef.current?.();
     abortRef.current = null;
-    setStreamingContent(null);
     setIsSending(false);
   }
 
   async function sendContent(content: string) {
     if (!activeId) return;
     const ctrl = new AbortController();
+    const runToken = runTokenRef.current + 1;
+    runTokenRef.current = runToken;
     abortRef.current = () => ctrl.abort();
     setIsSending(true);
+    setRunStateSafe("active");
     setStreamError(null);
     setStreamingContent("");
     clearEvents();
     try {
       const result = await sendStream(
         content,
-        (chunk) => setStreamingContent(chunk),
+        (chunk) => {
+          if (runToken !== runTokenRef.current) return;
+          if (runStateRef.current === "terminal") return;
+          setStreamingContent(chunk);
+        },
         ctrl.signal,
-        (event) => pushEvent(event),
+        (event) => {
+          if (runToken !== runTokenRef.current) return;
+          if (runStateRef.current === "terminal") return;
+          pushEvent(event);
+        },
       );
-      if (result.error) setStreamError(result.error);
+      if (runToken !== runTokenRef.current) return;
+      if (result.error) {
+        setStreamError(result.error);
+        setRunStateSafe("terminal");
+      } else if (result.stopped) {
+        setRunStateSafe("terminal");
+      } else {
+        setRunStateSafe("terminal");
+      }
     } finally {
-      abortRef.current = null;
-      setStreamingContent(null);
-      setIsSending(false);
+      if (runToken === runTokenRef.current) {
+        abortRef.current = null;
+        setStreamingContent(null);
+        setIsSending(false);
+        setTimeout(() => {
+          if (runToken !== runTokenRef.current) return;
+          setRunStateSafe("idle");
+        }, 0);
+      }
     }
   }
 

@@ -12,6 +12,7 @@ export const OpenAIHttpAdapter = {
     content: string,
     onChunk: (text: string) => void,
     _sessionId?: string,
+    signal?: AbortSignal,
   ): Promise<void> {
     const endpoint = `${toHttpBase(baseUrl)}/v1/chat/completions`;
     const headers: Record<string, string> = {
@@ -28,6 +29,7 @@ export const OpenAIHttpAdapter = {
         stream: true,
         messages: [{ role: "user", content }],
       }),
+      signal,
     });
 
     if (!res.ok) {

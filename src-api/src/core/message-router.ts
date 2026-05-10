@@ -63,6 +63,7 @@ export const MessageRouter = {
     onChunk: (chunk: string, botId: string) => void,
     signal?: AbortSignal,
     onEvent?: (event: AgentEvent, botId: string) => void,
+    preGenBotMsgId?: string,
   ): Promise<Message> {
     const conv = ConversationService.findById(conversationId);
     if (!conv) throw notFound("Conversation");
@@ -204,7 +205,7 @@ export const MessageRouter = {
     }
 
     // Persist bot reply
-    const botMsgId = randomUUID();
+    const botMsgId = preGenBotMsgId ?? randomUUID();
     const botNow = new Date().toISOString();
     getDb().run(
       "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, created_at) VALUES (?,?,?,?,?,?,?)",

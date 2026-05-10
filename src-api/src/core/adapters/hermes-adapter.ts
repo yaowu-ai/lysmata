@@ -1,16 +1,39 @@
 // ── Hermes Adapter ────────────────────────────────────────────────────────────
 //
-// Connects to a Hermes Agent via its OpenAI-compatible HTTP API server
-// (gateway/platforms/api_server.py).  Hermes exposes:
+// Connects to a Hermes Agent via the OpenAI Responses API
+// (gateway/platforms/api_server.py:_handle_responses).
+// Endpoint: POST /v1/responses with stream=true + store=true.
 //
-//   POST /v1/chat/completions   — OpenAI Chat Completions (SSE streaming)
-//   POST /v1/responses          — OpenAI Responses API (stateful)
-//   POST /v1/runs               — Async run with SSE lifecycle events
-//   GET  /v1/models             — List available models
-//   GET  /health                 — Health check
+// Why /v1/responses (not /v1/chat/completions)?
+//  - Both stream text via OpenAI-style SSE.
+//  - /v1/responses ALSO emits structured `function_call` and
+//    `function_call_output` items with full arguments + output. The
+//    chat/completions path only carries the tool name + preview label
+//    (no args, no result), which leaves Lysmata's ThoughtChain empty.
+//  - Lysmata's unified `AgentEvent` contract needs the full args/result
+//    so the frontend renders meaningful tool steps.
 //
-// We use /v1/chat/completions for messaging (same as OpenAIHttpAdapter)
-// and parse the custom `hermes.tool.progress` SSE event for tool execution.
+// Why NOT /v1/runs?
+//  - /v1/runs supports approval but the assistant text is only delivered
+//    once, in the terminal `run.completed` event (no token-by-token
+//    streaming). Approval on hermes is deferred to a future PR.
+//
+// Session continuity:
+//  - Request body field `conversation: <conversationId>` + `store: true`
+//    lets hermes self-manage the previous_response_id chain.
+//  - Lysmata still stores the full message history in `app.db.messages`
+//    for its own UI; the hermes-side conversation store is independent
+//    and used only for LLM prompt context.
+//
+// Heads up for future maintainers (hermes-side behaviour):
+//  - On client abort, hermes persists an `incomplete` snapshot that
+//    keeps the partial assistant text (api_server.py:1568-1600). The
+//    next turn's LLM prompt will see that partial text as if it were a
+//    completed reply.
+//  - `response.completed.response.output[]` is server-trimmed at
+//    ~100KB (api_server.py:1898-1917); never treat it as authoritative
+//    for tool args/result. The per-item events emitted earlier in the
+//    stream are the source of truth.
 
 import type { AgentAdapter, AgentEvent, ConnectionTestResult } from "./types";
 
@@ -20,13 +43,24 @@ function toHttpBase(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
-/**
- * Derive a stable session ID from the conversation, matching Hermes's
- * _derive_chat_session_id logic (SHA256 of first user message).
- * For simplicity, we use the conversationId directly as the session ID.
- */
-function deriveHermesSessionId(conversationId: string): string {
-  return conversationId;
+// Hermes emits `function_call.arguments` as a JSON string (api_server.py:1660).
+// Accept dict too for forward-compat. Parse failure leaves args undefined —
+// the tool call is still surfaced, just without argument detail.
+function parseFunctionArgs(raw: unknown): unknown {
+  if (typeof raw !== "string") return raw;
+  if (raw === "") return undefined;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return undefined;
+  }
+}
+
+// Today hermes emits exactly { type: "input_text", text: "..." } for tool
+// output (api_server.py:1727). Use a soft accessor; don't fabricate
+// fallbacks for variants the server doesn't produce.
+function extractFunctionResult(item: { output?: Array<{ text?: unknown }> }): unknown {
+  return item.output?.[0]?.text;
 }
 
 // ── Hermes Adapter Implementation ─────────────────────────────────────────────
@@ -36,26 +70,29 @@ export const hermesAdapter: AgentAdapter = {
 
   async sendMessage(params) {
     const { url, token, agentId, content, onChunk, onEvent, sessionId, signal } = params;
-    const endpoint = `${toHttpBase(url)}/v1/chat/completions`;
+    const endpoint = `${toHttpBase(url)}/v1/responses`;
 
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    // Pass session ID via X-Hermes-Session-Id header for conversation continuity
+    const body: Record<string, unknown> = {
+      model: agentId || "hermes-agent",
+      input: content,
+      stream: true,
+      store: true,
+    };
     if (sessionId) {
-      headers["X-Hermes-Session-Id"] = deriveHermesSessionId(sessionId);
+      body.conversation = sessionId;
     }
+
+    console.info(`[hermes-adapter] POST ${endpoint} conversation=${sessionId ?? "(none)"}`);
 
     const res = await fetch(endpoint, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        model: agentId || "hermes-agent",
-        stream: true,
-        messages: [{ role: "user", content }],
-      }),
+      body: JSON.stringify(body),
       signal,
     });
 
@@ -63,115 +100,131 @@ export const hermesAdapter: AgentAdapter = {
       const text = await res.text().catch(() => res.statusText);
       throw new Error(`Hermes HTTP ${res.status}: ${text}`);
     }
-
     if (!res.body) throw new Error("No response body");
 
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
-    // Contract: onChunk is called with accumulated text. See AgentAdapter.sendMessage JSDoc.
+    // Contract: onChunk receives accumulated text (not a delta). See
+    // AgentAdapter.sendMessage JSDoc + CLAUDE.md "流式契约".
     let accumulated = "";
-    // Track the most recent `event:` line so the following `data:` line can be
-    // parsed in context. Hermes emits:
-    //   event: hermes.tool.start|progress|end
-    //   data: { ... }
-    // Default to "data" when no custom event is named (OpenAI-style chunks).
-    let currentEvent = "data";
 
     const resolvedSessionId = sessionId ?? "";
 
+    // SSE frames from /v1/responses look like:
+    //   event: response.output_text.delta
+    //   id: <runId>:<seq>
+    //   data: {"type":"response.output_text.delta","delta":"Hi", ...}
+    //   <blank line>
+    //
+    // The JSON payload always carries a `type` field mirroring the SSE
+    // event name (api_server.py:1526-1532). We discriminate on the JSON
+    // `type` because it's harder to lose across buffer/parse boundaries.
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
+
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
 
       for (const line of lines) {
         const trimmed = line.trim();
-
-        if (trimmed === "") {
-          // Blank line marks end of an SSE message — reset event name.
-          currentEvent = "data";
-          continue;
-        }
-
-        if (trimmed.startsWith("event:")) {
-          currentEvent = trimmed.slice(6).trim();
-          continue;
-        }
-
+        if (trimmed === "") continue;
+        if (trimmed.startsWith(":")) continue; // SSE comment / keepalive
+        if (trimmed.startsWith("event:")) continue;
+        if (trimmed.startsWith("id:")) continue;
         if (!trimmed.startsWith("data:")) continue;
+
         const data = trimmed.slice(5).trim();
         if (data === "[DONE]") return;
 
-        // Hermes custom tool events — forward to onEvent for ThoughtChain UI.
-        if (currentEvent.startsWith("hermes.tool")) {
-          if (!onEvent) continue;
-          let parsed: Record<string, unknown> = {};
-          try {
-            parsed = JSON.parse(data) as Record<string, unknown>;
-          } catch {
-            /* drop malformed */
-            continue;
-          }
-          const callId =
-            (typeof parsed.call_id === "string" && parsed.call_id) ||
-            (typeof parsed.callId === "string" && parsed.callId) ||
-            (typeof parsed.id === "string" && parsed.id) ||
-            undefined;
-          if (currentEvent === "hermes.tool.start") {
-            const toolName =
-              (typeof parsed.name === "string" && parsed.name) ||
-              (typeof parsed.tool === "string" && parsed.tool) ||
-              (typeof parsed.toolName === "string" && parsed.toolName) ||
-              "unknown";
-            onEvent({
-              type: "tool_call",
-              sessionId: resolvedSessionId,
-              toolName,
-              args: parsed.args ?? parsed.input ?? parsed.params,
-              callId,
-            });
-          } else if (currentEvent === "hermes.tool.end") {
-            onEvent({
-              type: "tool_result",
-              sessionId: resolvedSessionId,
-              callId,
-              result: parsed.result ?? parsed.output ?? parsed.content,
-              error: typeof parsed.error === "string" ? parsed.error : undefined,
-            });
-          }
-          // hermes.tool.progress → intentionally no event (progress is in-flight noise
-          // without a clean callId bridge; ThoughtChain shows the pending state fine).
+        let frame: Record<string, unknown>;
+        try {
+          frame = JSON.parse(data) as Record<string, unknown>;
+        } catch {
           continue;
         }
 
-        // Default OpenAI-style chat.completion chunk.
-        try {
-          const chunk = JSON.parse(data) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-          };
-          const text = chunk.choices?.[0]?.delta?.content;
-          if (text) {
-            accumulated += text;
+        const t = typeof frame.type === "string" ? frame.type : "";
+        switch (t) {
+          case "response.created":
+            // Initial envelope, status=in_progress. No payload to surface yet.
+            continue;
+
+          case "response.output_text.delta": {
+            const delta = typeof frame.delta === "string" ? frame.delta : "";
+            if (!delta) continue;
+            accumulated += delta;
             onChunk(accumulated);
+            continue;
           }
-        } catch {
-          /* ignore malformed chunks */
+
+          case "response.output_text.done":
+            // Full text already accumulated via deltas. (Defensive cross-check
+            // against `frame.text` is a future hardening option, not required.)
+            continue;
+
+          case "response.output_item.added": {
+            if (!onEvent) continue;
+            const item = (frame.item as Record<string, unknown> | undefined) ?? {};
+            const itemType = typeof item.type === "string" ? item.type : "";
+            if (itemType === "function_call") {
+              // Hermes serialises the full `arguments` JSON before emitting
+              // this event (api_server.py:1656-1690) — no streaming partials.
+              // Emit tool_call immediately so the UI can render it as in-flight.
+              const toolName = typeof item.name === "string" ? item.name : "unknown";
+              const callId = typeof item.call_id === "string" ? item.call_id : undefined;
+              onEvent({
+                type: "tool_call",
+                sessionId: resolvedSessionId,
+                toolName,
+                args: parseFunctionArgs(item.arguments),
+                callId,
+              });
+            } else if (itemType === "function_call_output") {
+              const callId = typeof item.call_id === "string" ? item.call_id : undefined;
+              onEvent({
+                type: "tool_result",
+                sessionId: resolvedSessionId,
+                callId,
+                result: extractFunctionResult(item as { output?: Array<{ text?: unknown }> }),
+              });
+            }
+            // item.type === "message": skeleton frame, ignore.
+            continue;
+          }
+
+          case "response.output_item.done":
+            // function_call.done carries identical args to .added; redundant.
+            // function_call_output.done likewise. message.done's text is
+            // already in `accumulated`. Nothing to emit.
+            continue;
+
+          case "response.completed":
+            return;
+
+          case "response.failed": {
+            const errMsg =
+              (frame.response as { error?: { message?: string } } | undefined)?.error?.message ||
+              "Hermes response failed";
+            throw new Error(errMsg);
+          }
+
+          default:
+            console.info(`[hermes-adapter] unhandled event type: ${t}`);
+            continue;
         }
       }
     }
   },
 
-  setPushHandler(url: string, handler: (event: AgentEvent) => void): void {
-    // Hermes does not have a WebSocket push channel.
-    // For real-time status, we could poll /health or use /v1/runs SSE.
-    // For now, push events are not supported for Hermes.
-    // Tool execution events come through the streaming response (onEvent).
-    console.log(
-      `[hermes-adapter] Push handler registered for ${url} (polling not yet implemented)`,
-    );
+  setPushHandler(_url: string, _handler: (event: AgentEvent) => void): void {
+    // Hermes has no persistent push channel:
+    //  - /v1/responses is request-scoped (events arrive only during the call)
+    //  - /v1/runs events are per-run, not a global subscription
+    // Tool events flow through the in-stream `onEvent` callback in sendMessage.
+    // (Polling /health to synthesize `status` events is a future option.)
   },
 
   async testConnection(url: string, token?: string): Promise<ConnectionTestResult> {
@@ -207,9 +260,11 @@ export const hermesAdapter: AgentAdapter = {
     }
   },
 
-  buildSessionKey(agentId: string, conversationId: string): string {
-    // Hermes uses X-Hermes-Session-Id header, not a session key in the URL.
-    // We return the conversationId directly — it will be passed as the header value.
+  buildSessionKey(_agentId: string, conversationId: string): string {
+    // The returned value is passed as the hermes `conversation` body field.
+    // We deliberately don't include agentId — multi-agent within one lysmata
+    // conversation would share the hermes-side conversation history. That's
+    // uncommon today and OK for now.
     return conversationId;
   },
 };
