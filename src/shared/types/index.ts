@@ -80,6 +80,7 @@ export interface Message {
   mentioned_bot_id?: string;
   message_type?: "text" | "approval" | "system_event" | "tool_call" | "tool_result";
   metadata?: string; // JSON string for storing complex payloads (like approval parameters)
+  thinking_content?: string | null; // JSON string of AgentEvent[] for this bot reply
   created_at: string;
   bot?: Bot;
 }

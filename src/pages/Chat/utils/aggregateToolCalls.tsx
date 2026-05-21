@@ -154,7 +154,12 @@ function processTitle(kind: ProcessEventKind): string {
   }
 }
 
-function processStatus(kind: ProcessEventKind, payload?: Record<string, unknown>): ThoughtChainItemType["status"] {
+function processStatus(
+  kind: ProcessEventKind,
+  payload?: Record<string, unknown>,
+  completed = false,
+): ThoughtChainItemType["status"] {
+  if (completed && kind !== "authorization_required" && kind !== "confirmation") return "success";
   if (kind !== "todos") return "loading";
 
   const maybeStatus = payload?.status;
@@ -174,6 +179,7 @@ function makeProcessItem(
   kind: ProcessEventKind,
   payload?: Record<string, unknown>,
   rawStream?: string,
+  completed = false,
 ): ThoughtChainItemType {
   const title = rawStream && rawStream !== kind ? `${processTitle(kind)} (${rawStream})` : processTitle(kind);
   const content = payload ? argsContent(payload) : undefined;
@@ -182,7 +188,7 @@ function makeProcessItem(
     icon: <span>{processIcon(kind)}</span>,
     title,
     content,
-    status: processStatus(kind, payload),
+    status: processStatus(kind, payload, completed),
     collapsible: true,
   };
 }
@@ -252,15 +258,17 @@ export function aggregateMessages(messages: Message[]): ChatItem[] {
 }
 
 /** Build in-flight ThoughtChain items from AgentEvents streamed on /stream. */
-export function aggregateEvents(events: AgentEvent[]): ThoughtChainItemType[] {
+export function aggregateEvents(events: AgentEvent[], options?: { completed?: boolean }): ThoughtChainItemType[] {
   const items: ThoughtChainItemType[] = [];
   const byCallId = new Map<string, ThoughtChainItemType>();
   let fallbackSeq = 0;
+  const completed = options?.completed ?? false;
 
   for (const ev of events) {
     if (ev.type === "tool_call") {
       const key = ev.callId ?? `inflight-${fallbackSeq++}`;
       const item = makeCallItem(key, ev.toolName, ev.args);
+      if (completed) item.status = "success";
       items.push(item);
       if (ev.callId) byCallId.set(ev.callId, item);
       continue;
@@ -287,6 +295,7 @@ export function aggregateEvents(events: AgentEvent[]): ThoughtChainItemType[] {
           ev.kind,
           ev.payload,
           ev.rawStream,
+          completed,
         ),
       );
       continue;

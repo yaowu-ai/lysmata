@@ -66,6 +66,7 @@ function ensureSchema(db: Database): void {
       mentioned_bot_id TEXT,
       message_type     TEXT DEFAULT 'text',
       metadata         TEXT,
+      thinking_content TEXT,
       created_at       TEXT NOT NULL
     );
 
@@ -73,6 +74,14 @@ function ensureSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_conv_bots_conversation ON conversation_bots(conversation_id);
     CREATE INDEX IF NOT EXISTS idx_bots_active ON bots(is_active);
   `);
+
+  const messageColumns = db
+    .query<{ name: string }, []>("PRAGMA table_info(messages)")
+    .all()
+    .map((column) => column.name);
+  if (!messageColumns.includes("thinking_content")) {
+    db.run("ALTER TABLE messages ADD COLUMN thinking_content TEXT");
+  }
 
   // Cleanup: remove orphaned conversation_bots rows whose bot no longer exists
   db.exec(`DELETE FROM conversation_bots WHERE bot_id NOT IN (SELECT id FROM bots);`);

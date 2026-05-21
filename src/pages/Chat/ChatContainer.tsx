@@ -144,6 +144,7 @@ export function ChatContainer({ mode }: Props) {
       } else if (result.stopped) {
         setRunStateSafe("terminal");
       } else {
+        clearEvents();
         setRunStateSafe("terminal");
       }
     } finally {
