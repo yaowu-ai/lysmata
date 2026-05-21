@@ -445,6 +445,12 @@ pub fn run() {
                     sql: include_str!("../migrations/0001_initial.sql"),
                     kind: MigrationKind::Up,
                 },
+                Migration {
+                    version: 5,
+                    description: "add thinking content to messages",
+                    sql: include_str!("../migrations/0005_message_thinking_content.sql"),
+                    kind: MigrationKind::Up,
+                },
             ];
 
             let db_path = lysmata_dir.join("app.db");

@@ -1,9 +1,13 @@
 import { Bubble } from "@ant-design/x";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { useMemo, useState } from "react";
 import { cn, formatMsgTime } from "../../shared/lib/utils";
-import type { Message } from "../../shared/types";
+import type { AgentEvent, Message } from "../../shared/types";
 import { ApprovalBubble } from "./ApprovalBubble";
 import { MarkdownContent } from "./MarkdownContent";
 import { SystemEventBubble } from "./SystemEventBubble";
+import { ThoughtChainBubble } from "./ThoughtChainBubble";
+import { aggregateEvents } from "./utils/aggregateToolCalls";
 
 interface Props {
   message: Message;
@@ -19,6 +23,16 @@ function parseMetadata(raw?: string): Record<string, unknown> {
     return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     return {};
+  }
+}
+
+function parseThinkingContent(raw?: string | null): AgentEvent[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as AgentEvent[]) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -40,6 +54,12 @@ function BotAvatar({ emoji, isPrimary }: { emoji: string; isPrimary?: boolean })
 export function MessageBubble({ message, isPrimary, isStreaming, extra }: Props) {
   const bot = message.bot;
   const metadata = parseMetadata(message.metadata);
+  const [thinkingOpen, setThinkingOpen] = useState(false);
+  const thoughtItems = useMemo(
+    () => aggregateEvents(parseThinkingContent(message.thinking_content), { completed: true }),
+    [message.thinking_content],
+  );
+  const hasThinking = thoughtItems.length > 0 && message.sender_type === "bot";
 
   // Tool events are rendered by ThoughtChainBubble at a higher aggregation
   // level — skip them here.
@@ -73,18 +93,38 @@ export function MessageBubble({ message, isPrimary, isStreaming, extra }: Props)
     body = <SystemEventBubble message={message} metadata={metadata} />;
   } else {
     body = (
-      <Bubble
-        placement="start"
-        variant="filled"
-        shape="corner"
-        content={<MarkdownContent content={message.content} isStreaming={isStreaming} />}
-        classNames={{
-          content: cn(
-            "min-w-0",
-            isPrimary ? "!bg-[#F0F7FF] !border-l-[3px] !border-[#2563EB]" : "!bg-[#F1F5F9]",
-          ),
-        }}
-      />
+      <div className="space-y-2">
+        {hasThinking && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setThinkingOpen((open) => !open)}
+              className="inline-flex h-7 items-center gap-1.5 rounded-[6px] border border-[#E2E8F0] bg-white px-2.5 text-[12px] font-medium text-[#64748B] hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:text-[#334155] transition-colors"
+              aria-expanded={thinkingOpen}
+            >
+              {thinkingOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              思考过程
+            </button>
+            {thinkingOpen && (
+              <div className="mt-2">
+                <ThoughtChainBubble items={thoughtItems} inline />
+              </div>
+            )}
+          </div>
+        )}
+        <Bubble
+          placement="start"
+          variant="filled"
+          shape="corner"
+          content={<MarkdownContent content={message.content} isStreaming={isStreaming} />}
+          classNames={{
+            content: cn(
+              "min-w-0",
+              isPrimary ? "!bg-[#F0F7FF] !border-l-[3px] !border-[#2563EB]" : "!bg-[#F1F5F9]",
+            ),
+          }}
+        />
+      </div>
     );
   }
 

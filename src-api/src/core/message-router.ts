@@ -7,6 +7,30 @@ import { randomUUID } from "crypto";
 import { ApiError, notFound } from "../shared/errors";
 import { GatewayLogger } from "../shared/gateway-logger";
 
+export type ThinkingEvent =
+  | {
+      type: "tool_call";
+      sessionId: string;
+      toolName: string;
+      args?: unknown;
+      callId?: string;
+    }
+  | {
+      type: "tool_result";
+      sessionId: string;
+      callId?: string;
+      result?: unknown;
+      error?: string;
+    }
+  | {
+      type: "process";
+      kind: string;
+      sessionId?: string;
+      runId?: string;
+      payload?: Record<string, unknown>;
+      rawStream?: string;
+    };
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -16,7 +40,40 @@ export interface Message {
   mentioned_bot_id: string | null;
   message_type: string;
   metadata: string | null;
+  thinking_content: string | null;
   created_at: string;
+}
+
+function toThinkingEvent(event: AgentEvent): ThinkingEvent | null {
+  switch (event.type) {
+    case "tool_call":
+      return {
+        type: "tool_call",
+        sessionId: event.sessionId,
+        toolName: event.toolName,
+        args: event.args,
+        callId: event.callId,
+      };
+    case "tool_result":
+      return {
+        type: "tool_result",
+        sessionId: event.sessionId,
+        callId: event.callId,
+        result: event.result,
+        error: event.error,
+      };
+    case "process":
+      return {
+        type: "process",
+        kind: event.kind,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        payload: event.payload,
+        rawStream: event.rawStream,
+      };
+    default:
+      return null;
+  }
 }
 
 export const MessageRouter = {
@@ -135,6 +192,7 @@ export const MessageRouter = {
     const normalizedAgentId = (targetBot.agent_id ?? "main").trim().toLowerCase() || "main";
     const sessionKey = adapter.buildSessionKey(normalizedAgentId, conversationId);
     let replyContent = "";
+    const thinkingEvents: ThinkingEvent[] = [];
     GatewayLogger.logMessageRoute({
       phase: "target_selected",
       conversationId,
@@ -163,6 +221,10 @@ export const MessageRouter = {
           onChunk(chunk, targetBot!.id);
         },
         onEvent: (event: AgentEvent) => {
+          const thinkingEvent = toThinkingEvent(event);
+          if (thinkingEvent) {
+            thinkingEvents.push(thinkingEvent);
+          }
           // Forward to caller (e.g., /stream SSE writer) for live UI updates.
           // push-relay stays independent — it receives events via
           // adapter.setPushHandler, not via this onEvent callback.
@@ -207,9 +269,20 @@ export const MessageRouter = {
     // Persist bot reply
     const botMsgId = preGenBotMsgId ?? randomUUID();
     const botNow = new Date().toISOString();
+    const thinkingContent =
+      thinkingEvents.length > 0 ? JSON.stringify(thinkingEvents) : null;
     getDb().run(
-      "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, created_at) VALUES (?,?,?,?,?,?,?)",
-      [botMsgId, conversationId, "bot", targetBot.id, replyContent, mentionedBotId, botNow],
+      "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, thinking_content, created_at) VALUES (?,?,?,?,?,?,?,?)",
+      [
+        botMsgId,
+        conversationId,
+        "bot",
+        targetBot.id,
+        replyContent,
+        mentionedBotId,
+        thinkingContent,
+        botNow,
+      ],
     );
 
     // Touch conversation updated_at
@@ -242,6 +315,9 @@ export const MessageRouter = {
       bot_id: targetBot.id,
       content: replyContent,
       mentioned_bot_id: mentionedBotId,
+      message_type: "text",
+      metadata: null,
+      thinking_content: thinkingContent,
       created_at: botNow,
     };
   },
