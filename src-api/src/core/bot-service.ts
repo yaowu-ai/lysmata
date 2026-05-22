@@ -1,5 +1,6 @@
 import { randomUUID } from "crypto";
 import { getDb } from "../shared/db";
+import type { AgentBackendType } from "./adapters/types";
 
 function normalizeAgentId(value: string | undefined): string {
   const normalized = value?.trim().toLowerCase();
@@ -14,9 +15,10 @@ export interface Bot {
   skills_config: string; // JSON string
   mcp_config: string; // JSON string
   llm_config: string; // JSON string
-  openclaw_ws_url: string;
-  openclaw_ws_token: string | null;
-  openclaw_agent_id: string; // which OpenClaw Agent to target (default: "main")
+  backend_type: AgentBackendType;
+  backend_url: string;
+  backend_token: string | null;
+  agent_id: string; // which Agent to target (default: "main")
   connection_status: "connected" | "disconnected" | "error" | "connecting";
   is_active: number;
   created_at: string;
@@ -30,9 +32,10 @@ export interface CreateBotInput {
   skills_config?: unknown[];
   mcp_config?: unknown;
   llm_config?: unknown;
-  openclaw_ws_url: string;
-  openclaw_ws_token?: string;
-  openclaw_agent_id?: string;
+  backend_type?: AgentBackendType;
+  backend_url: string;
+  backend_token?: string;
+  agent_id?: string;
   is_active?: boolean;
 }
 
@@ -51,9 +54,9 @@ export const BotService = {
     const db = getDb();
     db.run(
       `INSERT INTO bots (id, name, avatar_emoji, description, skills_config, mcp_config, llm_config,
-        openclaw_ws_url, openclaw_ws_token, openclaw_agent_id,
+        backend_type, backend_url, backend_token, agent_id,
         connection_status, is_active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disconnected', ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'disconnected', ?, ?, ?)`,
       [
         id,
         input.name,
@@ -62,9 +65,10 @@ export const BotService = {
         JSON.stringify(input.skills_config ?? []),
         JSON.stringify(input.mcp_config ?? {}),
         JSON.stringify(input.llm_config ?? {}),
-        input.openclaw_ws_url,
-        input.openclaw_ws_token || null,
-        normalizeAgentId(input.openclaw_agent_id),
+        input.backend_type ?? "openclaw",
+        input.backend_url,
+        input.backend_token || null,
+        normalizeAgentId(input.agent_id),
         input.is_active !== false ? 1 : 0,
         now,
         now,
@@ -104,17 +108,21 @@ export const BotService = {
       fields.push("llm_config = ?");
       values.push(JSON.stringify(input.llm_config));
     }
-    if (input.openclaw_ws_url !== undefined) {
-      fields.push("openclaw_ws_url = ?");
-      values.push(input.openclaw_ws_url);
+    if (input.backend_type !== undefined) {
+      fields.push("backend_type = ?");
+      values.push(input.backend_type);
     }
-    if (input.openclaw_ws_token !== undefined) {
-      fields.push("openclaw_ws_token = ?");
-      values.push(input.openclaw_ws_token || null);
+    if (input.backend_url !== undefined) {
+      fields.push("backend_url = ?");
+      values.push(input.backend_url);
     }
-    if (input.openclaw_agent_id !== undefined) {
-      fields.push("openclaw_agent_id = ?");
-      values.push(normalizeAgentId(input.openclaw_agent_id));
+    if (input.backend_token !== undefined) {
+      fields.push("backend_token = ?");
+      values.push(input.backend_token || null);
+    }
+    if (input.agent_id !== undefined) {
+      fields.push("agent_id = ?");
+      values.push(normalizeAgentId(input.agent_id));
     }
     if (input.is_active !== undefined) {
       fields.push("is_active = ?");

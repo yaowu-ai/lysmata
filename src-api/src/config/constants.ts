@@ -4,7 +4,10 @@ export const GATEWAY = {
   CHALLENGE_TIMEOUT_MS: 3_000,
   HANDSHAKE_TIMEOUT_MS: 10_000,
   RPC_TIMEOUT_MS: 30_000,
-  STREAM_TIMEOUT_MS: 120_000,
+  // Agent runs can be arbitrarily long (tool loops, deep reasoning). Cap at 1h
+  // as a safety net against leaked pending runs; the client can always abort
+  // earlier by closing the SSE connection.
+  STREAM_TIMEOUT_MS: 3_600_000,
   DEFAULT_TICK_INTERVAL_MS: 15_000,
   CLIENT_ID: "openclaw-control-ui",
   CLIENT_MODE: "ui",

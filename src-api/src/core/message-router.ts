@@ -1,10 +1,35 @@
 import { BotService, type Bot } from "./bot-service";
 import { ConversationService } from "./conversation-service";
-import { OpenClawProxy } from "./openclaw-proxy";
+import { getAdapter } from "./adapters/registry";
+import type { AgentEvent } from "./adapters/types";
 import { getDb } from "../shared/db";
 import { randomUUID } from "crypto";
 import { ApiError, notFound } from "../shared/errors";
 import { GatewayLogger } from "../shared/gateway-logger";
+
+export type ThinkingEvent =
+  | {
+      type: "tool_call";
+      sessionId: string;
+      toolName: string;
+      args?: unknown;
+      callId?: string;
+    }
+  | {
+      type: "tool_result";
+      sessionId: string;
+      callId?: string;
+      result?: unknown;
+      error?: string;
+    }
+  | {
+      type: "process";
+      kind: string;
+      sessionId?: string;
+      runId?: string;
+      payload?: Record<string, unknown>;
+      rawStream?: string;
+    };
 
 export interface Message {
   id: string;
@@ -15,7 +40,40 @@ export interface Message {
   mentioned_bot_id: string | null;
   message_type: string;
   metadata: string | null;
+  thinking_content: string | null;
   created_at: string;
+}
+
+function toThinkingEvent(event: AgentEvent): ThinkingEvent | null {
+  switch (event.type) {
+    case "tool_call":
+      return {
+        type: "tool_call",
+        sessionId: event.sessionId,
+        toolName: event.toolName,
+        args: event.args,
+        callId: event.callId,
+      };
+    case "tool_result":
+      return {
+        type: "tool_result",
+        sessionId: event.sessionId,
+        callId: event.callId,
+        result: event.result,
+        error: event.error,
+      };
+    case "process":
+      return {
+        type: "process",
+        kind: event.kind,
+        sessionId: event.sessionId,
+        runId: event.runId,
+        payload: event.payload,
+        rawStream: event.rawStream,
+      };
+    default:
+      return null;
+  }
 }
 
 export const MessageRouter = {
@@ -61,6 +119,8 @@ export const MessageRouter = {
     userContent: string,
     onChunk: (chunk: string, botId: string) => void,
     signal?: AbortSignal,
+    onEvent?: (event: AgentEvent, botId: string) => void,
+    preGenBotMsgId?: string,
   ): Promise<Message> {
     const conv = ConversationService.findById(conversationId);
     if (!conv) throw notFound("Conversation");
@@ -127,12 +187,12 @@ export const MessageRouter = {
       }
     }
 
-    // Forward to OpenClaw and collect reply
-    const normalizedAgentId =
-      (targetBot.openclaw_agent_id ?? "main").trim().toLowerCase() || "main";
-    // Gateway expects sessionKey in `agent:{agentId}:{sessionId}` shape for agent binding.
-    const gatewaySessionKey = `agent:${normalizedAgentId}:${conversationId}`;
+    // Forward to agent backend via adapter and collect reply
+    const adapter = getAdapter(targetBot.backend_type);
+    const normalizedAgentId = (targetBot.agent_id ?? "main").trim().toLowerCase() || "main";
+    const sessionKey = adapter.buildSessionKey(normalizedAgentId, conversationId);
     let replyContent = "";
+    const thinkingEvents: ThinkingEvent[] = [];
     GatewayLogger.logMessageRoute({
       phase: "target_selected",
       conversationId,
@@ -140,29 +200,53 @@ export const MessageRouter = {
       userMsgId,
       targetBotId: targetBot.id,
       targetBotName: targetBot.name,
-      targetBotUrl: targetBot.openclaw_ws_url,
+      targetBotUrl: targetBot.backend_url,
       agentId: normalizedAgentId,
-      sessionKey: gatewaySessionKey,
+      sessionKey,
       mentionedBotId,
       userContentLength: userContent.length,
       enrichedContentLength: enrichedContent.length,
     });
     try {
-      await OpenClawProxy.sendMessage(
-        targetBot.openclaw_ws_url,
-        targetBot.openclaw_ws_token ?? undefined,
-        normalizedAgentId,
-        enrichedContent,
-        (chunk) => {
-          // Gateway pushes accumulated text (not deltas), so each chunk is the
-          // full content up to that point. Assign instead of append to avoid
-          // concatenating repeated prefixes into the final stored message.
+      await adapter.sendMessage({
+        url: targetBot.backend_url,
+        token: targetBot.backend_token ?? undefined,
+        agentId: normalizedAgentId,
+        content: enrichedContent,
+        onChunk: (chunk) => {
+          // Adapters call onChunk with the accumulated reply text (not a delta).
+          // Contract defined in AgentAdapter.sendMessage.onChunk. Assignment here
+          // keeps the last complete snapshot; appending would duplicate prefixes.
           replyContent = chunk;
           onChunk(chunk, targetBot!.id);
         },
-        gatewaySessionKey, // explicit gateway session key keeps agent binding consistent
+        onEvent: (event: AgentEvent) => {
+          const thinkingEvent = toThinkingEvent(event);
+          if (thinkingEvent) {
+            thinkingEvents.push(thinkingEvent);
+          }
+          // Forward to caller (e.g., /stream SSE writer) for live UI updates.
+          // push-relay stays independent — it receives events via
+          // adapter.setPushHandler, not via this onEvent callback.
+          try {
+            onEvent?.(event, targetBot!.id);
+          } catch (err) {
+            console.warn("[message-router] onEvent callback threw:", err);
+          }
+          GatewayLogger.logMessageRoute({
+            phase: "stream_event",
+            conversationId,
+            conversationType: conv.type,
+            userMsgId,
+            targetBotId: targetBot!.id,
+            agentId: normalizedAgentId,
+            sessionKey,
+            eventType: event.type,
+          });
+        },
+        sessionId: sessionKey,
         signal,
-      );
+      });
     } catch (err) {
       GatewayLogger.logMessageRoute({
         phase: "error",
@@ -171,9 +255,9 @@ export const MessageRouter = {
         userMsgId,
         targetBotId: targetBot.id,
         targetBotName: targetBot.name,
-        targetBotUrl: targetBot.openclaw_ws_url,
+        targetBotUrl: targetBot.backend_url,
         agentId: normalizedAgentId,
-        sessionKey: gatewaySessionKey,
+        sessionKey,
         mentionedBotId,
         userContentLength: userContent.length,
         enrichedContentLength: enrichedContent.length,
@@ -183,11 +267,22 @@ export const MessageRouter = {
     }
 
     // Persist bot reply
-    const botMsgId = randomUUID();
+    const botMsgId = preGenBotMsgId ?? randomUUID();
     const botNow = new Date().toISOString();
+    const thinkingContent =
+      thinkingEvents.length > 0 ? JSON.stringify(thinkingEvents) : null;
     getDb().run(
-      "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, created_at) VALUES (?,?,?,?,?,?,?)",
-      [botMsgId, conversationId, "bot", targetBot.id, replyContent, mentionedBotId, botNow],
+      "INSERT INTO messages (id, conversation_id, sender_type, bot_id, content, mentioned_bot_id, thinking_content, created_at) VALUES (?,?,?,?,?,?,?,?)",
+      [
+        botMsgId,
+        conversationId,
+        "bot",
+        targetBot.id,
+        replyContent,
+        mentionedBotId,
+        thinkingContent,
+        botNow,
+      ],
     );
 
     // Touch conversation updated_at
@@ -206,9 +301,9 @@ export const MessageRouter = {
       userMsgId,
       targetBotId: targetBot.id,
       targetBotName: targetBot.name,
-      targetBotUrl: targetBot.openclaw_ws_url,
+      targetBotUrl: targetBot.backend_url,
       agentId: normalizedAgentId,
-      sessionKey: gatewaySessionKey,
+      sessionKey,
       mentionedBotId,
       botReplyLength: replyContent.length,
     });
@@ -220,6 +315,9 @@ export const MessageRouter = {
       bot_id: targetBot.id,
       content: replyContent,
       mentioned_bot_id: mentionedBotId,
+      message_type: "text",
+      metadata: null,
+      thinking_content: thinkingContent,
       created_at: botNow,
     };
   },

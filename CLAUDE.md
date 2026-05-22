@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 项目简介
 
-Lysmata 是一个 Tauri v2 桌面应用，用于管理多个连接到 OpenClaw Gateway 的 Bot，支持私聊/群聊。架构上分三层：Tauri Rust 壳 + React 前端 + Bun/Hono sidecar API。
+Lysmata 是一个 Tauri v2 桌面应用，用于管理多个 Agent Bot（当前聚焦私聊 + 任务执行）。后端通过可插拔的适配层对接多种 Agent 运行时：`openclaw`（OpenClaw Gateway，WS/HTTP）、`hermes`（Hermes Agent，HTTP）、`openai-compatible`（通用 OpenAI 兼容 API）。架构上分三层：Tauri Rust 壳 + React 前端 + Bun/Hono sidecar API。
 
 ## 常用命令
 
@@ -55,11 +55,13 @@ src-tauri/    # Tauri Rust 壳（负责启动 sidecar、窗口管理）
 
 ### Sidecar API 结构（`src-api/src/`）
 
-- `index.ts` — Hono app 入口，注册所有路由
+- `index.ts` — Hono app 入口，注册所有路由；启动时 `bootstrapAdapters()` 注册全部后端适配器，并为每个 active bot 按 `backend_type` 挂载 push handler
 - `app/api/` — REST 路由：`bots`, `conversations`, `messages`, `settings`, `health`
 - `core/bot-service.ts`, `conversation-service.ts` — 业务逻辑
-- `core/openclaw-proxy.ts` — WebSocket 代理，连接外部 OpenClaw Gateway
-- `core/push-relay.ts` — 将 Gateway 推送事件中继给前端 SSE 订阅者
+- `core/adapters/` — Agent 后端适配层：`types.ts`（`AgentAdapter` / `AgentEvent` / `AgentBackendType` 定义）、`registry.ts`（注册表 + `detectBackendType(url)` 自动推断）、`openclaw-adapter.ts` / `hermes-adapter.ts` / `openai-adapter.ts`。**新增后端 = 新加一个 `*-adapter.ts` 并在 `bootstrapAdapters()` 注册，其余层无需改动。**
+- `core/gateway/` — OpenClaw WS/HTTP 协议封装（`ws-adapter.ts` / `http-adapter.ts` / `connection-pool.ts`），被 `openclaw-adapter.ts` 委托使用
+- `core/message-router.ts` — 收到用户消息 → `getAdapter(bot.backend_type).sendMessage(...)` → 持久化回复
+- `core/push-relay.ts` — 接收任意 adapter 中继的 `AgentEvent`，按 session/global 路由到 SSE 订阅者
 - `shared/db.ts` — SQLite（`app.db`）
 
 ### 状态管理
@@ -75,8 +77,12 @@ src-tauri/    # Tauri Rust 壳（负责启动 sidecar、窗口管理）
 
 ### 实时数据流
 
-`AppLayout` 挂载时通过 `useGlobalStream` hook 订阅 `/bots/global-stream` SSE 端点。Gateway 推送的事件（presence、health、heartbeat、shutdown、node_pair_requested/resolved、cron）经 sidecar 的 `push-relay.ts` 中继后，在前端分发到 Zustand store 更新和 React Query 缓存失效。
+`AppLayout` 挂载时通过 `useGlobalStream` hook 订阅 `/bots/global-stream` SSE 端点。各后端通过各自适配器的 `setPushHandler` 把原生事件翻译成统一的 `AgentEvent`（presence、health、heartbeat、shutdown、tool_call、approval、cron 等），经 `push-relay.ts` 中继后，在前端分发到 Zustand store 更新和 React Query 缓存失效。
 
 ### 类型同步注意事项
 
-`src/shared/store/app-store.ts` 顶部注释明确说明：`BotStatusInfo` 等 payload 类型是从 `src-api/src/core/gateway/types.ts` 手动复制的，修改 Gateway 类型时需同步更新两处。
+`src/shared/store/app-store.ts` 顶部注释明确说明：`BotStatusInfo` 等 payload 类型是从 `src-api/src/core/gateway/types.ts` 手动复制的，修改 Gateway 类型时需同步更新两处。新增后端类型时，请同步 `src-api/src/core/adapters/types.ts` 的 `AgentBackendType` 和 `src/shared/types/index.ts` 的对应别名（两处必须完全一致）。
+
+### 流式契约
+
+`AgentAdapter.sendMessage` 的 `onChunk` 回调**约定收到累计回复文本（非 delta 片段）**。HTTP/SSE 类适配器（hermes、openai-compatible、openclaw HTTP 分支）必须在内部累加后再调用 `onChunk(accumulated)`。message-router 与前端 `PrivateChatPage` 都直接用 chunk 赋值渲染状态，若传 delta 会导致气泡只显示最后一个 token。

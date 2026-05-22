@@ -2,7 +2,7 @@
 
 # 🦐 Lysmata
 
-**[OpenClaw](https://github.com/yaowu-ai) Gateway 的本地管理与配置桌面客户端**
+**多 Agent 聊天桌面客户端（OpenClaw · Hermes · OpenAI 兼容）**
 
 [![Version](https://img.shields.io/badge/版本-0.1.0-blue)](https://github.com/yaowu-ai/lysmata/releases)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-orange)](https://tauri.app)
@@ -33,13 +33,13 @@
 
 ## Lysmata 是什么？
 
-Lysmata 是一款基于 **Tauri v2** 构建的跨平台桌面应用，让你可以在一个简洁的界面中连接、配置并与多个 **OpenClaw AI Agent Gateway** 实例交互。
+Lysmata 是一款基于 **Tauri v2** 构建的跨平台桌面应用，让你在一个简洁的界面中连接、配置并与多种 AI Agent 实时对话——不论后端跑的是什么。通过可插拔的适配层，同一套 UI 可以对接 [OpenClaw](https://github.com/yaowu-ai) Gateway、Hermes Agent，或任意 OpenAI 兼容端点（Ollama、vLLM、LM Studio 等）。
 
-你可以把它理解为 OpenClaw Bot 的统一控制台：添加连接、调整 LLM 供应商设置，并进行实时对话（一对一私聊或多 Bot 群聊）——一切都在桌面端完成，无需打开浏览器或手动编辑配置文件。
+你可以把它理解为统一的 Agent 控制台：添加连接、调整 LLM 供应商设置，并进行实时对话（一对一私聊或多 Bot 群聊）——一切都在桌面端完成，无需打开浏览器或手动编辑配置文件。当前聚焦**私聊 + 任务执行**；群聊功能保留但维护优先级较低。
 
 ## ✨ 功能特性
 
-- **Bot 管理** — 添加、编辑、删除多个 OpenClaw Gateway 连接。配置 WebSocket 端点、鉴权 Token、目标 Agent ID、Skills（JSON）、MCP 以及每个 Bot 独立的 LLM 覆盖设置。一键测试连接。
+- **Bot 管理** — 新增、编辑、删除 Bot，支持三种后端（`openclaw` / `hermes` / `openai-compatible`）。配置后端地址、鉴权 Token、目标 Agent ID、Skills（JSON）、MCP，以及每个 Bot 独立的 LLM 覆盖设置。一键测试连接。
 - **私聊** — 与任意 Bot 进行一对一实时对话，响应通过 SSE 流式传输。
 - **群聊** — 多 Bot 对话：设置主要 Bot、添加参与者，通过 `@提及` 将消息路由给指定 Bot。
 - **LLM 设置** — 直接在 UI 中管理 LLM 供应商（OpenAI、Anthropic、Google、OpenRouter、自定义）和模型。读写 `~/.openclaw/openclaw.json`。
@@ -64,7 +64,8 @@ Lysmata 采用三层架构：
 └──────────────────┬──────────────────────────────┘
                    │  WebSocket / HTTP
 ┌──────────────────▼──────────────────────────────┐
-│      OpenClaw Gateway（远程 / 本地）              │
+│   Agent 后端（通过可插拔适配层对接）              │
+│   OpenClaw Gateway · Hermes · OpenAI 兼容端点    │
 │   Agent RPC · 流式响应                           │
 └─────────────────────────────────────────────────┘
           由 Tauri v2（Rust）桌面壳封装
@@ -167,7 +168,9 @@ lysmata/
 ├── src-api/           # Hono Sidecar（Bun 运行时）
 │   └── src/
 │       ├── app/api/   # REST 路由：bots、conversations、messages、settings
-│       └── core/      # bot-service、openclaw-proxy、push-relay、gateway/
+│       └── core/      # bot-service、message-router、push-relay
+│           ├── adapters/  # 可插拔 Agent 后端（openclaw/hermes/openai-compatible）+ registry
+│           └── gateway/   # OpenClaw WS/HTTP 协议客户端
 ├── src-tauri/         # Tauri v2 Rust 壳
 │   ├── migrations/    # SQLite Schema 迁移文件
 │   └── src/lib.rs     # Sidecar 启动 & 数据库初始化

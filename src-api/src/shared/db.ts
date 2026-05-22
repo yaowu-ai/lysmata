@@ -31,8 +31,10 @@ function ensureSchema(db: Database): void {
       skills_config      TEXT NOT NULL DEFAULT '[]',
       mcp_config         TEXT NOT NULL DEFAULT '{}',
       llm_config         TEXT NOT NULL DEFAULT '{}',
-      openclaw_ws_url    TEXT NOT NULL,
-      openclaw_ws_token  TEXT,
+      backend_type       TEXT NOT NULL DEFAULT 'openclaw',
+      backend_url        TEXT NOT NULL,
+      backend_token      TEXT,
+      agent_id           TEXT NOT NULL DEFAULT 'main',
       connection_status  TEXT NOT NULL DEFAULT 'disconnected',
       is_active          INTEGER NOT NULL DEFAULT 1,
       created_at         TEXT NOT NULL,
@@ -64,6 +66,7 @@ function ensureSchema(db: Database): void {
       mentioned_bot_id TEXT,
       message_type     TEXT DEFAULT 'text',
       metadata         TEXT,
+      thinking_content TEXT,
       created_at       TEXT NOT NULL
     );
 
@@ -72,30 +75,14 @@ function ensureSchema(db: Database): void {
     CREATE INDEX IF NOT EXISTS idx_bots_active ON bots(is_active);
   `);
 
-  // Cleanup: remove orphaned conversation_bots rows whose bot no longer exists
-  db.exec(`DELETE FROM conversation_bots WHERE bot_id NOT IN (SELECT id FROM bots);`);
-
-  // Migration 2: add openclaw_agent_id and llm_config column (idempotent via PRAGMA table_info)
-  const cols = db
-    .query<{ name: string }, []>("PRAGMA table_info(bots)")
-    .all()
-    .map((r) => r.name);
-  if (!cols.includes("openclaw_agent_id")) {
-    db.exec(`ALTER TABLE bots ADD COLUMN openclaw_agent_id TEXT NOT NULL DEFAULT 'main';`);
-  }
-  if (!cols.includes("llm_config")) {
-    db.exec(`ALTER TABLE bots ADD COLUMN llm_config TEXT NOT NULL DEFAULT '{}';`);
-  }
-
-  // Migration 3: add message_type and metadata columns to messages table
-  const msgCols = db
+  const messageColumns = db
     .query<{ name: string }, []>("PRAGMA table_info(messages)")
     .all()
-    .map((r) => r.name);
-  if (!msgCols.includes("message_type")) {
-    db.exec(`ALTER TABLE messages ADD COLUMN message_type TEXT DEFAULT 'text';`);
+    .map((column) => column.name);
+  if (!messageColumns.includes("thinking_content")) {
+    db.run("ALTER TABLE messages ADD COLUMN thinking_content TEXT");
   }
-  if (!msgCols.includes("metadata")) {
-    db.exec(`ALTER TABLE messages ADD COLUMN metadata TEXT;`);
-  }
+
+  // Cleanup: remove orphaned conversation_bots rows whose bot no longer exists
+  db.exec(`DELETE FROM conversation_bots WHERE bot_id NOT IN (SELECT id FROM bots);`);
 }

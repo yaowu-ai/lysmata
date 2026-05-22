@@ -3,7 +3,14 @@
 import { randomUUID } from "crypto";
 import { GATEWAY } from "../../config/constants";
 import { GatewayLogger } from "../../shared/gateway-logger";
-import type { PoolEntry, GatewayFrame, GatewayEvent, GatewayResponse, PushEvent } from "./types";
+import type {
+  PoolEntry,
+  GatewayFrame,
+  GatewayEvent,
+  GatewayResponse,
+  PushEvent,
+  ProcessEventKind,
+} from "./types";
 
 export const pool = new Map<string, PoolEntry>();
 
@@ -42,6 +49,26 @@ export function handleFrame(entry: PoolEntry, data: string): void {
     if (resolver) {
       entry.pendingRequests.delete(res.id);
       resolver(res);
+    }
+
+    const runId = typeof res.payload?.runId === "string" ? res.payload.runId : undefined;
+    const run = runId ? entry.activeRuns.get(runId) : undefined;
+    if (run && res.ok) {
+      const payloads = Array.isArray(res.payload?.result?.payloads)
+        ? (res.payload.result.payloads as Array<Record<string, unknown>>)
+        : [];
+      const finalText = payloads
+        .map((item) => (typeof item?.text === "string" ? item.text : ""))
+        .join("")
+        .trim();
+
+      if (finalText) {
+        GatewayLogger.logPushEvent(url, "agent_rpc_final_text", {
+          runId,
+          textLength: finalText.length,
+        });
+        run.onDone(finalText);
+      }
     }
     return;
   }
@@ -316,6 +343,91 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
 
   const run = entry.activeRuns.get(runId);
 
+  const processKindFromStream = (streamName: string): ProcessEventKind | null => {
+    const normalized = streamName.trim().toLowerCase().replace(/[-.]/g, "_");
+    switch (normalized) {
+      case "thinking":
+        return "thinking";
+      case "tool_call":
+      case "tool_use":
+        return "tool_call";
+      case "tool_result":
+      case "tool_response":
+        return "tool_result";
+      case "todos":
+        return "todos";
+      case "task":
+        return "task";
+      case "confirmation":
+        return "confirmation";
+      case "authorization_required":
+        return "authorization_required";
+      case "plan":
+        return "plan";
+      case "progress":
+        return "progress";
+      default:
+        return null;
+    }
+  };
+
+  const parseProcessEvent = (): {
+    kind: ProcessEventKind;
+    payload?: Record<string, unknown>;
+    rawStream?: string;
+  } | null => {
+    const s = stream ?? "";
+    if (!s) return null;
+    const kind = processKindFromStream(s);
+    if (!kind) return null;
+    return {
+      kind,
+      payload: (data ?? {}) as Record<string, unknown>,
+      rawStream: s,
+    };
+  };
+
+  const parseToolEventFromProcess = (
+    processEvent: ReturnType<typeof parseProcessEvent>,
+  ):
+    | { kind: "tool_call"; toolName: string; args?: unknown; callId?: string }
+    | { kind: "tool_result"; callId?: string; result?: unknown; error?: string }
+    | null => {
+    if (!processEvent) return null;
+    const d = processEvent.payload ?? {};
+    if (processEvent.kind === "tool_call") {
+      const toolName =
+        typeof d.name === "string"
+          ? d.name
+          : typeof d.toolName === "string"
+            ? d.toolName
+            : typeof d.tool === "string"
+              ? d.tool
+              : "unknown";
+      return {
+        kind: "tool_call",
+        toolName,
+        args: d.args ?? d.input ?? d.params,
+        callId:
+          (typeof d.callId === "string" && d.callId) ||
+          (typeof d.id === "string" && d.id) ||
+          undefined,
+      };
+    }
+    if (processEvent.kind === "tool_result") {
+      return {
+        kind: "tool_result",
+        callId:
+          (typeof d.callId === "string" && d.callId) ||
+          (typeof d.id === "string" && d.id) ||
+          undefined,
+        result: d.result ?? d.output ?? d.content,
+        error: typeof d.error === "string" ? d.error : undefined,
+      };
+    }
+    return null;
+  };
+
   if (run) {
     // ── Request-response run (initiated by this client) ──
     if (stream === "assistant") {
@@ -326,9 +438,6 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
     if (stream === "lifecycle") {
       const phase = typeof data?.phase === "string" ? data.phase : null;
       if (phase === "end") {
-        // Mark as recently completed BEFORE deleting from activeRuns so that
-        // any duplicate/delayed frames arriving in the same tick are rejected
-        // by the push path below instead of being treated as new push runs.
         entry.recentlyCompletedRuns ??= new Set();
         entry.recentlyCompletedRuns.add(runId);
         setTimeout(() => entry.recentlyCompletedRuns?.delete(runId), 5_000);
@@ -341,6 +450,38 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
         entry.activeRuns.delete(runId);
         run.onError(new Error((data?.error as string | undefined) ?? "Agent error"));
       }
+      return;
+    }
+
+    const processEvent = parseProcessEvent();
+    if (run.onEvent && processEvent) {
+      const tool = parseToolEventFromProcess(processEvent);
+      if (tool?.kind === "tool_call") {
+        run.onEvent({
+          type: "tool_call",
+          sessionId: sessionId ?? "",
+          toolName: tool.toolName,
+          args: tool.args,
+          callId: tool.callId,
+        });
+      } else if (tool?.kind === "tool_result") {
+        run.onEvent({
+          type: "tool_result",
+          sessionId: sessionId ?? "",
+          callId: tool.callId,
+          result: tool.result,
+          error: tool.error,
+        });
+      } else {
+        run.onEvent({
+          type: "process",
+          kind: processEvent.kind,
+          sessionId,
+          runId,
+          payload: processEvent.payload,
+          rawStream: processEvent.rawStream,
+        });
+      }
     }
     return;
   }
@@ -348,9 +489,44 @@ export function handleEvent(entry: PoolEntry, ev: GatewayEvent): void {
   // ── Bot-initiated push run (runId unknown to this client) ──
   // Skip runs that just completed as client-initiated — they may send duplicate
   // frames after activeRuns.delete() due to Gateway retransmits or race conditions.
-  // Guard against entries created before this field existed (e.g. live connections).
   entry.recentlyCompletedRuns ??= new Set();
   if (entry.recentlyCompletedRuns.has(runId)) return;
+
+  // Structured push-run events — forward via onPushEvent so background activity
+  // can still drive the UI and persistence paths.
+  if (stream !== "assistant" && stream !== "lifecycle") {
+    const processEvent = parseProcessEvent();
+    if (entry.onPushEvent && processEvent) {
+      const tool = parseToolEventFromProcess(processEvent);
+      if (tool?.kind === "tool_call") {
+        entry.onPushEvent({
+          type: "tool_call",
+          sessionId,
+          toolName: tool.toolName,
+          args: tool.args,
+          callId: tool.callId,
+        });
+      } else if (tool?.kind === "tool_result") {
+        entry.onPushEvent({
+          type: "tool_result",
+          sessionId,
+          callId: tool.callId,
+          result: tool.result,
+          error: tool.error,
+        });
+      } else {
+        entry.onPushEvent({
+          type: "process",
+          kind: processEvent.kind,
+          sessionId,
+          runId,
+          payload: processEvent.payload,
+          rawStream: processEvent.rawStream,
+        });
+      }
+    }
+    return;
+  }
 
   // Buffer the accumulated text; on lifecycle.end deliver via onPushMessage.
   if (stream === "assistant") {

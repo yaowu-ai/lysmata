@@ -6,8 +6,11 @@ CREATE TABLE IF NOT EXISTS bots (
   description        TEXT NOT NULL DEFAULT '',
   skills_config      TEXT NOT NULL DEFAULT '[]',
   mcp_config         TEXT NOT NULL DEFAULT '{}',
-  openclaw_ws_url    TEXT NOT NULL,
-  openclaw_ws_token  TEXT,
+  llm_config         TEXT NOT NULL DEFAULT '{}',
+  backend_type       TEXT NOT NULL DEFAULT 'openclaw',
+  backend_url        TEXT NOT NULL,
+  backend_token      TEXT,
+  agent_id           TEXT NOT NULL DEFAULT 'main',
   connection_status  TEXT NOT NULL DEFAULT 'disconnected'
                        CHECK (connection_status IN ('connected','disconnected','error','connecting')),
   is_active          INTEGER NOT NULL DEFAULT 1,
@@ -42,6 +45,8 @@ CREATE TABLE IF NOT EXISTS messages (
   bot_id           TEXT REFERENCES bots(id),
   content          TEXT NOT NULL,
   mentioned_bot_id TEXT REFERENCES bots(id),
+  message_type     TEXT DEFAULT 'text',
+  metadata         TEXT,
   created_at       TEXT NOT NULL
 );
 

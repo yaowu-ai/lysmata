@@ -2,7 +2,7 @@
 
 # 🦐 Lysmata
 
-**Local management & configuration desktop client for [OpenClaw](https://github.com/yaowu-ai) Gateway**
+**Desktop client for multi-agent chat (OpenClaw · Hermes · OpenAI-compatible)**
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue)](https://github.com/yaowu-ai/lysmata/releases)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-orange)](https://tauri.app)
@@ -34,13 +34,13 @@
 
 ## What is Lysmata?
 
-Lysmata is a cross-platform desktop application built with **Tauri v2** that lets you connect, configure, and chat with multiple **OpenClaw AI Agent Gateway** instances — all from a single, clean interface.
+Lysmata is a cross-platform desktop application built with **Tauri v2** that lets you connect, configure, and chat with multiple AI agents — regardless of which backend they run on. Through a pluggable adapter layer, the same UI can talk to an [OpenClaw](https://github.com/yaowu-ai) Gateway, a Hermes agent, or any OpenAI-compatible endpoint (Ollama, vLLM, LM Studio, …), all from a single clean interface.
 
-Think of it as a universal control panel for your OpenClaw bots: add connections, tweak LLM provider settings, and hold real-time conversations (1-on-1 or multi-bot group chats) without ever leaving your desktop.
+Think of it as a universal control panel for your agents: add connections, tweak LLM provider settings, and hold real-time conversations (1-on-1 or multi-bot group chats) without ever leaving your desktop. Current focus is private 1-on-1 chat and task execution; group chat is available but less actively developed.
 
 ## ✨ Features
 
-- **Bot Management** — Add, edit, and delete multiple OpenClaw Gateway connections. Configure WebSocket endpoints, auth tokens, target agent IDs, skills (JSON), MCP, and per-bot LLM overrides. Test connections with one click.
+- **Bot Management** — Add, edit, and delete bots across multiple backends (`openclaw` / `hermes` / `openai-compatible`). Configure endpoints, auth tokens, target agent IDs, skills (JSON), MCP, and per-bot LLM overrides. Test connections with one click.
 - **Private Chat** — 1-on-1 real-time chat with any bot. Streamed responses via SSE.
 - **Group Chat** — Multi-bot conversations: designate a primary bot, add participants, and route messages to specific bots via `@mention`.
 - **LLM Settings** — Manage LLM providers (OpenAI, Anthropic, Google, OpenRouter, custom) and models directly in the UI. Reads and writes `~/.openclaw/openclaw.json`.
@@ -65,7 +65,8 @@ Lysmata follows a three-layer architecture:
 └──────────────────┬──────────────────────────────┘
                    │  WebSocket / HTTP
 ┌──────────────────▼──────────────────────────────┐
-│        OpenClaw Gateway  (remote / local)       │
+│   Agent Backend  (via pluggable adapter layer)  │
+│   OpenClaw Gateway · Hermes · OpenAI-compatible │
 │   Agent RPC · Streaming responses               │
 └─────────────────────────────────────────────────┘
         wrapped by Tauri v2 (Rust) desktop shell
@@ -168,7 +169,9 @@ lysmata/
 ├── src-api/           # Hono sidecar (Bun runtime)
 │   └── src/
 │       ├── app/api/   # REST routes: bots, conversations, messages, settings
-│       └── core/      # bot-service, openclaw-proxy, push-relay, gateway/
+│       └── core/      # bot-service, message-router, push-relay
+│           ├── adapters/  # Pluggable agent backends (openclaw, hermes, openai-compatible) + registry
+│           └── gateway/   # OpenClaw WS/HTTP protocol client
 ├── src-tauri/         # Tauri v2 Rust shell
 │   ├── migrations/    # SQLite schema migrations
 │   └── src/lib.rs     # Sidecar startup & DB init

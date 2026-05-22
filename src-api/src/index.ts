@@ -6,7 +6,6 @@ import health from "./app/api/health";
 import bots from "./app/api/bots";
 import conversations from "./app/api/conversations";
 import messages from "./app/api/messages";
-import { OpenClawProxy } from "./core/openclaw-proxy";
 import { PushRelay } from "./core/push-relay";
 import { BotService } from "./core/bot-service";
 import { ApiError } from "./shared/errors";
@@ -14,6 +13,8 @@ import settings from "./app/api/settings";
 import openclawInstall from "./app/api/openclaw-install";
 import agents from "./app/api/agents";
 import onboardingWorkspace from "./app/api/onboarding-workspace";
+import { bootstrapAdapters, getAdapter } from "./core/adapters/registry";
+import type { AgentEvent } from "./core/adapters/types";
 
 const app = new Hono();
 
@@ -51,18 +52,27 @@ app.onError((err, c) => {
   return c.json({ error: "Internal server error" }, 500);
 });
 
-// Wire push handlers for all active WS bots so bot-initiated messages are captured
-// Also prewarm WS connections to reduce first-message latency
+// Bootstrap adapter registry — registers all built-in backend adapters
+bootstrapAdapters();
+
+// Wire push handlers for all active bots so bot-initiated messages are captured
+// Also prewarm connections to reduce first-message latency
 function wirePushHandlersAndPrewarm() {
-  const bots = BotService.findAll().filter((b) => b.openclaw_ws_url?.startsWith("ws"));
-  for (const bot of bots) {
-    OpenClawProxy.setPushHandler(bot.openclaw_ws_url, (event) => {
-      PushRelay.handlePush(event, bot.id);
-    });
-    // Prewarm connection
-    OpenClawProxy.prewarmConnection(bot.openclaw_ws_url, bot.openclaw_ws_token || undefined).catch(
-      () => {},
-    );
+  const allBots = BotService.findAll().filter((b) => b.is_active);
+  for (const bot of allBots) {
+    try {
+      const adapter = getAdapter(bot.backend_type);
+      if (adapter.setPushHandler) {
+        adapter.setPushHandler(bot.backend_url, (event: AgentEvent) => {
+          PushRelay.handlePush(event, bot.id);
+        });
+      }
+      if (adapter.prewarmConnection) {
+        adapter.prewarmConnection(bot.backend_url, bot.backend_token || undefined).catch(() => {});
+      }
+    } catch (err) {
+      console.warn(`[sidecar] Failed to wire push handler for bot ${bot.id}:`, err);
+    }
   }
 }
 wirePushHandlersAndPrewarm();
@@ -70,12 +80,10 @@ wirePushHandlersAndPrewarm();
 // Graceful shutdown
 process.on("SIGTERM", () => {
   console.info("[sidecar] Received SIGTERM, shutting down...");
-  OpenClawProxy.closeAll();
   process.exit(0);
 });
 process.on("SIGINT", () => {
   console.info("[sidecar] Received SIGINT, shutting down...");
-  OpenClawProxy.closeAll();
   process.exit(0);
 });
 

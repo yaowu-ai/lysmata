@@ -1,7 +1,14 @@
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../../config";
 import { apiClient } from "../api-client";
-import type { Message, SendMessageInput } from "../types";
+import type {
+  AgentEvent,
+  CanonicalStreamEvent,
+  Message,
+  ProcessEventKind,
+  SendMessageInput,
+  StreamFrame,
+} from "../types";
 import { fetchWithEnv } from "../lib/utils";
 
 export const msgKeys = {
@@ -110,7 +117,8 @@ export function useSendMessageStream(conversationId: string) {
     content: string,
     onChunk: (text: string) => void,
     signal?: AbortSignal,
-  ): Promise<{ error?: string }> => {
+    onEvent?: (event: AgentEvent) => void,
+  ): Promise<{ error?: string; stopped?: boolean }> => {
     // Optimistically append user message to the last page of the infinite query
     const optimisticId = `optimistic-${Date.now()}`;
     qc.setQueryData<{ pages: Message[][]; pageParams: unknown[] }>(
@@ -133,11 +141,20 @@ export function useSendMessageStream(conversationId: string) {
 
     let botMsg: Message | null = null;
     let streamError: string | undefined;
+    let stopped = false;
+    const lastSeqByRunId = new Map<string, number>();
+    let activeCanonicalRunId: string | null = null;
+    let activeCanonicalMessageId: string | null = null;
 
     try {
       const res = await fetchWithEnv(
-        `${API_BASE_URL}/conversations/${conversationId}/messages/stream?content=${encodeURIComponent(content)}`,
-        { signal },
+        `${API_BASE_URL}/conversations/${conversationId}/messages/stream`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+          signal,
+        },
       );
       if (!res.ok || !res.body) throw new Error(`Stream error: ${res.status}`);
 
@@ -154,25 +171,105 @@ export function useSendMessageStream(conversationId: string) {
         buffer = lines.pop() ?? "";
 
         for (const line of lines) {
+          if (line.startsWith("id: ")) continue;
+          if (line.startsWith("event: ")) continue;
           if (!line.startsWith("data: ")) continue;
           const raw = line.slice(6).trim();
-          if (raw === "[DONE]") break outer; // legacy sentinel kept for compat
+          if (raw === "[DONE]") break outer;
+
           try {
-            const parsed = JSON.parse(raw) as {
-              chunk?: string;
-              done?: boolean;
-              botMsg?: Message;
-              error?: string;
-            };
-            if (parsed.error) {
-              streamError = parsed.error;
+            const parsed = JSON.parse(raw);
+
+            // ── Canonical stream events (v1) ──
+            if (parsed && parsed.v === 1 && parsed.type) {
+              const ce = parsed as CanonicalStreamEvent;
+              const lastSeq = lastSeqByRunId.get(ce.runId) ?? 0;
+              if (ce.seq <= lastSeq) continue;
+              lastSeqByRunId.set(ce.runId, ce.seq);
+
+              switch (ce.type) {
+                case "message_created":
+                  activeCanonicalRunId = ce.runId;
+                  activeCanonicalMessageId = ce.messageId ?? null;
+                  onChunk("");
+                  break;
+                case "text_start":
+                  if (activeCanonicalRunId && ce.runId !== activeCanonicalRunId) continue;
+                  onChunk("");
+                  break;
+                case "text_delta":
+                  if (activeCanonicalRunId && ce.runId !== activeCanonicalRunId) continue;
+                  if (ce.payload?.text) onChunk(ce.payload.text);
+                  break;
+                case "text_end":
+                  if (activeCanonicalRunId && ce.runId !== activeCanonicalRunId) continue;
+                  break;
+                case "process": {
+                  if (activeCanonicalRunId && ce.runId !== activeCanonicalRunId) continue;
+                  const kind = ce.payload?.kind as ProcessEventKind;
+                  const data = ce.payload?.data as Record<string, unknown> | undefined;
+                  const rawStream = ce.payload?.rawStream as string | undefined;
+                  if (kind === "tool_call" && data) {
+                    onEvent?.({
+                      type: "tool_call",
+                      sessionId: (data.sessionId as string) ?? "",
+                      toolName: (data.toolName as string) ?? "unknown",
+                      args: data.args,
+                      callId: data.callId as string | undefined,
+                    });
+                  } else if (kind === "tool_result" && data) {
+                    onEvent?.({
+                      type: "tool_result",
+                      sessionId: (data.sessionId as string) ?? "",
+                      callId: data.callId as string | undefined,
+                      result: data.result,
+                      error: data.error as string | undefined,
+                    });
+                  } else {
+                    onEvent?.({
+                      type: "process",
+                      kind,
+                      sessionId: ce.conversationId,
+                      runId: ce.runId,
+                      payload: data,
+                      rawStream,
+                    });
+                  }
+                  break;
+                }
+                case "complete":
+                  if (activeCanonicalRunId && ce.runId !== activeCanonicalRunId) continue;
+                  if (ce.payload?.reason === "stopped") {
+                    stopped = true;
+                  }
+                  break;
+                case "error":
+                  if (activeCanonicalRunId && ce.runId !== activeCanonicalRunId) continue;
+                  if (!stopped) {
+                    streamError = ce.payload?.message as string;
+                  }
+                  break outer;
+              }
+              continue;
+            }
+
+            // ── Legacy frames ──
+            const legacy = parsed as StreamFrame;
+            if ("type" in legacy && legacy.type === "event") {
+              onEvent?.(legacy.event);
+              continue;
+            }
+            if ("error" in legacy && legacy.error) {
+              if (!stopped) {
+                streamError = legacy.error;
+              }
               break outer;
             }
-            if (parsed.chunk) {
-              onChunk(parsed.chunk);
+            if ("chunk" in legacy && legacy.chunk) {
+              onChunk(legacy.chunk);
             }
-            if (parsed.done && parsed.botMsg) {
-              botMsg = parsed.botMsg;
+            if ("done" in legacy && legacy.done && legacy.botMsg) {
+              botMsg = legacy.botMsg;
               break outer;
             }
           } catch {
@@ -181,15 +278,13 @@ export function useSendMessageStream(conversationId: string) {
         }
       }
     } catch (err) {
-      // Ignore AbortError — user intentionally stopped the stream
       if (err instanceof DOMException && err.name === "AbortError") {
+        stopped = true;
         streamError = undefined;
       } else {
         streamError = String(err);
       }
     } finally {
-      // Append real bot message to cache if available — eliminates the gap
-      // between streaming bubble disappearing and refetch completing.
       if (botMsg) {
         qc.setQueryData<{ pages: Message[][]; pageParams: unknown[] }>(
           msgKeys.list(conversationId),
@@ -197,7 +292,6 @@ export function useSendMessageStream(conversationId: string) {
             if (!old) return old;
             const pages = [...old.pages];
             const lastPage = [...(pages[pages.length - 1] ?? [])];
-            // Remove optimistic user msg placeholder; real user msg comes from invalidateQueries refetch
             const withoutOptimistic = lastPage.filter((m) => m.id !== optimisticId);
             const hasBotMsg = lastPage.some((m) => m.id === botMsg!.id);
             pages[pages.length - 1] = hasBotMsg
@@ -206,13 +300,15 @@ export function useSendMessageStream(conversationId: string) {
             return { ...old, pages };
           },
         );
+      } else if (activeCanonicalMessageId && !stopped && !streamError) {
+        void qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
       }
 
-      // Background refetch to sync real IDs and pick up any missed messages.
       void qc.invalidateQueries({ queryKey: msgKeys.list(conversationId) });
     }
 
-    return streamError ? { error: streamError } : {};
+    if (stopped) return { stopped: true };
+    return streamError ? { error: streamError } : { stopped: false };
   };
 }
 

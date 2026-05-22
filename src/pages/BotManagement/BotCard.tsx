@@ -97,7 +97,7 @@ export function BotCard({ bot, onEdit, onDelete, onTest, isTesting }: Props) {
               <p className="text-[13px] text-[#64748B] mt-1 line-clamp-2">{bot.description}</p>
             )}
             <p className="text-[11px] text-[#94A3B8] mt-1 font-mono truncate">
-              {bot.openclaw_ws_url}
+              {bot.backend_url}
             </p>
           </div>
 

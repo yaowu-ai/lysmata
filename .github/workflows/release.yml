@@ -1,6 +1,8 @@
 name: Release
 
 on:
+  push:
+    branches: ["develop"]
   release:
     types: [published]
 
@@ -31,18 +33,32 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Sync version from Release tag into tauri.conf.json
+      - name: Resolve app version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          echo "Building version: $VERSION"
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            APP_VERSION="${RELEASE_TAG#v}"
+            ARTIFACT_VERSION="$APP_VERSION"
+          else
+            APP_VERSION="$(node -p "require('./package.json').version")"
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            ARTIFACT_VERSION="${APP_VERSION}-dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          fi
+
+          echo "Building app version: $APP_VERSION"
+          echo "Artifact version: $ARTIFACT_VERSION"
           node -e "
             const fs = require('fs');
             const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-            conf.version = '$VERSION';
+            conf.version = '$APP_VERSION';
             fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
-          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_VERSION=$ARTIFACT_VERSION" >> $GITHUB_ENV
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "artifact_version=$ARTIFACT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Import Apple certificate
         env:
@@ -80,11 +96,20 @@ jobs:
         run: bash scripts/package-macos-release.sh
 
       - name: Upload arm64 DMG to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_apple-silicon.dmg
+          files: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ steps.version.outputs.artifact_version }}_apple-silicon.dmg
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
+
+      - name: Upload arm64 DMG artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lysmata-${{ steps.version.outputs.artifact_version }}-apple-silicon
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/Lysmata_${{ steps.version.outputs.artifact_version }}_apple-silicon.dmg
+          if-no-files-found: error
 
   # ──────────────────────────────────────────
   # macOS x86_64 (Intel) — with signing
@@ -104,18 +129,32 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Sync version from Release tag into tauri.conf.json
+      - name: Resolve app version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          echo "Building version: $VERSION"
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            APP_VERSION="${RELEASE_TAG#v}"
+            ARTIFACT_VERSION="$APP_VERSION"
+          else
+            APP_VERSION="$(node -p "require('./package.json').version")"
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            ARTIFACT_VERSION="${APP_VERSION}-dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          fi
+
+          echo "Building app version: $APP_VERSION"
+          echo "Artifact version: $ARTIFACT_VERSION"
           node -e "
             const fs = require('fs');
             const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-            conf.version = '$VERSION';
+            conf.version = '$APP_VERSION';
             fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
-          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_VERSION=$ARTIFACT_VERSION" >> $GITHUB_ENV
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "artifact_version=$ARTIFACT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Import Apple certificate
         env:
@@ -153,11 +192,20 @@ jobs:
         run: bash scripts/package-macos-release.sh
 
       - name: Upload x64 DMG to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ env.APP_VERSION }}_intel.dmg
+          files: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ steps.version.outputs.artifact_version }}_intel.dmg
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
+
+      - name: Upload x64 DMG artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lysmata-${{ steps.version.outputs.artifact_version }}-intel
+          path: src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/Lysmata_${{ steps.version.outputs.artifact_version }}_intel.dmg
+          if-no-files-found: error
 
   # ──────────────────────────────────────────
   # Windows x64 — no signing
@@ -174,19 +222,33 @@ jobs:
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Sync version from Release tag into tauri.conf.json
+      - name: Resolve app version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         shell: bash
         run: |
-          VERSION="${{ github.event.release.tag_name }}"
-          VERSION="${VERSION#v}"
-          echo "Building version: $VERSION"
+          if [[ "$EVENT_NAME" == "release" ]]; then
+            APP_VERSION="${RELEASE_TAG#v}"
+            ARTIFACT_VERSION="$APP_VERSION"
+          else
+            APP_VERSION="$(node -p "require('./package.json').version")"
+            SHORT_SHA="${GITHUB_SHA:0:7}"
+            ARTIFACT_VERSION="${APP_VERSION}-dev.${GITHUB_RUN_NUMBER}.${SHORT_SHA}"
+          fi
+
+          echo "Building app version: $APP_VERSION"
+          echo "Artifact version: $ARTIFACT_VERSION"
           node -e "
             const fs = require('fs');
             const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
-            conf.version = '$VERSION';
+            conf.version = '$APP_VERSION';
             fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
           "
-          echo "APP_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "APP_VERSION=$ARTIFACT_VERSION" >> $GITHUB_ENV
+          echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
+          echo "artifact_version=$ARTIFACT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Build sidecar (Windows x64)
         run: bun run build:sidecar
@@ -196,9 +258,26 @@ jobs:
       - name: Build Tauri app (Windows NSIS installer)
         run: bun run tauri build --bundles nsis
 
+      - name: Rename Windows installer for artifact
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          SRC="src-tauri/target/release/bundle/nsis/Lysmata_${{ steps.version.outputs.app_version }}_x64-setup.exe"
+          DST="src-tauri/target/release/bundle/nsis/Lysmata_${{ steps.version.outputs.artifact_version }}_x64-setup.exe"
+          mv "$SRC" "$DST"
+
       - name: Upload Windows installer to Release
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
-          files: src-tauri/target/release/bundle/nsis/Lysmata_${{ env.APP_VERSION }}_x64-setup.exe
+          files: src-tauri/target/release/bundle/nsis/Lysmata_${{ steps.version.outputs.artifact_version }}_x64-setup.exe
           token: ${{ secrets.GITHUB_TOKEN }}
           fail_on_unmatched_files: true
+
+      - name: Upload Windows installer artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Lysmata-${{ steps.version.outputs.artifact_version }}-windows-x64
+          path: src-tauri/target/release/bundle/nsis/Lysmata_${{ steps.version.outputs.artifact_version }}_x64-setup.exe
+          if-no-files-found: error

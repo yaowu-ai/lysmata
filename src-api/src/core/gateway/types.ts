@@ -1,9 +1,50 @@
 // ── Shared types for the OpenClaw Gateway protocol ───────────────────────────
 
+export type ProcessEventKind =
+  | "thinking"
+  | "tool_call"
+  | "tool_result"
+  | "todos"
+  | "task"
+  | "confirmation"
+  | "authorization_required"
+  | "plan"
+  | "progress";
+
+export interface ToolCallEvent {
+  type: "tool_call";
+  sessionId: string;
+  toolName: string;
+  args?: unknown;
+  callId?: string;
+}
+
+export interface ToolResultEvent {
+  type: "tool_result";
+  sessionId: string;
+  callId?: string;
+  result?: unknown;
+  error?: string;
+}
+
+export interface ProcessEvent {
+  type: "process";
+  kind: ProcessEventKind;
+  sessionId?: string;
+  runId?: string;
+  payload?: Record<string, unknown>;
+  rawStream?: string;
+}
+
+/** Structured event surfaced during an in-flight agent run. */
+export type RunEvent = ToolCallEvent | ToolResultEvent | ProcessEvent;
+
 export interface PendingRun {
   onChunk: (text: string) => void;
-  onDone: () => void;
+  onDone: (finalText?: string) => void;
   onError: (err: Error) => void;
+  /** Structured events during streaming (tool_call / tool_result / process). */
+  onEvent?: (event: RunEvent) => void;
 }
 
 // ── Per-event payload shapes ─────────────────────────────────────────────────
@@ -92,7 +133,23 @@ export type PushEvent =
   | { type: "node_pair_resolved"; payload: NodePairResolvedPayload }
   | { type: "cron"; payload: CronPayload }
   | { type: "exec_finished"; sessionId?: string; payload: ExecFinishedPayload }
-  | { type: "exec_denied"; sessionId?: string; payload: ExecDeniedPayload };
+  | { type: "exec_denied"; sessionId?: string; payload: ExecDeniedPayload }
+  | { type: "tool_call"; sessionId?: string; toolName: string; args?: unknown; callId?: string }
+  | {
+      type: "tool_result";
+      sessionId?: string;
+      callId?: string;
+      result?: unknown;
+      error?: string;
+    }
+  | {
+      type: "process";
+      kind: ProcessEventKind;
+      sessionId?: string;
+      runId?: string;
+      payload?: Record<string, unknown>;
+      rawStream?: string;
+    };
 
 // ── Connection pool entry ────────────────────────────────────────────────────
 
@@ -154,3 +211,4 @@ export interface GatewayResponse extends GatewayFrame {
   payload?: Record<string, unknown>;
   error?: { code?: string; message?: string };
 }
+

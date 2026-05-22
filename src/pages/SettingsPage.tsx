@@ -284,13 +284,13 @@ export default function SettingsPage() {
           </button>
         </section>
 
-        {/* 3. OpenClaw Agents 管理 */}
+        {/* 4. OpenClaw Agents 管理 */}
         <AgentManagementSection />
 
-        {/* 4. Gateway 配置 */}
+        {/* 5. Gateway 配置 */}
         <GatewayConfigSection />
 
-        {/* 5. 配置向导 */}
+        {/* 6. 配置向导 */}
         <section className="bg-white border border-[#E5E7EB] rounded-xl p-6 mb-5">
           <h2 className="text-[17px] font-semibold mb-4">配置向导</h2>
           <p className="text-[13px] text-[#64748B] mb-4">
